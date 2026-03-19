@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -48,6 +39,15 @@ class DefaultFirebaseOptions {
         );
     }
   }
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyD95-GPLja7m8MQd8cLqFv6mnx_Ovd7m_o',
+    appId: '1:522147592354:web:913089271effca5e703ffb',
+    messagingSenderId: '522147592354',
+    projectId: 'dima-riccobono-riva-sartore',
+    authDomain: 'dima-riccobono-riva-sartore.firebaseapp.com',
+    storageBucket: 'dima-riccobono-riva-sartore.firebasestorage.app',
+  );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCI8rhu-iohyfiuhXvUxzmlhI06TZlbfSw',
@@ -64,5 +64,23 @@ class DefaultFirebaseOptions {
     projectId: 'dima-riccobono-riva-sartore',
     storageBucket: 'dima-riccobono-riva-sartore.firebasestorage.app',
     iosBundleId: 'com.example.application',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyB0Ma5X388somvcZZwSfpporSMPW-GQ-ek',
+    appId: '1:522147592354:ios:8260fbf33c290c29703ffb',
+    messagingSenderId: '522147592354',
+    projectId: 'dima-riccobono-riva-sartore',
+    storageBucket: 'dima-riccobono-riva-sartore.firebasestorage.app',
+    iosBundleId: 'com.example.application',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyD95-GPLja7m8MQd8cLqFv6mnx_Ovd7m_o',
+    appId: '1:522147592354:web:b159897527ebf566703ffb',
+    messagingSenderId: '522147592354',
+    projectId: 'dima-riccobono-riva-sartore',
+    authDomain: 'dima-riccobono-riva-sartore.firebaseapp.com',
+    storageBucket: 'dima-riccobono-riva-sartore.firebasestorage.app',
   );
 }
