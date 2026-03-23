@@ -1,5 +1,6 @@
 import 'package:application/screens/paginaHome.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:application/services/auth_service.dart';
+import 'package:application/services/database_service.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -13,8 +14,6 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _firebaseAuth = FirebaseAuth.instance;
-  
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _emailController = TextEditingController();
@@ -39,39 +38,56 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void _submitSignUp(BuildContext context) async {
     final isValid = _formKey.currentState!.validate();
-    String message = '';
 
     if (!isValid) return;
 
-    try{
-      await _firebaseAuth.createUserWithEmailAndPassword(
-        email: _emailController.text, 
-        password: _passwordController.text,
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text('Creating account...'),
+                ],
+              ),
+            ),
+          );
+        },
       );
-      //TODO: al posto del delay mettere dialog
-      Future.delayed(const Duration(seconds: 3), () {
+
+      final user = await AuthService().registerUser(_emailController.text, _passwordController.text);
+      if (user == null) {
+        throw Exception('User creation failed');
+      }
+
+      // Add user record to database
+      await DatabaseService().createUser(_emailController.text.trim(), _nicknameController.text.trim());
+
+      // When user created close dialogue and load homepage
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
+            //TODO: sostituire con la vera homepage
             builder: (_) => const HomePage(),
           ),
         );
-      });
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use'){
-        message = 'An account already exists with that email';
-      } else if (e.code == 'weak-password'){
-        message = 'The password provided is too weak';
       }
-      debugPrint(e.code);
-      Fluttertoast.showToast(
-        msg: message,
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.SNACKBAR,
-        backgroundColor: Colors.black54,
-        textColor: Colors.white,
-        fontSize: 14.0,
-      );
     } catch (e) {
+      debugPrint(e.toString());
+      
+      if(context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
       Fluttertoast.showToast(
         msg: "Failed: $e",
         toastLength: Toast.LENGTH_LONG,
