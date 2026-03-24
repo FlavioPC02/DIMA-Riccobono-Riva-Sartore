@@ -18,34 +18,95 @@
 \begin{document}
 \begin{titlepage}
 \centering
-Design and Implementation of Mobile Applications - Politecnico di Milano
-\\ {\large Project Documentation} 
-\vspace*{0.5cm} 
-\vspace*{1cm}
-\\
-{\Huge\bfseries Hiking Trail\par}
-\vspace{1cm}
-{\large Flavio Riccobono, Stefano Riva, Edoardo Sartore\par}
-\vspace{0.5cm}
-{A.A. 2025-2026\par} 
-\vspace{12cm}
-    %\includegraphics[width=0.5\linewidth]{Documentation/Images/polimi LOGO.png} 
+
+% Logo università
+\includegraphics[width=0.5\textwidth]{Documentation/images/polimi LOGO.png}\\[1cm]
+
+% Nome università
+{\Large \textbf{Politecnico di Milano}}\\[0.3cm]
+{\large Dipartimento di Informatica}\\[2cm]
+
+% Titolo documento
+{\Huge \textbf{Design and Requirements Document}}\\[0.5cm]
+
+\begin{flushleft}
+\large
+
+\textbf{Course:} Design and Implementation of Mobile Application \\[0.5cm]
+
+\textbf{Professor:} Luciano Baresi \\[1cm]
+
+\textbf{Students:}
+\begin{itemize}
+\item Flavio Riccobono (10793255)
+\item Stefano Riva (10794985)
+\item Edoardo Sartore (10825131)
+\end{itemize}
+
+\end{flushleft}
+
+\vfill
+
+{\large Academic Year 2025/2026}
+
 \end{titlepage}
 
+\newpage
 \tableofcontents
+\newpage
 
-\section{}
-odhakdkjasnkjdb\\
-fdaslkndlknas.
+\section{Introduction}
+
+\subsection{Purpose}
+
+\subsection{Requirements}
 
 \begin{center}
-\begin{tabular}{ |c|c| } 
+\begin{tabular}{ |c|p{0.8\linewidth}| } 
  \hline
- R1 & \\ 
- R2 & \\ 
- R3 & \\ 
+ R1 & The system shall allow the user to register/log-in to the platform.\\
+ \hline
+ R2 & The system shall allow the user to search for a list of hiking trails.\\
+ \hline
+ R3 & The system shall allow the user to filter hiking trails based on provided location, difficulty, altimetry, etc. \\
+ \hline
+ R4 & The system shall allow the user to view a list of hiking trails with all relevant information (e.g. distance, time, elevation, weather condition, difficulty).\\
+ \hline
+ R5 & The system shall allow the user to save an hiking trail for later use. \\
+ \hline
+ R6 & The system shall allow the user to download hiking trail essential data. \\
+ \hline
+ R7 & The system shall allow the user to start an hiking trail with live tracking. \\
+ \hline
+ R8 & The system shall allow the user to view real time information when in live tracking mode (e.g distance covered, time spent, current elevation). \\
+ \hline
+ R9 & The system shall allow the user to view real time information in the smartwatch companion app. \\
+ \hline
+ R10 & The system shall allow the user to pause the current hiking trail. \\
+ \hline
+ R11 & The system shall allow the user end the current hiking trail. \\
+ \hline
+ R12 & The system shall allow the user to review, leave a comment and attach photos on the finished hiking trail. \\
+ \hline
+ R13 & The system shall allow the user end the current hiking trail. \\
  \hline
 \end{tabular}
 \end{center}
-    
+
+schermate:
+\begin{itemize}
+\item registrazione + livello utente/login
+\item mappa con posizione corrente e percorsi disponibili + barra di ricerca
+\item visualizza lista percorsi ordinati per rilevanza
+\item info extra per ogni percorso, pulsante download mappa, pulsante salva percorso
+\item live tracking
+\item review, commento, foto
+\item personal journal
+\item profile page + settings
+\end{itemize}
+
+\begin{comment}
+    user: email, name, password, diary [list of trails], level [expert, beginner, intermediate]
+\end{comment}
+
 \end{document}
