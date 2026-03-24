@@ -89,7 +89,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
 
       Fluttertoast.showToast(
-        msg: "Failed: $e",
+        msg: "$e",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.SNACKBAR,
         backgroundColor: Colors.black54,
@@ -182,6 +182,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 16,),
 
                           TextFormField(
+                            key: const Key('passwordField'),
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
@@ -275,8 +276,9 @@ class _SignupScreenState extends State<SignupScreen> {
 
                     const SizedBox(height: 16),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text('Already have an account?'),
                         TextButton(
