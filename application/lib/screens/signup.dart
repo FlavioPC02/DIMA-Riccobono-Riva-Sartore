@@ -1,8 +1,7 @@
-import 'package:application/screens/paginaHome.dart';
+import 'package:application/screens/home_screen.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:application/services/database_service.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../core/theme/app_colors.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -65,17 +64,19 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // When user created close dialogue and load homepage
       if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
+        
         Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
             //TODO: sostituire con la vera homepage
-            builder: (_) => const HomePage(),
+            builder: (_) => const HomeScreen(),
           ),
         );
       }
     } catch (e) {
-      debugPrint(e.toString());
-      _authError = '$e';
+      setState(() {
+        _authError = e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
     }
 
   }

@@ -1,9 +1,8 @@
 import 'package:application/screens/signup.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../features/auth/auth_service.dart';
 import 'home_screen.dart';
 import '../core/theme/app_colors.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,8 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   // Variabile per gestire lo stato di caricamento durante il login
   bool _isLoading = false;
 
-  // Inizializza il servizio di autenticazione
-  final AuthService _authService = AuthService();
 
   // Chiavi e controller per il form di login
   final _formKey = GlobalKey<FormState>();
@@ -49,37 +46,23 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    try {
-      await _authService.signIn(
+    try{
+      final user = await AuthService().signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
-      if (!mounted) return;
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = 'Errore di autenticazione';
-
-      if (e.code == 'user-not-found') {
-        message = 'Utente non trovato';
-      } else if (e.code == 'wrong-password') {
-        message = 'Password non corretta';
+      if(user == null){
+        throw Exception('Login failed');
       }
-
       if (!mounted) return;
-
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (_) => const HomeScreen(),
+        ),
+      );
+    } catch (e) {
       setState(() {
-        _authError = message;
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _authError = 'Si è verificato un errore';
+        _authError = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
     }
