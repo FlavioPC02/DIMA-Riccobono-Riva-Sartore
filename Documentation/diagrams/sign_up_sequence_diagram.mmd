@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    participant sign as Sign up Page
+    participant auth as Authentication<br>Service
+    participant dbser as Database<br>Service
+    participant fba as Firebase<br>Authentication
+    participant fs as Firestore
+    participant home as Homepage
+
+    sign ->> sign: Fill in form
+    sign ->> sign: Validate input
+    sign ->>+ auth: Register User
+    auth ->>+ fba: Create User
+    alt Data is correct
+        fba --> auth: User Credentials
+        auth --> sign: User
+        sign ->>+ dbser: Store User
+        dbser ->>+ fs: Record new user
+        alt No exceptions arisen
+            fs --> dbser: 
+            dbser --> sign:
+            sign ->> home: Go to Homepage
+        else
+            fs -->- dbser: Error
+            dbser -->- sign: Error
+            sign ->> sign: Show toaster
+        end
+    else
+        fba -->- auth: Error
+        auth -->- sign: Error Message
+        sign ->> sign: Show toaster
+    end
+
