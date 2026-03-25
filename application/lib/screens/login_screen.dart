@@ -1,8 +1,8 @@
+import 'package:application/screens/signup.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../features/auth/auth_service.dart';
 import 'home_screen.dart';
-import 'register_screen.dart';
 import '../core/theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -212,10 +212,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text('Non hai un account?'),
                         TextButton(
                           onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const RegisterScreen(),
-                              ),
+                            Navigator.push(
+                              context, 
+                              MaterialPageRoute(builder: (_) => SignupScreen()),
                             );
                           },
                           child: const Text('Registrati'),
