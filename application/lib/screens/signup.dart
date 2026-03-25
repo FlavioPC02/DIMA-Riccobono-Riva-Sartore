@@ -21,11 +21,18 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
+  String? _authError;
+
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isPasswordValid = false;
+  bool _isLoading = false;
 
-
+  @override
+  void initState() {
+    _authError = null;
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -41,28 +48,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
     if (!isValid) return;
 
-    try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return Dialog(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  const Text('Creating account...'),
-                ],
-              ),
-            ),
-          );
-        },
-      );
+    setState(() {
+      _authError = null;
+      _isLoading = true;
+    });
 
+    try {
       final user = await AuthService().registerUser(_emailController.text, _passwordController.text);
       if (user == null) {
         throw Exception('User creation failed');
@@ -83,20 +74,9 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (e) {
       debugPrint(e.toString());
-      
-      if(context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      Fluttertoast.showToast(
-        msg: "$e",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.SNACKBAR,
-        backgroundColor: Colors.black54,
-        textColor: Colors.white,
-        fontSize: 14.0,
-      );
+      _authError = '$e';
     }
+
   }
 
   void goToLogin(BuildContext context) {
@@ -137,6 +117,22 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     const SizedBox(height: 32),
 
+                    if(_authError != null) ... [
+                      const SizedBox(height: 16,),
+
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.errorBorder),
+                        ),
+                        child: Text(
+                          _authError!,
+                          style: const TextStyle(color: AppColors.errorText),
+                        ),
+                      ),
+                    ],
                     Form(
                       key: _formKey,
                       child: Column(
@@ -182,7 +178,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 16,),
 
                           TextFormField(
-                            key: const Key('passwordField'),
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
@@ -267,10 +262,16 @@ class _SignupScreenState extends State<SignupScreen> {
                     SizedBox(
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: _isLoading ? null : () {
                           _submitSignUp(context);
                         },
-                        child: const Text('Sign Up'),
+                        child: _isLoading ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ) : const Text('Sign Up'),
                       ),
                     ),
 

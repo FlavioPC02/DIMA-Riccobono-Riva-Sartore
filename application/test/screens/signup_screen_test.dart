@@ -175,7 +175,69 @@ void main() {
       testWidgets(
         'Validate passoword inline errors', 
         (tester) async {
-          
+          await tester.pumpWidget(createWidgetUnderTest());
+
+          final passwordFormField = find.ancestor(
+            of: find.text('Password'), 
+            matching: find.byType(TextFormField)
+          );
+          final passwordEditableField = find.descendant(
+            of: passwordFormField, 
+            matching: find.byType(EditableText)
+          );
+          final submitButtonFinder = find.ancestor(
+            of: find.text('Sign Up'),
+            matching: find.byType(ElevatedButton),
+          );
+          final obscureButtonFinder = find.descendant(
+            of: passwordFormField, 
+            matching: find.byType(IconButton),
+          );
+          final emptyPasswordErrorFinder = find.text('Insert your password');
+          final shortPasswordErrorFinder = find.text('Password must be at least six-characters long');
+
+          //Testing obscure text
+          //t0: text is obscure 
+          final input = tester.widget<EditableText>(passwordEditableField);
+          expect(input.obscureText, isTrue);
+
+          //clicking on the icon changes the obscure text
+          await tester.ensureVisible(obscureButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(obscureButtonFinder);
+          await tester.pump(Duration(milliseconds: 100));
+
+          expect(input.obscureText, isFalse);
+
+          //t0: no error shown
+          expect(emptyPasswordErrorFinder, findsNothing);
+          expect(shortPasswordErrorFinder, findsNothing);
+
+          //Trying to submit empty password
+          await tester.ensureVisible(submitButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(submitButtonFinder);
+          await tester.pump(Duration(milliseconds: 100));
+          expect(emptyPasswordErrorFinder, findsOneWidget);
+
+          //Trying to submit short password
+          await tester.enterText(passwordFormField, 'short');
+
+          await tester.ensureVisible(submitButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(submitButtonFinder);
+          await tester.pump(Duration(milliseconds: 100));
+          expect(shortPasswordErrorFinder, findsOneWidget);
+
+          //Submit valid password
+          await tester.enterText(passwordFormField, 'valid password');
+
+          await tester.ensureVisible(submitButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(submitButtonFinder);
+          await tester.pump(Duration(milliseconds: 100));
+          expect(emptyPasswordErrorFinder, findsNothing);
+          expect(shortPasswordErrorFinder, findsNothing);
         }
       );
     }
