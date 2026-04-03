@@ -173,7 +173,7 @@ void main() {
       );
 
       testWidgets(
-        'Validate passoword inline errors', 
+        'Validate password inline errors', 
         (tester) async {
           await tester.pumpWidget(createWidgetUnderTest());
 
@@ -198,16 +198,17 @@ void main() {
 
           //Testing obscure text
           //t0: text is obscure 
-          final input = tester.widget<EditableText>(passwordEditableField);
-          expect(input.obscureText, isTrue);
+          EditableText passwordInput = tester.widget<EditableText>(passwordEditableField);
+          expect(passwordInput.obscureText, isTrue);
 
           //clicking on the icon changes the obscure text
           await tester.ensureVisible(obscureButtonFinder);
           await tester.pumpAndSettle();
           await tester.tap(obscureButtonFinder);
-          await tester.pump(Duration(milliseconds: 100));
+          await tester.pumpAndSettle();
 
-          expect(input.obscureText, isFalse);
+          passwordInput = tester.widget<EditableText>(passwordEditableField);
+          expect(passwordInput.obscureText, isFalse);
 
           //t0: no error shown
           expect(emptyPasswordErrorFinder, findsNothing);
@@ -240,6 +241,128 @@ void main() {
           expect(shortPasswordErrorFinder, findsNothing);
         }
       );
+
+      testWidgets(
+        'Validate confirm password inline error', 
+        (tester) async {
+          await tester.pumpWidget(createWidgetUnderTest());
+
+          final passwordFormField = find.ancestor(
+            of: find.text('Password'), 
+            matching: find.byType(TextFormField),
+          );
+          final confirmPasswordFormField = find.ancestor(
+            of: find.text('Confirm password'), 
+            matching: find.byType(TextFormField)
+          );
+          final confirmPasswordEditableField = find.descendant(
+            of: confirmPasswordFormField, 
+            matching: find.byType(EditableText)
+          );
+          final submitButtonFinder = find.ancestor(
+            of: find.text('Sign Up'),
+            matching: find.byType(ElevatedButton),
+          );
+          final obscureButtonFinder = find.descendant(
+            of: confirmPasswordFormField,
+            matching: find.byType(IconButton),
+          );
+          final emptyPasswordErrorFinder = find.text('Confirm your password');
+          final mismatchPasswordErrorFinder = find.text('Password mismatch');
+
+          //t0: confirm password form field disabled
+          TextFormField confirmPasswordInputWidget = tester.widget<TextFormField>(confirmPasswordFormField);
+          expect(confirmPasswordInputWidget.enabled, isFalse);
+
+          //Write valid password -> confirm password enabled
+          await tester.enterText(passwordFormField, 'password');
+          await tester.pumpAndSettle();
+
+          confirmPasswordInputWidget = tester.widget<TextFormField>(confirmPasswordFormField);
+          expect(confirmPasswordInputWidget.enabled, isTrue);
+
+          //Testing obscure text
+          //t0: text is obscure 
+          EditableText confirmPasswordInput = tester.widget<EditableText>(confirmPasswordEditableField);
+          expect(confirmPasswordInput.obscureText, isTrue);
+
+          //clicking on the icon changes the obscure text
+          await tester.ensureVisible(obscureButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(obscureButtonFinder);
+          await tester.pumpAndSettle();
+
+          confirmPasswordInput = tester.widget<EditableText>(confirmPasswordEditableField);
+          expect(confirmPasswordInput.obscureText, isFalse);
+
+          //t0: no error shown
+          expect(emptyPasswordErrorFinder, findsNothing);
+          expect(mismatchPasswordErrorFinder, findsNothing);
+
+          //Trying to submit no confirm password
+          await tester.ensureVisible(submitButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(submitButtonFinder);
+          await tester.pumpAndSettle();
+
+          expect(emptyPasswordErrorFinder, findsOneWidget);
+
+          //Trying to submit password mismatch
+          await tester.enterText(confirmPasswordFormField, 'wrong password');
+
+          await tester.ensureVisible(submitButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(submitButtonFinder);
+          await tester.pumpAndSettle();
+
+          expect(mismatchPasswordErrorFinder, findsOneWidget);
+
+          //Trying to submit correct password
+          await tester.enterText(confirmPasswordFormField, 'password');
+
+          await tester.ensureVisible(submitButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(submitButtonFinder);
+          await tester.pumpAndSettle();
+
+          expect(emptyPasswordErrorFinder, findsNothing);
+          expect(mismatchPasswordErrorFinder, findsNothing);
+        }
+      );
     }
   );
+
+  /* TODO: decommenta quando ci sarà pagina login finita
+  group(
+    'Integration tests', 
+    () {
+      testWidgets(
+        'Change to login page', 
+        (tester) async {
+          await tester.pumpWidget(createWidgetUnderTest());
+
+          final loginButtonFinder = find.ancestor(
+            of: find.text('Login'), 
+            matching: find.byType(TextButton),
+          );
+          final loginPageFinder = find.byKey(Key('login'));
+          final signupPageFinder = find.byKey(Key('signup'));
+
+          //t0: signup page
+          expect(loginPageFinder, findsNothing);
+          expect(signupPageFinder, findsOneWidget);
+
+          //Clicking on login button moves to login page
+          await tester.ensureVisible(loginButtonFinder);
+          await tester.pumpAndSettle();
+          await tester.tap(loginButtonFinder);
+          await tester.pumpAndSettle();
+
+          expect(loginPageFinder, findsOneWidget);
+          expect(signupPageFinder, findsNothing);
+        }
+      );
+    }
+  );
+  */
 }

@@ -71,6 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: Key('login'),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
