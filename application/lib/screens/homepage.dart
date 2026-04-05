@@ -20,11 +20,15 @@ class _NavigationState extends State<Navigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: <Widget>[
-        MapPage(),
-        DiaryPage(),
-        SettingsPage(),   
-      ][_currentPageIndex],
+      //indexed stack keeps the state of each page alive when switching between them
+      body: IndexedStack(
+        index: _currentPageIndex,
+        children: const <Widget>[
+          MapPage(),
+          DiaryPage(),
+          SettingsPage(),   
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         onDestinationSelected: _togglePage,
         selectedIndex: _currentPageIndex,
@@ -55,7 +59,7 @@ class DiaryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text("diary", style: TextStyle(fontSize: 40), textAlign: TextAlign.center,),);
+    return const Center(child: Text("diary", style: TextStyle(fontSize: 40), textAlign: TextAlign.center,),);
   }
 }
 
@@ -64,6 +68,6 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text("settings", style: TextStyle(fontSize: 40), textAlign: TextAlign.center,),);
+    return const Center(child: Text("settings", style: TextStyle(fontSize: 40), textAlign: TextAlign.center,),);
   }
 }
