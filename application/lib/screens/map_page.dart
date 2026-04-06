@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart' as geo;
+import '../core/theme/app_colors.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -21,8 +22,7 @@ class MainMapWidget extends StatefulWidget {
   State<MainMapWidget> createState() => _MainMapWidgetState();
 }
 
-class _MainMapWidgetState extends State<MainMapWidget>
-    with AutomaticKeepAliveClientMixin {
+class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveClientMixin {
   MapboxMap? _mapboxMap;
   PolylineAnnotationManager? _polylineAnnotationManager;
   //list containing the top 10 trails
@@ -166,7 +166,15 @@ class _MainMapWidgetState extends State<MainMapWidget>
               onPressed: () async {
                 Navigator.of(context).pop();
               },
-              child: const Text('Close'),
+              child: const Text('Ignore'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                //open device settings to allow the user to enable location services
+                geo.Geolocator.openLocationSettings();
+              },
+              child: const Text('Enable location permission'),
             ),
           ],
         );
@@ -261,7 +269,7 @@ class _MainMapWidgetState extends State<MainMapWidget>
         PolylineAnnotationOptions(
           geometry: LineString(coordinates: trail['coordinates']),
           lineWidth: isSelected ? 6.0 : 3.0,
-          lineColor: isSelected ? Colors.redAccent.toARGB32() : Colors.blueGrey.toARGB32(),
+          lineColor: isSelected ? AppColors.selectedTrail.toARGB32() : AppColors.unselectedTrail.toARGB32(),
           lineJoin: LineJoin.ROUND,
           lineSortKey: isSelected ? 10.0 : 1.0,
         ),
@@ -457,7 +465,7 @@ class _MainMapWidgetState extends State<MainMapWidget>
           right: 16.0,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.background,
               borderRadius: BorderRadius.circular(30),
             ),
             child: TextField(
@@ -466,6 +474,7 @@ class _MainMapWidgetState extends State<MainMapWidget>
               onSubmitted: (value) => _searchLocation(value),
               decoration: InputDecoration(
                 hintText: 'Search for a location...',
+                hintStyle: Theme.of(context).textTheme.bodyMedium,
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -494,7 +503,7 @@ class _MainMapWidgetState extends State<MainMapWidget>
           top: 130.0,
           right: 20.0,
           child: FloatingActionButton(
-            backgroundColor: Colors.white,
+            backgroundColor: AppColors.background,
             onPressed: _centerMapOnUser,
             mini: true,
             child: Icon(
@@ -509,43 +518,43 @@ class _MainMapWidgetState extends State<MainMapWidget>
           left: 0,
           right: 0,
           child: _foundTrails.isEmpty
-              ? Center(
-                  child: ElevatedButton.icon(
-                    onPressed: (_isLoadingTrails || !_isZoomedInEnough)
-                        ? null
-                        : _fetchTrails,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      elevation: 6,
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      disabledForegroundColor: Colors.grey.shade600,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 90.0),
+                  child: Center(
+                    child: ElevatedButton.icon(
+                      onPressed: (_isLoadingTrails || !_isZoomedInEnough)
+                          ? null
+                          : _fetchTrails,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.background,
+                        elevation: 6,
+                        disabledBackgroundColor: AppColors.deactivatedButtonBackground,
+                        disabledForegroundColor: AppColors.deactivatedButtonText,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 14,
-                      ),
-                    ),
-                    icon: _isLoadingTrails
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.5),
-                          )
-                        : Icon(
-                            !_isZoomedInEnough ? Icons.zoom_in : Icons.search,
-                            size: 24,
-                          ),
-                    label: Text(
-                      _isLoadingTrails
-                          ? 'Searching...'
-                          : (!_isZoomedInEnough
-                                ? 'Zoom in to search for trails'
-                                : 'Search for hiking trails in this area'),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      icon: _isLoadingTrails
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            )
+                          : Icon(
+                              !_isZoomedInEnough ? Icons.zoom_in : Icons.search,
+                              size: 24,
+                            ),
+                      label: Text(
+                        _isLoadingTrails
+                            ? 'Searching...'
+                            : (!_isZoomedInEnough
+                                  ? 'Zoom in to search for trails'
+                                  : 'Search for hiking trails in this area'),
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
                   ),
@@ -597,15 +606,12 @@ class _MainMapWidgetState extends State<MainMapWidget>
                                 children: [
                                   Icon(
                                     Icons.hiking,
-                                    color: Colors.blue,
+                                    color: AppColors.primary,
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
                                     trail['name'],
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodyMedium,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -625,7 +631,7 @@ class _MainMapWidgetState extends State<MainMapWidget>
             bottom: 170.0,
             right: 40.0,
             child: FloatingActionButton(
-              backgroundColor: Colors.white,
+              backgroundColor: AppColors.background,
               mini: true,
               onPressed: () {
                 if (mounted) {

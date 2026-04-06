@@ -1,4 +1,8 @@
+import 'package:application/screens/signup.dart';
 import 'package:flutter/material.dart';
+import 'package:application/screens/homepage.dart';
+import '../core/theme/app_colors.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,13 +14,20 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
+  // Variabile per gestire lo stato di caricamento durante il login
+  bool _isLoading = false;
 
+
+  // Chiavi e controller per il form di login
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
 
+  String? _authError;
+
+  // Pulisce i controller quando il widget viene smontato
   @override
   void dispose() {
     _emailController.dispose();
@@ -24,16 +35,37 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submitLogin() {
+  // Funzione per gestire il login
+  Future<void> _submitLogin() async {
     final isValid = _formKey.currentState!.validate();
 
     if (!isValid) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Form valido'),
-      ),
-    );
+    setState(() {
+      _authError = null;
+      _isLoading = true;
+    });
+
+    try{
+      final user = await AuthService().signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if(user == null){
+        throw Exception('Login failed');
+      }
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (_) => const Navigation(),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _authError = e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -43,19 +75,13 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 32,
-                ),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
-                      Icons.terrain,
-                      size: 80,
-                    ),
+                    const Icon(Icons.terrain, size: 80),
                     const SizedBox(height: 16),
                     Text(
                       'Bentornato',
@@ -68,8 +94,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                    if (_authError != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.errorBorder),
+                        ),
+                        child: Text(
+                          _authError!,
+                          style: const TextStyle(color: AppColors.errorText),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     const SizedBox(height: 32),
-
                     Form(
                       key: _formKey,
                       child: Column(
@@ -88,15 +129,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 return 'Inserisci la tua email';
                               }
 
-                              if (!value.contains('@') || !value.contains('.')) {
+                              if (!value.contains('@') ||
+                                  !value.contains('.')) {
                                 return 'Inserisci un indirizzo email valido';
                               }
-
                               return null;
                             },
                           ),
                           const SizedBox(height: 16),
-
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -132,35 +172,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
-
-                    const SizedBox(height: 12),
-
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {},
-                        child: const Text('Password dimenticata?'),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
+                    const SizedBox(height: 24),
                     SizedBox(
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: _submitLogin,
-                        child: const Text('Accedi'),
+                        onPressed: _isLoading ? null : _submitLogin,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Accedi'),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text('Non hai un account?'),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.push(
+                              context, 
+                              MaterialPageRoute(builder: (_) => SignupScreen()),
+                            );
+                          },
                           child: const Text('Registrati'),
                         ),
                       ],
