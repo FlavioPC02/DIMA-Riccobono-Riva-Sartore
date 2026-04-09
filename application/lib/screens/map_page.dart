@@ -51,6 +51,12 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
   //app name for user agent in API requests
   final String _appName = 'FlutterHikingApp/1.0';
 
+  //constants for buttons positions used to calculate visible area
+  static const double _centerMapButtonTopOffset = 130.0;
+  static const double _centerMapButtonHeight = 56.0;
+  static const double _closeButtonBottomOffset = 170.0;
+  static const double _closeButtonHeight = 145.0;
+
   //keep the state of the map page alive when switching between screens
   @override
   bool get wantKeepAlive => true;
@@ -149,7 +155,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
     );
   }
 
-  //dialog shown when location services are disabled
+  // dialog shown when location services are disabled
   void _showLocationServiceDialog() {
     showDialog(
       context: context,
@@ -159,22 +165,35 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          title: const Text('Location service required'),
-          content: const Text('Enable GPS to obtain the current location.'),
+          title: const Text('Location service required', textAlign: TextAlign.center),
+          content: const Text(
+            'Enable GPS to obtain the current location.',
+            textAlign: TextAlign.center,
+          ),
           actions: [
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Ignore'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                //open device settings to allow the user to enable location services
-                geo.Geolocator.openLocationSettings();
-              },
-              child: const Text('Enable location permission'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    //open device settings to allow the user to enable location services
+                    geo.Geolocator.openLocationSettings();
+                  },
+                  child: const Text('Enable location permission'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.errorBackground,
+                  ),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Ignore', style: TextStyle(color: AppColors.errorText)),
+                ),
+              ],
             ),
           ],
         );
@@ -182,7 +201,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
     );
   }
 
-  //dialog shown when location permissions are denied
+  // dialog shown when location permissions are denied
   void _showLocationPermissionDialog() {
     showDialog(
       context: context,
@@ -192,24 +211,35 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          title: const Text('Location permission required'),
+          title: const Text('Location permission required', textAlign: TextAlign.center),
           content: const Text(
             'Without enabling the permission, it is not possible to obtain the current location.',
+            textAlign: TextAlign.center,
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Ignore'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                //open app settings to allow the user to grant location permissions
-                geo.Geolocator.openAppSettings();
-              },
-              child: const Text('Enable location permission'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    //request location permissions
+                    await geo.Geolocator.requestPermission();
+                  },
+                  child: const Text('Enable location permission'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.errorBackground,
+                  ),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Ignore', style: TextStyle(color: AppColors.errorText)),
+                ),
+              ],
             ),
           ],
         );
@@ -292,16 +322,15 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
       final width = MediaQuery.of(context).size.width;
       final height = MediaQuery.of(context).size.height;
 
-      //calculate margins to create a smaller box within the current map view,
-      //to avoid fetching trails that are only partially visible on the edges of the screen
-      final marginX = width * 0.15;
-      final marginY = height * 0.15;
+      //restrict visible area to space between center map button and close button
+      final topY = _centerMapButtonTopOffset + _centerMapButtonHeight;
+      final bottomY = height - (_closeButtonBottomOffset + _closeButtonHeight);
 
       final features = await _mapboxMap!.queryRenderedFeatures(
         RenderedQueryGeometry.fromScreenBox(
           ScreenBox(
-            min: ScreenCoordinate(x: marginX, y: marginY),
-            max: ScreenCoordinate(x: width - marginX, y: height - marginY),
+            min: ScreenCoordinate(x: 0, y: topY),
+            max: ScreenCoordinate(x: width, y: bottomY),
           ),
         ),
         RenderedQueryOptions(
@@ -628,7 +657,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
         //close button to clear the drawn trail and reset the search results
         if (_foundTrails.isNotEmpty)
           Positioned(
-            bottom: 170.0,
+            bottom: _closeButtonBottomOffset,
             right: 40.0,
             child: FloatingActionButton(
               backgroundColor: AppColors.background,
