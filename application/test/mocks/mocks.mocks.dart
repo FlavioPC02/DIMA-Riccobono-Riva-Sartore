@@ -9,6 +9,7 @@ import 'package:application/core/cubit/profile_cubit.dart' as _i8;
 import 'package:application/core/cubit/settings_cubit.dart' as _i4;
 import 'package:application/core/models/profile.dart' as _i3;
 import 'package:application/core/models/settings.dart' as _i2;
+import 'package:application/core/repository/settings_repository.dart' as _i13;
 import 'package:application/services/auth_service.dart' as _i9;
 import 'package:application/services/database_service.dart' as _i11;
 import 'package:cloud_firestore/cloud_firestore.dart' as _i12;
@@ -30,7 +31,6 @@ import 'package:mockito/src/dummies.dart' as _i6;
 // ignore_for_file: unnecessary_parenthesis
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
-// ignore_for_file: invalid_use_of_internal_member
 
 class _FakeSettings_0 extends _i1.SmartFake implements _i2.Settings {
   _FakeSettings_0(Object parent, Invocation parentInvocation)
@@ -459,4 +459,94 @@ class MockDatabaseService extends _i1.Mock implements _i11.DatabaseService {
             returnValue: _i5.Stream<Map<String, dynamic>?>.empty(),
           )
           as _i5.Stream<Map<String, dynamic>?>);
+}
+
+/// A class which mocks [SettingsRepository].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockSettingsRepository extends _i1.Mock
+    implements _i13.SettingsRepository {
+  MockSettingsRepository() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<_i2.Settings?> fetchRemote() =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchRemote, []),
+            returnValue: _i5.Future<_i2.Settings?>.value(),
+          )
+          as _i5.Future<_i2.Settings?>);
+
+  @override
+  _i5.Future<void> saveRemote(_i2.Settings? settings) =>
+      (super.noSuchMethod(
+            Invocation.method(#saveRemote, [settings]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Stream<_i2.Settings?> streamRemote() =>
+      (super.noSuchMethod(
+            Invocation.method(#streamRemote, []),
+            returnValue: _i5.Stream<_i2.Settings?>.empty(),
+          )
+          as _i5.Stream<_i2.Settings?>);
+}
+
+/// A class which mocks [Settings].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockSettings extends _i1.Mock implements _i2.Settings {
+  MockSettings() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  bool get notifications =>
+      (super.noSuchMethod(Invocation.getter(#notifications), returnValue: false)
+          as bool);
+
+  @override
+  bool get ferrata =>
+      (super.noSuchMethod(Invocation.getter(#ferrata), returnValue: false)
+          as bool);
+
+  @override
+  double get difficulty =>
+      (super.noSuchMethod(Invocation.getter(#difficulty), returnValue: 0.0)
+          as double);
+
+  @override
+  _i2.Settings copyWith({
+    bool? notifications,
+    bool? ferrata,
+    double? difficulty,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#copyWith, [], {
+              #notifications: notifications,
+              #ferrata: ferrata,
+              #difficulty: difficulty,
+            }),
+            returnValue: _FakeSettings_0(
+              this,
+              Invocation.method(#copyWith, [], {
+                #notifications: notifications,
+                #ferrata: ferrata,
+                #difficulty: difficulty,
+              }),
+            ),
+          )
+          as _i2.Settings);
+
+  @override
+  Map<String, dynamic> toJson() =>
+      (super.noSuchMethod(
+            Invocation.method(#toJson, []),
+            returnValue: <String, dynamic>{},
+          )
+          as Map<String, dynamic>);
 }

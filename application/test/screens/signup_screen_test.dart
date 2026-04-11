@@ -198,8 +198,10 @@ void main() {
 
           //Testing obscure text
           //t0: text is obscure 
-          final input = tester.widget<EditableText>(passwordEditableField);
-          expect(input.obscureText, isTrue);
+          expect(
+            tester.widget<EditableText>(passwordEditableField).obscureText,
+            isTrue,
+          );
 
           //clicking on the icon changes the obscure text
           await tester.ensureVisible(obscureButtonFinder);
@@ -207,7 +209,10 @@ void main() {
           await tester.tap(obscureButtonFinder);
           await tester.pump(Duration(milliseconds: 100));
 
-          expect(input.obscureText, isFalse);
+          expect(
+            tester.widget<EditableText>(passwordEditableField).obscureText,
+            isFalse,
+          );
 
           //t0: no error shown
           expect(emptyPasswordErrorFinder, findsNothing);
