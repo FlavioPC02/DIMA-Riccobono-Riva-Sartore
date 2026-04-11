@@ -87,6 +87,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: Key('signup'),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
