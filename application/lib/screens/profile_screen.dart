@@ -260,7 +260,7 @@ class _Header extends StatelessWidget {
                 //TODO: style
               ),
               Text(
-                'Level $level', //TODO: prendi livello dal DB
+                'Level $level',
                 textAlign: TextAlign.end,
               ),
             ],
@@ -515,7 +515,7 @@ class _AccountSection extends StatelessWidget {
                   trailing: Icon(
                     isNicknameFormExpanded
                         ? Icons.expand_less
-                        : Icons.chevron_right,
+                        : Icons.expand_more,
                   ),
                   onTap: onToggleNicknameForm,
                 ),

@@ -9,6 +9,10 @@ import 'package:application/core/cubit/profile_cubit.dart' as _i8;
 import 'package:application/core/cubit/settings_cubit.dart' as _i4;
 import 'package:application/core/models/profile.dart' as _i3;
 import 'package:application/core/models/settings.dart' as _i2;
+import 'package:application/services/auth_service.dart' as _i9;
+import 'package:application/services/database_service.dart' as _i11;
+import 'package:cloud_firestore/cloud_firestore.dart' as _i12;
+import 'package:firebase_auth/firebase_auth.dart' as _i10;
 import 'package:hydrated_bloc/hydrated_bloc.dart' as _i7;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
@@ -314,4 +318,145 @@ class MockProfileCubit extends _i1.Mock implements _i8.ProfileCubit {
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+}
+
+/// A class which mocks [AuthService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthService extends _i1.Mock implements _i9.AuthService {
+  MockAuthService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<_i10.User?> registerUser(String? email, String? password) =>
+      (super.noSuchMethod(
+            Invocation.method(#registerUser, [email, password]),
+            returnValue: _i5.Future<_i10.User?>.value(),
+          )
+          as _i5.Future<_i10.User?>);
+
+  @override
+  _i5.Future<_i10.User?> signIn({
+    required String? email,
+    required String? password,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#signIn, [], {
+              #email: email,
+              #password: password,
+            }),
+            returnValue: _i5.Future<_i10.User?>.value(),
+          )
+          as _i5.Future<_i10.User?>);
+
+  @override
+  _i5.Future<void> signOut() =>
+      (super.noSuchMethod(
+            Invocation.method(#signOut, []),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+}
+
+/// A class which mocks [DatabaseService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockDatabaseService extends _i1.Mock implements _i11.DatabaseService {
+  MockDatabaseService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<void> createUser(String? email, String? nickname) =>
+      (super.noSuchMethod(
+            Invocation.method(#createUser, [email, nickname]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<Map<String, dynamic>?> fetchDocument(
+    _i12.DocumentReference<Map<String, dynamic>>? doc,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchDocument, [doc]),
+            returnValue: _i5.Future<Map<String, dynamic>?>.value(),
+          )
+          as _i5.Future<Map<String, dynamic>?>);
+
+  @override
+  _i5.Future<void> saveDocument(
+    _i12.DocumentReference<Map<String, dynamic>>? doc,
+    Map<String, dynamic>? data, {
+    bool? merge = true,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#saveDocument, [doc, data], {#merge: merge}),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Stream<Map<String, dynamic>?> streamDocument(
+    _i12.DocumentReference<Map<String, dynamic>>? doc,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#streamDocument, [doc]),
+            returnValue: _i5.Stream<Map<String, dynamic>?>.empty(),
+          )
+          as _i5.Stream<Map<String, dynamic>?>);
+
+  @override
+  _i5.Future<Map<String, dynamic>?> fetchSettings() =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchSettings, []),
+            returnValue: _i5.Future<Map<String, dynamic>?>.value(),
+          )
+          as _i5.Future<Map<String, dynamic>?>);
+
+  @override
+  _i5.Future<void> saveSettings(Map<String, dynamic>? data) =>
+      (super.noSuchMethod(
+            Invocation.method(#saveSettings, [data]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Stream<Map<String, dynamic>?> streamSettings() =>
+      (super.noSuchMethod(
+            Invocation.method(#streamSettings, []),
+            returnValue: _i5.Stream<Map<String, dynamic>?>.empty(),
+          )
+          as _i5.Stream<Map<String, dynamic>?>);
+
+  @override
+  _i5.Future<Map<String, dynamic>?> fetchProfile() =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchProfile, []),
+            returnValue: _i5.Future<Map<String, dynamic>?>.value(),
+          )
+          as _i5.Future<Map<String, dynamic>?>);
+
+  @override
+  _i5.Future<void> saveProfile(Map<String, dynamic>? data) =>
+      (super.noSuchMethod(
+            Invocation.method(#saveProfile, [data]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Stream<Map<String, dynamic>?> streamProfile() =>
+      (super.noSuchMethod(
+            Invocation.method(#streamProfile, []),
+            returnValue: _i5.Stream<Map<String, dynamic>?>.empty(),
+          )
+          as _i5.Stream<Map<String, dynamic>?>);
 }

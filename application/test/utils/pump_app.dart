@@ -14,6 +14,10 @@ Widget pumpApp({
       BlocProvider<ProfileCubit>.value(value: profileCubit,),
     ],
     child: MaterialApp(
+      theme: ThemeData(
+        useMaterial3: true,
+        //splashFactory: InkRipple.splashFactory,
+      ),
       home: child,
     ),
   );
