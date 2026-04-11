@@ -1,3 +1,4 @@
+import 'package:application/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'map_page.dart';
 
@@ -44,9 +45,9 @@ class _NavigationState extends State<Navigation> {
             label: 'Diary',
           ),
           NavigationDestination(
-            selectedIcon: Icon(Icons.settings),
-            icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
+            selectedIcon: Icon(Icons.person),
+            icon: Icon(Icons.person_outlined),
+            label: 'Profile',
           ),
         ],
       ),
@@ -68,6 +69,6 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text("settings", style: TextStyle(fontSize: 40), textAlign: TextAlign.center,),);
+    return ProfilePage();
   }
 }
