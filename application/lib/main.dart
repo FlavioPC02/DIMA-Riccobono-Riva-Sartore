@@ -1,5 +1,12 @@
+import 'package:application/core/cubit/profile_cubit.dart';
+import 'package:application/core/cubit/settings_cubit.dart';
+import 'package:application/core/repository/profile_repository.dart';
+import 'package:application/core/repository/settings_repository.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'screens/login_screen.dart';
 import 'firebase_options.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -17,7 +24,30 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(const MainApp());
+  HydratedBloc.storage = await HydratedStorage.build(
+    storageDirectory: HydratedStorageDirectory((await getApplicationDocumentsDirectory()).path),
+  );
+
+  runApp(const RootApp());
+}
+
+class RootApp extends StatelessWidget {
+  const RootApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => SettingsCubit(SettingsRepository()),
+        ),
+        BlocProvider(
+          create: (_) => ProfileCubit(ProfileRepository()),
+        ),
+      ], 
+      child: const MainApp(),
+    );
+  }
 }
 
 class MainApp extends StatelessWidget {

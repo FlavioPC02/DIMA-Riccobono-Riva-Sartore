@@ -1,3 +1,4 @@
+import 'package:application/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -9,8 +10,26 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Home'),
       ),
-      body: const Center(
-        child: Text('Sei nella Home 🚀'),
+      body: Center(
+        child: Column(
+          children: [
+            const Text('Sei nella Home 🚀'),
+            SizedBox(
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: () { 
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              //TODO: sostituire con la vera homepage
+                              builder: (_) => const ProfilePage(),
+                            ),
+                          );
+                        },
+                        child: const Text('Sign Up'),
+                      ),
+                    ),
+          ],
+        ),
       ),
     );
   }
