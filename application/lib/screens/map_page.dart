@@ -494,7 +494,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
           right: 16.0,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: Theme.of(context).colorScheme.secondary,
               borderRadius: BorderRadius.circular(30),
             ),
             child: TextField(
@@ -532,12 +532,12 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
           top: 130.0,
           right: 20.0,
           child: FloatingActionButton(
-            backgroundColor: AppColors.background,
+            backgroundColor: Theme.of(context).colorScheme.secondary,
             onPressed: _centerMapOnUser,
             mini: true,
             child: Icon(
               Icons.my_location,
-              color: _isLocating ? Colors.blue : null,
+              color: _isLocating ? Colors.lightBlue : null,
             ),
           ),
         ),
@@ -555,10 +555,10 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
                           ? null
                           : _fetchTrails,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.background,
+                        backgroundColor: Theme.of(context).colorScheme.secondary,
                         elevation: 6,
-                        disabledBackgroundColor: AppColors.deactivatedButtonBackground,
-                        disabledForegroundColor: AppColors.deactivatedButtonText,
+                        disabledBackgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
+                        disabledForegroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
@@ -635,7 +635,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
                                 children: [
                                   Icon(
                                     Icons.hiking,
-                                    color: AppColors.primary,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
@@ -660,7 +660,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
             bottom: _closeButtonBottomOffset,
             right: 40.0,
             child: FloatingActionButton(
-              backgroundColor: AppColors.background,
+              backgroundColor: Theme.of(context).colorScheme.secondary,
               mini: true,
               onPressed: () {
                 if (mounted) {
@@ -670,7 +670,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
                   });
                 }
               },
-              child: const Icon(Icons.keyboard_arrow_down, color: Colors.red),
+              child: Icon(Icons.close, color: Theme.of(context).colorScheme.primary),
             ),
           ),
       ],

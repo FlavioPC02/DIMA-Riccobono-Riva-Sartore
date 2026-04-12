@@ -31,6 +31,8 @@ class _NavigationState extends State<Navigation> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        indicatorColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
         onDestinationSelected: _togglePage,
         selectedIndex: _currentPageIndex,
         destinations: const <Widget>[
