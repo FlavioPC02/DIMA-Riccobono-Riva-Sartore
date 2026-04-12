@@ -58,11 +58,24 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Color(0xFFFFFFFF),
+            primary: Color(0xFFE95F2A),
+            secondary: Color(0xFFFFFFFF),
+            tertiary: Color(0xFFE1E1E1),
+          ),
+          useMaterial3: true,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7F2),
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Color(0xFF21211F),
+            primary: Color(0xFFE95F2A),
+            secondary: Color(0xFF21211F),
+            tertiary: Color(0xFF141414),
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+        //scaffoldBackgroundColor: AppColors.background,
         textTheme: const TextTheme(
           headlineMedium: TextStyle(
             fontSize: 28,
