@@ -7,6 +7,7 @@ class AppColors {
   static const Color inactiveTrackColor = Color(0xFFE1E1E1);
   static const Color textPrimary = Color(0xFF1B1B1B);
   static const Color textSecondary = Color(0xFF5F6368);
+  static const Color trialBackground = Color(0xFF0B2911);
 
   static const Color errorBackground = Color(0xFFFFEBEE);
   static const Color errorBorder = Color(0xFFEF9A9A);
