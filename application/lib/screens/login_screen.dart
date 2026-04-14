@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('Login failed');
       }
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).push(
+      Navigator.of(context, rootNavigator: true).pushReplacement(
         MaterialPageRoute(
           builder: (_) => const HomeScreen(),
         ),
@@ -189,8 +189,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text('Non hai un account?'),
                         TextButton(
