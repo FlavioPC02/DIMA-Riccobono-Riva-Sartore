@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart' as geo;
+import 'dart:math';
 import '../core/theme/app_colors.dart';
 
 class MapPage extends StatelessWidget {
@@ -23,6 +24,7 @@ class MainMapWidget extends StatefulWidget {
 }
 
 class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveClientMixin {
+
   MapboxMap? _mapboxMap;
   PolylineAnnotationManager? _polylineAnnotationManager;
   //list containing the top 10 trails
@@ -47,6 +49,8 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
 
   //controller for the search bar
   final TextEditingController _searchController = TextEditingController();
+  //radius in meters to search for trails around the searched location
+  final _searchRadius = 10000;
 
   //app name for user agent in API requests
   final String _appName = 'FlutterHikingApp/1.0';
@@ -65,6 +69,12 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
   int _selectedTrailIndex = -1;
   late PageController _pageController;
 
+  final String _searchSourceId = "search-results-source";
+  final String _searchLayerId = "search-results-layer";
+
+  //limit for the number of trails to display
+  static const int _trailLimit = 10;
+
   @override
   void initState() {
     super.initState();
@@ -81,8 +91,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
   //initialize the map and create the annotation manager
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
     _mapboxMap = mapboxMap;
-    _polylineAnnotationManager = await mapboxMap.annotations
-        .createPolylineAnnotationManager();
+    _polylineAnnotationManager = await mapboxMap.annotations.createPolylineAnnotationManager();
 
     //hide the compass
     await _mapboxMap?.compass.updateSettings(CompassSettings(enabled: false));
@@ -112,6 +121,22 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
         marginBottom: 5.0,
         marginRight: 40.0,
       ),
+    );
+
+    //add an empty source and layer for the search results
+    await _mapboxMap?.style.addSource(
+      GeoJsonSource(id: _searchSourceId, data: jsonEncode({"type": "FeatureCollection", "features": []}))
+    );
+
+    await _mapboxMap?.style.addLayer(
+      LineLayer(
+        id: _searchLayerId,
+        sourceId: _searchSourceId,
+        lineColor: AppColors.selectedTrail.toARGB32(),
+        lineWidth: 3.0,
+        lineJoin: LineJoin.ROUND,
+        lineCap: LineCap.ROUND,
+      )
     );
 
     _mapboxMap?.setCamera(
@@ -309,7 +334,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
     await _polylineAnnotationManager!.createMulti(allLines);
   }
 
-  //function to fetch hiking trails currently rendered on the map and add markers
+  //function to fetch hiking trails currently rendered on the map and add trails's polylines to the map
   Future<void> _fetchTrails() async {
     if (_mapboxMap == null) return;
 
@@ -334,7 +359,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
           ),
         ),
         RenderedQueryOptions(
-          layerIds: ['road-path', 'road-trail', 'road-steps', 'trails'],
+          layerIds: ['road', 'trails', 'road-trail', 'road-path'],
           filter: null,
         ),
       );
@@ -345,13 +370,19 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
       int counter = 1;
 
       for (var qf in features) {
-        if (tempTrails.length >= 10) break;
+        if (tempTrails.length >= _trailLimit) break;
 
         final featureMap = qf?.queriedFeature.feature;
         if (featureMap != null) {
           final geometryMap = featureMap['geometry'] as Map<dynamic, dynamic>?;
-          final propertiesMap =
-              featureMap['properties'] as Map<dynamic, dynamic>?;
+          final propertiesMap = featureMap['properties'] as Map<dynamic, dynamic>?;
+
+          //only consider trails that have hiking or trail property
+          final String? pathType = propertiesMap?['type']?.toString();
+          final String? pathClass = propertiesMap?['class']?.toString();
+          bool isValidTrail = (pathType == 'hiking' || pathType == 'trail') || (pathClass == 'hiking' || pathClass == 'trail');
+
+          if (!isValidTrail) continue;
 
           if (geometryMap != null && geometryMap['type'] == 'LineString') {
             final coordinates = geometryMap['coordinates'] as List<dynamic>?;
@@ -361,10 +392,13 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
                 return Position(point[0] as num, point[1] as num);
               }).toList();
 
-              String trailName =
-                  propertiesMap?['name'] ?? 'Hiking trail $counter';
+              String trailName = propertiesMap?['name'] ?? 'Hiking trail $counter';
 
-              tempTrails.add({'name': trailName, 'coordinates': linePoints});
+              tempTrails.add({
+                'id': featureMap['id'],
+                'name': trailName, 
+                'coordinates': linePoints
+              });
               counter++;
             }
           }
@@ -393,12 +427,17 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
         );
       }
     } catch (e) {
-      print("Error occurred while searching for hiking trails: $e");
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error occurred while searching for hiking trails')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoadingTrails = false);
     }
   }
 
+  //function to search for the coordinates of a given location using the Nominatim API
   Future<void> _searchLocation(String query) async {
     if (query.trim().isEmpty) return;
 
@@ -428,7 +467,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
           final double lat = double.parse(data[0]['lat']);
           final double lon = double.parse(data[0]['lon']);
 
-          _moveCameraTo(lat, lon, mapZoom);
+          await _fetchTrailsByLocation(lat, lon);
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -455,6 +494,105 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
           _isSearchingLocation = false;
         });
       }
+    }
+  }
+
+  //function to fetch hiking trails around a specific location and add trails's polylines to the map
+  Future<void> _fetchTrailsByLocation(double lat, double lon) async {
+    setState(() => _isLoadingTrails = true);
+
+    final url = Uri.parse('https://overpass-api.de/api/interpreter');
+
+    //search for hiking trails, around the search location with a given radius and limit the resulted trails
+    final query = """
+    [out:json][timeout:25];
+    relation["route"="hiking"](around:$_searchRadius,$lat,$lon);
+    out $_trailLimit geom;
+    """;
+
+    try {
+      final response = await http.post(
+        url, 
+        body: query,
+        headers: {'User-Agent': _appName} 
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List elements = data['elements'];
+
+        if (elements.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No hiking trails found near the searched location. Try searching in a different area.')),
+            );
+          }
+          return;
+        }
+
+        List<Map<String, dynamic>> tempTrails = [];
+        int counter = 1;
+
+        for (var rel in elements) {
+          if (rel['type'] == 'relation') {
+            String name = rel['tags']?['name'] ?? rel['tags']?['ref'] ?? 'Hiking Trail $counter';
+                          
+            List<Position> trailCoordinates = [];
+
+            if (rel['members'] != null) {
+              for (var member in rel['members']) {
+                if (member['type'] == 'way' && member['geometry'] != null) {
+                  for (var geo in member['geometry']) {
+                    trailCoordinates.add(Position(geo['lon'].toDouble(), geo['lat'].toDouble()));
+                  }
+                }
+              }
+            }
+
+            if (trailCoordinates.isNotEmpty) {
+              tempTrails.add({
+                'id': rel['id'],
+                'name': name,
+                'coordinates': trailCoordinates
+              });
+            }
+            counter++;
+          }
+        }
+
+        setState(() {
+          _foundTrails = tempTrails;
+          if (_foundTrails.isNotEmpty) _selectedTrailIndex = 0;
+        });
+
+        if (_foundTrails.isNotEmpty) {
+          await _drawPolylines();
+          if (mounted) {
+            double zoom = 15.0 - (log(_searchRadius / 1000) / log(2));
+            _moveCameraTo(lat, lon, zoom - 1.0);
+          }
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No hiking trails found near the searched location. Try searching in a different area.') 
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Server error (${response.statusCode}). Please try again later.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Network error. Check your connection and try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingTrails = false);
     }
   }
 
@@ -662,12 +800,25 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
             child: FloatingActionButton(
               backgroundColor: Theme.of(context).colorScheme.secondary,
               mini: true,
-              onPressed: () {
+              onPressed: () async {
                 if (mounted) {
                   setState(() {
                     _polylineAnnotationManager!.deleteAll();
                     _foundTrails.clear();
                   });
+                  //move the camera back to the searched location to effectively clear trails
+                  final cameraState = await _mapboxMap?.getCameraState();
+                  if (cameraState != null) {
+                  final currentZoom = cameraState.zoom;
+                  await _mapboxMap?.easeTo(
+                    CameraOptions(
+                      zoom: currentZoom, 
+                    ),
+                    MapAnimationOptions(
+                      duration: 300,
+                    ),
+                  );
+                }
                 }
               },
               child: Icon(Icons.close, color: Theme.of(context).colorScheme.primary),
