@@ -43,8 +43,8 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
   //zoom level for the map
   double mapZoom = 12.0;
 
-  //threshold to determine if the map is zoomed in enough to searrch for trails
-  final double _minZoomThreshold = 13.0;
+  //threshold to determine if the map is zoomed in enough to search for trails
+  final double _minZoomThreshold = 11.0;
   bool _isZoomedInEnough = false;
 
   //controller for the search bar
@@ -56,10 +56,8 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
   final String _appName = 'FlutterHikingApp/1.0';
 
   //constants for buttons positions used to calculate visible area
-  static const double _centerMapButtonTopOffset = 130.0;
-  static const double _centerMapButtonHeight = 56.0;
-  static const double _closeButtonBottomOffset = 170.0;
-  static const double _closeButtonHeight = 145.0;
+  static const double _centerMapButtonTopOffset = 186.0;
+  static const double _closeButtonBottomOffset = 315.0;
 
   //keep the state of the map page alive when switching between screens
   @override
@@ -69,8 +67,8 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
   int _selectedTrailIndex = -1;
   late PageController _pageController;
 
-  final String _searchSourceId = "search-results-source";
-  final String _searchLayerId = "search-results-layer";
+  //overpass public endpoint used to fetch trails by location
+  final _overpassUrl = Uri.parse('https://overpass.private.coffee/api/interpreter');
 
   //limit for the number of trails to display
   static const int _trailLimit = 10;
@@ -121,22 +119,6 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
         marginBottom: 5.0,
         marginRight: 40.0,
       ),
-    );
-
-    //add an empty source and layer for the search results
-    await _mapboxMap?.style.addSource(
-      GeoJsonSource(id: _searchSourceId, data: jsonEncode({"type": "FeatureCollection", "features": []}))
-    );
-
-    await _mapboxMap?.style.addLayer(
-      LineLayer(
-        id: _searchLayerId,
-        sourceId: _searchSourceId,
-        lineColor: AppColors.selectedTrail.toARGB32(),
-        lineWidth: 3.0,
-        lineJoin: LineJoin.ROUND,
-        lineCap: LineCap.ROUND,
-      )
     );
 
     _mapboxMap?.setCamera(
@@ -320,15 +302,17 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
       final trail = _foundTrails[i];
       final isSelected = i == _selectedTrailIndex;
 
-      allLines.add(
-        PolylineAnnotationOptions(
-          geometry: LineString(coordinates: trail['coordinates']),
-          lineWidth: isSelected ? 6.0 : 3.0,
-          lineColor: isSelected ? AppColors.selectedTrail.toARGB32() : AppColors.unselectedTrail.toARGB32(),
-          lineJoin: LineJoin.ROUND,
-          lineSortKey: isSelected ? 10.0 : 1.0,
-        ),
-      );
+      for(var subTrailsCoordinates in trail['subTrails']) {
+        allLines.add(
+          PolylineAnnotationOptions(
+            geometry: LineString(coordinates: subTrailsCoordinates),
+            lineWidth: isSelected ? 6.0 : 3.0,
+            lineColor: isSelected ? AppColors.selectedTrail.toARGB32() : AppColors.unselectedTrail.toARGB32(),
+            lineJoin: LineJoin.ROUND,
+            lineSortKey: isSelected ? 10.0 : 1.0,
+          ),
+        );
+      }
     }
 
     await _polylineAnnotationManager!.createMulti(allLines);
@@ -348,83 +332,37 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
       final height = MediaQuery.of(context).size.height;
 
       //restrict visible area to space between center map button and close button
-      final topY = _centerMapButtonTopOffset + _centerMapButtonHeight;
-      final bottomY = height - (_closeButtonBottomOffset + _closeButtonHeight);
+      final topY = _centerMapButtonTopOffset;
+      final bottomY = height - _closeButtonBottomOffset;
 
-      final features = await _mapboxMap!.queryRenderedFeatures(
-        RenderedQueryGeometry.fromScreenBox(
-          ScreenBox(
-            min: ScreenCoordinate(x: 0, y: topY),
-            max: ScreenCoordinate(x: width, y: bottomY),
-          ),
-        ),
-        RenderedQueryOptions(
-          layerIds: ['road', 'trails', 'road-trail', 'road-path'],
-          filter: null,
-        ),
+      final topLeft = await _mapboxMap!.coordinateForPixel(
+        ScreenCoordinate(x: 0, y: topY),
+      );
+      final bottomRight = await _mapboxMap!.coordinateForPixel(
+        ScreenCoordinate(x: width, y: bottomY),
       );
 
-      await _polylineAnnotationManager?.deleteAll();
+      final south = bottomRight.coordinates.lat.toDouble();
+      final north = topLeft.coordinates.lat.toDouble();
+      final west = topLeft.coordinates.lng.toDouble();
+      final east = bottomRight.coordinates.lng.toDouble();
 
-      List<Map<String, dynamic>> tempTrails = [];
-      int counter = 1;
+      final query = """
+      [out:json][timeout:60];
+      relation["route"="hiking"]($south,$west,$north,$east);
+      out $_trailLimit geom;
+      """;
 
-      for (var qf in features) {
-        if (tempTrails.length >= _trailLimit) break;
-
-        final featureMap = qf?.queriedFeature.feature;
-        if (featureMap != null) {
-          final geometryMap = featureMap['geometry'] as Map<dynamic, dynamic>?;
-          final propertiesMap = featureMap['properties'] as Map<dynamic, dynamic>?;
-
-          //only consider trails that have hiking or trail property
-          final String? pathType = propertiesMap?['type']?.toString();
-          final String? pathClass = propertiesMap?['class']?.toString();
-          bool isValidTrail = (pathType == 'hiking' || pathType == 'trail') || (pathClass == 'hiking' || pathClass == 'trail');
-
-          if (!isValidTrail) continue;
-
-          if (geometryMap != null && geometryMap['type'] == 'LineString') {
-            final coordinates = geometryMap['coordinates'] as List<dynamic>?;
-
-            if (coordinates != null && coordinates.isNotEmpty) {
-              List<Position> linePoints = coordinates.map((point) {
-                return Position(point[0] as num, point[1] as num);
-              }).toList();
-
-              String trailName = propertiesMap?['name'] ?? 'Hiking trail $counter';
-
-              tempTrails.add({
-                'id': featureMap['id'],
-                'name': trailName, 
-                'coordinates': linePoints
-              });
-              counter++;
-            }
-          }
+      try{
+        await _fetchOverpassResponse(query, 0, 0, false);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Network error. Check your connection and try again.')),
+          );
         }
-      }
-
-      setState(() {
-        _foundTrails = tempTrails;
-        if (_foundTrails.isNotEmpty) {
-          _selectedTrailIndex = 0;
-        }
-      });
-
-      if (_foundTrails.isNotEmpty) {
-        await _drawPolylines();
-        if (_pageController.hasClients) {
-          _pageController.jumpToPage(0);
-        }
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No hiking trails found in this area. Try moving the map to a different location and searching again.',
-            ),
-          ),
-        );
+      } finally {
+        if (mounted) setState(() => _isLoadingTrails = false);
       }
     } catch (e) {
       if(mounted) {
@@ -497,94 +435,103 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
     }
   }
 
+  Future<void> _fetchOverpassResponse(String query, double lat, double lon, bool shouldMoveCamera) async {
+    
+    final response = await http.post(
+      _overpassUrl, 
+      body: query,
+      headers: {'User-Agent': _appName} 
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List elements = data['elements'];
+
+      if (elements.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No hiking trails found near the searched location. Try searching in a different area.')),
+          );
+        }
+        return;
+      }
+
+      List<Map<String, dynamic>> tempTrails = [];
+      int counter = 1;
+
+      for (var rel in elements) {
+        if (rel['type'] == 'relation') {
+          String name = rel['tags']?['name'] ?? rel['tags']?['ref'] ?? 'Hiking Trail $counter';
+                        
+          List<List<Position>> subTrailCoordinates = [];
+
+          if (rel['members'] != null) {
+            for (var member in rel['members']) {
+              if (member['type'] == 'way' && member['geometry'] != null) {
+                List<Position> currentSubTrailCoordinates = [];
+                for (var geo in member['geometry']) {
+                  currentSubTrailCoordinates.add(Position(geo['lon'].toDouble(), geo['lat'].toDouble()));
+                }
+                if (currentSubTrailCoordinates.isNotEmpty) {
+                  subTrailCoordinates.add(currentSubTrailCoordinates);
+                }
+              }
+            }
+          }
+
+          if (subTrailCoordinates.isNotEmpty) {
+            tempTrails.add({
+              'id': rel['id'],
+              'name': name,
+              'subTrails': subTrailCoordinates
+            });
+          }
+          counter++;
+        }
+      }
+
+      setState(() {
+        _foundTrails = tempTrails;
+        if (_foundTrails.isNotEmpty) _selectedTrailIndex = 0;
+      });
+
+      if (_foundTrails.isNotEmpty) {
+        await _drawPolylines();
+        if (mounted) {
+          if(shouldMoveCamera){
+            double zoom = _minZoomThreshold - (log(_searchRadius / 1000) / log(2));
+            _moveCameraTo(lat, lon, zoom);
+          }
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No hiking trails found near the searched location. Try searching in a different area.') 
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Server error (${response.statusCode}). Please try again later.')),
+        );
+      }
+    }
+  }
+
   //function to fetch hiking trails around a specific location and add trails's polylines to the map
   Future<void> _fetchTrailsByLocation(double lat, double lon) async {
     setState(() => _isLoadingTrails = true);
 
-    final url = Uri.parse('https://overpass-api.de/api/interpreter');
-
     //search for hiking trails, around the search location with a given radius and limit the resulted trails
     final query = """
-    [out:json][timeout:25];
+    [out:json][timeout:60];
     relation["route"="hiking"](around:$_searchRadius,$lat,$lon);
     out $_trailLimit geom;
     """;
 
-    try {
-      final response = await http.post(
-        url, 
-        body: query,
-        headers: {'User-Agent': _appName} 
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List elements = data['elements'];
-
-        if (elements.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No hiking trails found near the searched location. Try searching in a different area.')),
-            );
-          }
-          return;
-        }
-
-        List<Map<String, dynamic>> tempTrails = [];
-        int counter = 1;
-
-        for (var rel in elements) {
-          if (rel['type'] == 'relation') {
-            String name = rel['tags']?['name'] ?? rel['tags']?['ref'] ?? 'Hiking Trail $counter';
-                          
-            List<Position> trailCoordinates = [];
-
-            if (rel['members'] != null) {
-              for (var member in rel['members']) {
-                if (member['type'] == 'way' && member['geometry'] != null) {
-                  for (var geo in member['geometry']) {
-                    trailCoordinates.add(Position(geo['lon'].toDouble(), geo['lat'].toDouble()));
-                  }
-                }
-              }
-            }
-
-            if (trailCoordinates.isNotEmpty) {
-              tempTrails.add({
-                'id': rel['id'],
-                'name': name,
-                'coordinates': trailCoordinates
-              });
-            }
-            counter++;
-          }
-        }
-
-        setState(() {
-          _foundTrails = tempTrails;
-          if (_foundTrails.isNotEmpty) _selectedTrailIndex = 0;
-        });
-
-        if (_foundTrails.isNotEmpty) {
-          await _drawPolylines();
-          if (mounted) {
-            double zoom = 15.0 - (log(_searchRadius / 1000) / log(2));
-            _moveCameraTo(lat, lon, zoom - 1.0);
-          }
-        } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No hiking trails found near the searched location. Try searching in a different area.') 
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Server error (${response.statusCode}). Please try again later.')),
-          );
-        }
-      }
+    try{
+      await _fetchOverpassResponse(query, lat, lon, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -628,12 +575,12 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
         //search bar
         Positioned(
           top: 70.0,
-          left: 16.0,
-          right: 16.0,
+          left: 22.0,
+          right: 22.0,
           child: Container(
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.secondary,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(15),
             ),
             child: TextField(
               controller: _searchController,
@@ -675,7 +622,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
             mini: true,
             child: Icon(
               Icons.my_location,
-              color: _isLocating ? Colors.lightBlue : null,
+              color: _isLocating ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
             ),
           ),
         ),
@@ -698,7 +645,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
                         disabledBackgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
                         disabledForegroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(15),
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
@@ -763,7 +710,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
                           ),
                           child: Card(
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(15),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
@@ -795,8 +742,8 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
         //close button to clear the drawn trail and reset the search results
         if (_foundTrails.isNotEmpty)
           Positioned(
-            bottom: _closeButtonBottomOffset,
-            right: 40.0,
+            bottom: 170.0,
+            right: 42.0,
             child: FloatingActionButton(
               backgroundColor: Theme.of(context).colorScheme.secondary,
               mini: true,
