@@ -9,6 +9,7 @@ import 'package:application/core/cubit/profile_cubit.dart' as _i8;
 import 'package:application/core/cubit/settings_cubit.dart' as _i4;
 import 'package:application/core/models/profile.dart' as _i3;
 import 'package:application/core/models/settings.dart' as _i2;
+import 'package:application/core/repository/profile_repository.dart' as _i14;
 import 'package:application/core/repository/settings_repository.dart' as _i13;
 import 'package:application/services/auth_service.dart' as _i9;
 import 'package:application/services/database_service.dart' as _i11;
@@ -494,6 +495,40 @@ class MockSettingsRepository extends _i1.Mock
             returnValue: _i5.Stream<_i2.Settings?>.empty(),
           )
           as _i5.Stream<_i2.Settings?>);
+}
+
+/// A class which mocks [ProfileRepository].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockProfileRepository extends _i1.Mock implements _i14.ProfileRepository {
+  MockProfileRepository() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<_i3.Profile?> fetchRemote() =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchRemote, []),
+            returnValue: _i5.Future<_i3.Profile?>.value(),
+          )
+          as _i5.Future<_i3.Profile?>);
+
+  @override
+  _i5.Future<void> saveRemote(_i3.Profile? settings) =>
+      (super.noSuchMethod(
+            Invocation.method(#saveRemote, [settings]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Stream<_i3.Profile?> streamRemote() =>
+      (super.noSuchMethod(
+            Invocation.method(#streamRemote, []),
+            returnValue: _i5.Stream<_i3.Profile?>.empty(),
+          )
+          as _i5.Stream<_i3.Profile?>);
 }
 
 /// A class which mocks [Settings].

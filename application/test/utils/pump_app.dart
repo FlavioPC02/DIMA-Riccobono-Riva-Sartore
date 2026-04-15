@@ -16,7 +16,6 @@ Widget pumpApp({
     child: MaterialApp(
       theme: ThemeData(
         useMaterial3: false,
-        //splashFactory: InkRipple.splashFactory,
       ),
       home: child,
     ),

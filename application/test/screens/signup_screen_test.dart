@@ -7,6 +7,9 @@ void main() {
 
   Widget createWidgetUnderTest() {
     return MaterialApp(
+      theme: ThemeData(
+        useMaterial3: false,
+      ),
       home: Scaffold(
         body: Center(
           child: SignupScreen(),
