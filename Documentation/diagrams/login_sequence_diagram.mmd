@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    participant login as Login Page
+    participant auth as Authentication<br>Service
+    participant fba as Firebase<br>Authentication
+    participant home as Homepage
+
+    login ->> login: Fill in form
+    login ->> login: Validate input
+    login ->>+ auth: Sign In
+    auth ->>+ fba: Sign In with email & password
+    alt Credentials are correct
+        fba -->- auth: User Credentials
+        alt User is not null
+            auth -->- login: User
+            login ->> home: Go to Homepage
+        else User is null
+            auth --> login: null
+            login ->> login: Show error message
+        end
+    else
+        fba --> auth: Error
+        auth --> login: Error Message
+        login ->> login: Show error message
+    end
