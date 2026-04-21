@@ -10,15 +10,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'screens/login_screen.dart';
 import 'firebase_options.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui' as ui;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   //mapbox public token used to display the map
+  await dotenv.load(fileName: ".env");
   //removed for now to avoid github token scanning bot
   //TODO: when a definitive package name is chosen, restrict token usage inside mapbox dashboard to prevent unauthorized use 
-  MapboxOptions.setAccessToken("");
+  MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '');
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
