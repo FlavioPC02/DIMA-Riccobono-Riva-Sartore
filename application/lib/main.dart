@@ -18,7 +18,6 @@ void main() async {
   //mapbox public token used to display the map
   //removed for now to avoid github token scanning bot
   //TODO: when a definitive package name is chosen, restrict token usage inside mapbox dashboard to prevent unauthorized use 
-  //MapboxOptions.setAccessToken("pk.eyJ1IjoiZWRvLXBvbGltaSIsImEiOiJjbW5tOHMxMGcxZDNqMnBzbWtkaXpha3liIn0.f-PKFnMLmcQ5EAC862IWGw");
   MapboxOptions.setAccessToken("");
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
