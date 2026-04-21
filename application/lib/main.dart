@@ -17,7 +17,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
 
-  //mapbox public token used to display the map
   //removed for now to avoid github token scanning bot
   //TODO: when a definitive package name is chosen, restrict token usage inside mapbox dashboard to prevent unauthorized use
   MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN']!);
