@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
 </dict>
 </plist>
