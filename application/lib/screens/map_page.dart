@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart' as geo;
 import '../core/theme/app_colors.dart';
+import 'navigator.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -12,6 +13,36 @@ class MapPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(body: MainMapWidget());
+  }
+}
+
+class NavigatoreButton extends StatelessWidget {
+  const NavigatoreButton({
+    super.key,
+    required this.onPressed,
+    this.top = 130.0,
+    this.left = 20.0,
+  });
+
+  final VoidCallback onPressed;
+  final double top;
+  final double left;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: top,
+      left: left,
+      child: FloatingActionButton(
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        onPressed: onPressed,
+        mini: true,
+        child: Icon(
+          Icons.navigation,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
   }
 }
 
@@ -41,7 +72,7 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
   //zoom level for the map
   double mapZoom = 12.0;
 
-  //threshold to determine if the map is zoomed in enough to searrch for trails
+  //threshold to determine if the map is zoomed in enough to search for trails
   final double _minZoomThreshold = 13.0;
   bool _isZoomedInEnough = false;
 
@@ -458,6 +489,20 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
     }
   }
 
+  //TODO: rimuovi
+  void _openNavigatorScreen() {
+    final selectedTrail =
+        (_selectedTrailIndex >= 0 && _selectedTrailIndex < _foundTrails.length)
+            ? _foundTrails[_selectedTrailIndex]
+            : {'name': 'Selected trail', 'coordinates': <Position>[]};
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NavigatorScreen(trail: selectedTrail),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     //needed for AutomaticKeepAliveClientMixin
@@ -526,6 +571,10 @@ class _MainMapWidgetState extends State<MainMapWidget> with AutomaticKeepAliveCl
               ),
             ),
           ),
+        ),
+        //TODO: rimuovi
+        NavigatoreButton(
+          onPressed: _openNavigatorScreen,
         ),
         //button to center the map on the user's current location
         Positioned(

@@ -530,6 +530,7 @@ class _AccountSection extends StatelessWidget {
                           onSubmitted: (_) => onNicknameSubmitted(),
                           decoration: const InputDecoration(
                             labelText: 'New nickname',
+                            hintText: 'Insert new nickname...',
                             isDense: true,
                           ),
                         ),

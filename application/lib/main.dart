@@ -4,6 +4,7 @@ import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
@@ -37,6 +38,12 @@ class RootApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Block the rotation for the app
+    SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+    ]);
+    
     return MultiBlocProvider(
       providers: [
         BlocProvider(

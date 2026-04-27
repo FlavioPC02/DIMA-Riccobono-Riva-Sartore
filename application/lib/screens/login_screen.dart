@@ -46,13 +46,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user == null) throw Exception('Login failed');
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pushReplacement(
-<<<<<<< HEAD
         MaterialPageRoute(
           builder: (_) => const Navigation(),
         ),
-=======
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
->>>>>>> d6a99e2 (Fixed Login Page)
       );
     } catch (e) {
       setState(() {
