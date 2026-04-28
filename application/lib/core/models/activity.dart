@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ActivityStatus { completed, planned }
 
+enum ActivityDifficulty { easy, moderate, hard }
+
 class Activity {
   final String id;
   final String name;
@@ -12,6 +14,7 @@ class Activity {
   final int durationMinutes;
   final double xpEarned;
   final String notes;
+  final ActivityDifficulty difficulty;
 
   const Activity({
     required this.id,
@@ -23,6 +26,7 @@ class Activity {
     this.durationMinutes = 0,
     this.xpEarned = 0,
     this.notes = '',
+    this.difficulty = ActivityDifficulty.easy,
   });
 
   Activity copyWith({
@@ -35,6 +39,7 @@ class Activity {
     int? durationMinutes,
     double? xpEarned,
     String? notes,
+    ActivityDifficulty? difficulty,
   }) {
     return Activity(
       id: id ?? this.id,
@@ -46,6 +51,7 @@ class Activity {
       durationMinutes: durationMinutes ?? this.durationMinutes,
       xpEarned: xpEarned ?? this.xpEarned,
       notes: notes ?? this.notes,
+      difficulty: difficulty ?? this.difficulty,
     );
   }
 
@@ -58,6 +64,7 @@ class Activity {
     'durationMinutes': durationMinutes,
     'xpEarned': xpEarned,
     'notes': notes,
+    'difficulty': difficulty.name,
   };
 
   factory Activity.fromJson(String id, Map<String, dynamic> json) {
@@ -71,6 +78,9 @@ class Activity {
       durationMinutes: json['durationMinutes'] ?? 0,
       xpEarned: (json['xpEarned'] ?? 0).toDouble(),
       notes: json['notes'] ?? '',
+      difficulty: ActivityDifficulty.values.byName(
+        json['difficulty'] ?? 'easy',
+      ),
     );
   }
 }

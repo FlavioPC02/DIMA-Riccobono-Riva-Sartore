@@ -1,5 +1,6 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/screens/activity_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/theme/app_colors.dart';
@@ -137,7 +138,12 @@ class _ActivityCard extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
-          // TODO: navigate to activity detail
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ActivityDetailPage(activity: activity),
+            ),
+          );
         },
       ),
     );
