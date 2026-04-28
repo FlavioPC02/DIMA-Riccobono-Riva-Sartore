@@ -23,6 +23,9 @@ class DatabaseService {
   DocumentReference<Map<String, dynamic>> get _remotePreferencesDoc =>
       _remoteUserDoc.collection('settings').doc('preferences');
 
+  CollectionReference<Map<String, dynamic>> get _activitiesCollection =>
+      _remoteUserDoc.collection('activities');
+
   Future<void> createUser(String email, String nickname) async {
     try {
       await _remoteUserDoc.set({
@@ -79,5 +82,27 @@ class DatabaseService {
 
   Stream<Map<String, dynamic>?> streamProfile() {
     return streamDocument(_remoteUserDoc);
+  }
+
+  Future<String> addActivity(Map<String, dynamic> data) async {
+    final doc = await _activitiesCollection.add(data);
+    return doc.id;
+  }
+
+  Future<void> updateActivity(String id, Map<String, dynamic> data) {
+    return _activitiesCollection.doc(id).set(data, SetOptions(merge: true));
+  }
+
+  Future<void> deleteActivity(String id) {
+    return _activitiesCollection.doc(id).delete();
+  }
+
+  Stream<List<Map<String, dynamic>>> streamActivities() {
+    return _activitiesCollection
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .toList());
   }
 }

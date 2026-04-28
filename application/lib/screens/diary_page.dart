@@ -1,5 +1,9 @@
+import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/models/activity.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/theme/app_colors.dart';
+import 'package:intl/intl.dart';
 
 class DiaryPage extends StatelessWidget {
   const DiaryPage({super.key});
@@ -10,6 +14,7 @@ class DiaryPage extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          // I removed the arrow because I come from the navigation bar
           automaticallyImplyLeading: false,
           backgroundColor: AppColors.primary,
           title: const Row(
@@ -34,65 +39,59 @@ class DiaryPage extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [
-            _CompletedTab(),
-            _PlannedTab(),
-          ],
+        body: BlocBuilder<ActivityCubit, List<Activity>>(
+          builder: (context, activities) {
+            final completed = activities
+                .where((a) => a.status == ActivityStatus.completed)
+                .toList();
+            final planned = activities
+                .where((a) => a.status == ActivityStatus.planned)
+                .toList();
+
+            return TabBarView(
+              children: [
+                _ActivityList(
+                  activities: completed,
+                  emptyIcon: Icons.terrain,
+                  emptyMessage: 'No completed hikes yet.\nStart exploring!',
+                ),
+                _ActivityList(
+                  activities: planned,
+                  emptyIcon: Icons.event_note,
+                  emptyMessage:
+                      'No planned hikes yet.\nSchedule your next adventure!',
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _CompletedTab extends StatelessWidget {
-  const _CompletedTab();
+class _ActivityList extends StatelessWidget {
+  final List<Activity> activities;
+  final IconData emptyIcon;
+  final String emptyMessage;
+
+  const _ActivityList({
+    required this.activities,
+    required this.emptyIcon,
+    required this.emptyMessage,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // TODO: replace with real data from DB
-    final List<Map<String, String>> activities = [];
-
     if (activities.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.terrain,
-        message: 'No completed hikes yet.\nStart exploring!',
-      );
+      return _EmptyState(icon: emptyIcon, message: emptyMessage);
     }
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: activities.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        return _ActivityCard(activity: activities[index]);
-      },
-    );
-  }
-}
-
-class _PlannedTab extends StatelessWidget {
-  const _PlannedTab();
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: replace with real data from DB
-    final List<Map<String, String>> activities = [];
-
-    if (activities.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.event_note,
-        message: 'No planned hikes yet.\nSchedule your next adventure!',
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: activities.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        return _ActivityCard(activity: activities[index]);
-      },
+      itemBuilder: (context, index) => _ActivityCard(activity: activities[index]),
     );
   }
 }
@@ -114,10 +113,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -126,21 +122,19 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _ActivityCard extends StatelessWidget {
-  final Map<String, String> activity;
+  final Activity activity;
 
   const _ActivityCard({required this.activity});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondary,
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return Card(
       child: ListTile(
         leading: const Icon(Icons.hiking),
-        title: Text(activity['name'] ?? ''),
-        subtitle: Text(activity['date'] ?? ''),
+        title: Text(activity.name),
+        subtitle: Text(
+          DateFormat('dd/MM/yyyy').format(activity.date)
+        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
           // TODO: navigate to activity detail
