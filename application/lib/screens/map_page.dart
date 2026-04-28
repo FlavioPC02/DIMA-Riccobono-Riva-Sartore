@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:application/screens/trail_details_screen.dart';
 import '../core/theme/app_colors.dart';
 import 'navigator.dart';
 
@@ -712,7 +713,15 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 curve: Curves.easeInOut,
                               );
                             } else {
-                              // TODO: Apri dettagli del percorso
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => TrailDetailsScreen(
+                                    trailId: trail['id'],
+                                    trailName: trail['name'],
+                                  ),
+                                ),
+                              );
                             }
                           },
                           child: AnimatedContainer(
