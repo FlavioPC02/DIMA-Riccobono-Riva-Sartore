@@ -4,23 +4,18 @@ import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'screens/login_screen.dart';
 import 'firebase_options.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui' as ui;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  //mapbox public token used to display the map
   await dotenv.load(fileName: ".env");
-  //removed for now to avoid github token scanning bot
-  //TODO: when a definitive package name is chosen, restrict token usage inside mapbox dashboard to prevent unauthorized use 
-  MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '');
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -64,6 +59,7 @@ class MainApp extends StatelessWidget {
             primary: Color(0xFFE95F2A),
             secondary: Color(0xFFFFFFFF),
             tertiary: Color(0xFFE1E1E1),
+            shadow: Color(0xFF000000),
           ),
           useMaterial3: true,
         ),
@@ -73,6 +69,7 @@ class MainApp extends StatelessWidget {
             primary: Color(0xFFE95F2A),
             secondary: Color(0xFF21211F),
             tertiary: Color(0xFF141414),
+            shadow: Color(0xFFFFFFFF),
             brightness: Brightness.dark,
           ),
           useMaterial3: true,
