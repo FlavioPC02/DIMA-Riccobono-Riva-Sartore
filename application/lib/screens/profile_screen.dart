@@ -81,10 +81,10 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.inactiveTrackColor,
+      backgroundColor: Theme.of(context).colorScheme.tertiary,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: AppColors.primary,
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         title: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -97,7 +97,6 @@ class _ProfilePageState extends State<ProfilePage> {
               'Profile',
               style: TextStyle(
                 fontSize: 28,
-                color: AppColors.textPrimary
               ),
             ),
           ],
@@ -186,7 +185,7 @@ class _Header extends StatelessWidget {
     return Container(
       width: 420,
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: Theme.of(context).colorScheme.secondary,
         borderRadius:BorderRadius.vertical(
           top: Radius.zero,
           bottom: Radius.circular(30),
@@ -219,7 +218,7 @@ class _Header extends StatelessWidget {
                   // Nickname
                   Text(
                     nickname,
-                    style: Theme.of(context).textTheme.bodyLarge
+                    style: Theme.of(context).textTheme.headlineMedium
                   ),
                   // Mail
                   Text(
@@ -234,7 +233,7 @@ class _Header extends StatelessWidget {
           SizedBox(height: 20,),
 
           //XP bar
-          xpBar(),
+          xpBar(context),
 
           SizedBox(height: 20,),
         ],
@@ -242,7 +241,7 @@ class _Header extends StatelessWidget {
     );
   }
 
-  Widget xpBar() {
+  Widget xpBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Column(
@@ -272,7 +271,7 @@ class _Header extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
+                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.25),
                   blurRadius: 12,
                   spreadRadius: 1,
                   offset: const Offset(0, 3),
@@ -285,7 +284,7 @@ class _Header extends StatelessWidget {
                 minHeight: 14,
                 value: xpLength,
                 backgroundColor: AppColors.inactiveTrackColor,
-                valueColor: AlwaysStoppedAnimation(AppColors.secondary),
+                valueColor: AlwaysStoppedAnimation(Theme.of(context).colorScheme.primary),
               ),
             ),
           ),
@@ -328,7 +327,7 @@ class _StatsdifficultySection extends StatelessWidget {
           //Card
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.secondary,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -346,14 +345,11 @@ class _StatsdifficultySection extends StatelessWidget {
                             SizedBox(height: 6,),
                             Text(
                               hikeNumber.toString(),
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                              ),
                             ),
                             Text(
                               hikeNumber == 1 ? 'Hike' : 'Hikes',
                               style: TextStyle(
-                                color: Color(0xFF3DA442),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
@@ -381,16 +377,13 @@ class _StatsdifficultySection extends StatelessWidget {
                                 ),
                                 Text(
                                   ' Km',
-                                  style: TextStyle(
-                                    color: Color(0xFF3DA442),
-                                  ),
                                 )
                               ],
                             ),
                             Text(
                               'Distance',
                               style: TextStyle(
-                                color: Color(0xFF3DA442),
+                                fontWeight: FontWeight.bold,
                               ),
                             )
                           ],
@@ -503,7 +496,7 @@ class _AccountSection extends StatelessWidget {
 
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.secondary,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -537,6 +530,7 @@ class _AccountSection extends StatelessWidget {
                           onSubmitted: (_) => onNicknameSubmitted(),
                           decoration: const InputDecoration(
                             labelText: 'New nickname',
+                            hintText: 'Insert new nickname...',
                             isDense: true,
                           ),
                         ),

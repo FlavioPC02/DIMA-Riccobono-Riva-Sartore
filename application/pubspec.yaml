@@ -30,9 +30,6 @@ dev_dependencies:
   mockito: ^5.4.0
   build_runner: ^2.7.1
 
-dependency_overrides:
-  source_gen: ^4.0.0
-
 flutter:
   uses-material-design: true
   

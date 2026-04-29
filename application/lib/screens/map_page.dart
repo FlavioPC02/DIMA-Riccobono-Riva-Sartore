@@ -8,12 +8,44 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/theme/app_colors.dart';
+import 'navigator.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
   @override
   State<MapPage> createState() => _MapPageState();
+}
+
+//TODO: DA TOGLIERE
+class NavigatoreButton extends StatelessWidget {
+  const NavigatoreButton({
+    super.key,
+    required this.onPressed,
+    this.top = 130.0,
+    this.left = 20.0,
+  });
+
+  final VoidCallback onPressed;
+  final double top;
+  final double left;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: top,
+      left: left,
+      child: FloatingActionButton(
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        onPressed: onPressed,
+        mini: true,
+        child: Icon(
+          Icons.navigation,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
 }
 
 class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
@@ -484,6 +516,43 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
+    //TODO: rimuovi
+  void _openNavigatorScreen() {
+    if (_selectedTrailIndex < 0 || _selectedTrailIndex >= _foundTrails.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a trail before opening the navigator.')),
+      );
+      return;
+    }
+
+    final rawTrail = _foundTrails[_selectedTrailIndex];
+    final normalizedSubTrails = ((rawTrail['subTrails'] as List?) ?? const [])
+        .map((segment) => (segment as List).whereType<LatLng>().toList())
+        .where((segment) => segment.isNotEmpty)
+        .toList();
+
+    if (normalizedSubTrails.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This trail has no valid path data.')),
+      );
+      return;
+    }
+
+    final selectedTrail = <String, dynamic>{
+      'id': rawTrail['id'],
+      'name': rawTrail['name']?.toString() ?? 'Selected trail',
+      'subTrails': normalizedSubTrails,
+      // Keep legacy key for screens that still read old map payloads.
+      'coordinates': normalizedSubTrails,
+    };
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NavigatorScreen(trail: selectedTrail),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     //needed for AutomaticKeepAliveClientMixin
@@ -555,6 +624,10 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               ),
             ),
           ),
+           //TODO: rimuovi
+        NavigatoreButton(
+          onPressed: _openNavigatorScreen,
+        ),
           //button to center the map on the user's current location
           Positioned(
             top: 130.0,
