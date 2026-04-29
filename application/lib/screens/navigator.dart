@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart' as geo;
@@ -27,10 +28,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   static const double _offsetBound = 32;
 
   final MapController _mapController = MapController();
-
-  //keep the state of the map page alive when switching between screens
-  @override
-  bool get wantKeepAlive => true;
 
   //CONFIGURABLE VARIABLES
 
@@ -146,22 +143,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
         ),
       ),
     );
-
-    //final camera = await _mapController.centerZoomFitBounds(bounds)
-    //  bounds,
-    //  MbxEdgeInsets(
-    //    top: MediaQuery.of(context).padding.top + 20,
-    //    left: 32,
-    //    bottom: 32, //card height
-    //    right: 32,
-    //  ),
-    //  null,
-    //  null,
-    //  null,
-    //  null,
-    //);
-
-    //await _mapboxMap!.easeTo(camera, MapAnimationOptions(duration: 900));
   }
 
   //function to move the camera to a specific location with a given zoom level
@@ -339,6 +320,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
               PolylineLayer(
                 polylines: _buildPolylines(),
               ),
+              CurrentLocationLayer(),
             ],
           ),
               Positioned(

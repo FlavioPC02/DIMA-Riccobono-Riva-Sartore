@@ -287,12 +287,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       final width = MediaQuery.of(context).size.width;
       final height = MediaQuery.of(context).size.height;
 
-      final Point<double> topLeftPixel = Point(0.0, _centerMapButtonTopOffset);
-      
-      final Point<double> bottomRightPixel = Point(width, height - _closeButtonBottomOffset);
+      final Offset topLeftPixel = Offset(0.0, _centerMapButtonTopOffset);
 
-      final LatLng topLeft = camera.pointToLatLng(topLeftPixel);
-      final LatLng bottomRight = camera.pointToLatLng(bottomRightPixel);
+      final Offset bottomRightPixel = Offset(width, height - _closeButtonBottomOffset);
+
+      final LatLng topLeft = camera.screenOffsetToLatLng(topLeftPixel);
+      final LatLng bottomRight = camera.screenOffsetToLatLng(bottomRightPixel);
 
       final south = bottomRight.latitude;
       final north = topLeft.latitude;
