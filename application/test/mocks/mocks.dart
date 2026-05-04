@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/settings.dart';
@@ -15,5 +16,11 @@ import 'package:mockito/annotations.dart';
   SettingsRepository,
   ProfileRepository,
   Settings,
+])
+@GenerateNiceMocks([
+  MockSpec<HttpClient>(),
+  MockSpec<HttpClientRequest>(),
+  MockSpec<HttpClientResponse>(),
+  MockSpec<HttpHeaders>(),
 ])
 void main(){}
