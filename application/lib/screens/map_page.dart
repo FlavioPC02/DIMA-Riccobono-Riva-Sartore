@@ -72,6 +72,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   void dispose() {
     _searchController.dispose();
     _mapController.dispose();
+    _pageController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -307,9 +308,6 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     //dismiss the keyboard
     FocusScope.of(context).unfocus();
 
-    //clear the search bar
-    _searchController.clear();
-
     setState(() {
       _isSearchingLocation = true;
     });
@@ -429,6 +427,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           }
 
           setState(() {
+            _pageController.dispose();
+            _pageController = PageController(viewportFraction: 0.85);
             _foundTrails = tempTrails;
             if (_foundTrails.isNotEmpty) _selectedTrailIndex = 0;
           });
@@ -520,6 +520,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as List;
         if (mounted) {
+          if (_isSearchingLocation || _searchController.text.isEmpty) return;
           setState(() {
             _locationSuggestions = data.cast<Map<String, dynamic>>();
           });
@@ -607,7 +608,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                     enabled: !_isSearchingLocation,
                     onChanged: _onSearchChanged,
                     onSubmitted: (value) {
-                      setState(() => _locationSuggestions.clear());
+                      // cancel debounce timer before searching
+                      if (_debounce?.isActive ?? false) _debounce!.cancel();
+                      setState(() {
+                        _locationSuggestions.clear();
+                        _isFetchingSuggestions = false;
+                      });
                       if (!_isSearchingLocation) _searchLocation(value);
                     },
                     decoration: InputDecoration(
@@ -832,8 +838,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 mini: true,
                 onPressed: () {
-                    setState(() {
+                  _searchController.clear();
+                  FocusScope.of(context).unfocus();
+
+                  setState(() {
                     _foundTrails.clear();
+                    _locationSuggestions.clear();
                   });
                 },
                 child: Icon(Icons.close, color: Theme.of(context).colorScheme.primary),
