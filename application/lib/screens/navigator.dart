@@ -28,10 +28,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
   final MapController _mapController = MapController();
 
-  //keep the state of the map page alive when switching between screens
-  @override
-  bool get wantKeepAlive => true;
-
   //CONFIGURABLE VARIABLES
 
   //TODO: define final app name

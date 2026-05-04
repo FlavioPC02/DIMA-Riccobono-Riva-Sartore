@@ -9,44 +9,12 @@ import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:application/screens/trail_details_screen.dart';
 import '../core/theme/app_colors.dart';
-import 'navigator.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
   @override
   State<MapPage> createState() => _MapPageState();
-}
-
-//TODO: DA TOGLIERE
-class NavigatoreButton extends StatelessWidget {
-  const NavigatoreButton({
-    super.key,
-    required this.onPressed,
-    this.top = 130.0,
-    this.left = 20.0,
-  });
-
-  final VoidCallback onPressed;
-  final double top;
-  final double left;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: top,
-      left: left,
-      child: FloatingActionButton(
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        onPressed: onPressed,
-        mini: true,
-        child: Icon(
-          Icons.navigation,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-    );
-  }
 }
 
 class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
@@ -67,6 +35,10 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> _foundTrails = [];
   int _selectedTrailIndex = -1;
   late PageController _pageController;
+
+  Timer? _debounce;
+  List<Map<String, dynamic>> _locationSuggestions = [];
+  bool _isFetchingSuggestions = false;
 
   //keep the state of the map page alive when switching between screens
   @override
@@ -101,6 +73,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   void dispose() {
     _searchController.dispose();
     _mapController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -517,41 +490,53 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
-    //TODO: rimuovi
-  void _openNavigatorScreen() {
-    if (_selectedTrailIndex < 0 || _selectedTrailIndex >= _foundTrails.length) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a trail before opening the navigator.')),
-      );
+  //function to manage debounce timer
+  //Nominatim API has a rate limit of 1 request per second
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    if (query.trim().length < 3) {
+      setState(() => _locationSuggestions.clear());
       return;
     }
 
-    final rawTrail = _foundTrails[_selectedTrailIndex];
-    final normalizedSubTrails = ((rawTrail['subTrails'] as List?) ?? const [])
-        .map((segment) => (segment as List).whereType<LatLng>().toList())
-        .where((segment) => segment.isNotEmpty)
-        .toList();
+    _debounce = Timer(const Duration(milliseconds: 800), () {
+      _fetchLocationSuggestions(query);
+    });
+  }
 
-    if (normalizedSubTrails.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This trail has no valid path data.')),
-      );
-      return;
-    }
+  //function to fetch location suggestions
+  Future<void> _fetchLocationSuggestions(String query) async {
+    setState(() => _isFetchingSuggestions = true);
 
-    final selectedTrail = <String, dynamic>{
-      'id': rawTrail['id'],
-      'name': rawTrail['name']?.toString() ?? 'Selected trail',
-      'subTrails': normalizedSubTrails,
-      // Keep legacy key for screens that still read old map payloads.
-      'coordinates': normalizedSubTrails,
-    };
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NavigatorScreen(trail: selectedTrail),
-      ),
+    final url = Uri.parse(
+      'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=5',
     );
+
+    try {
+      final response = await http
+          .get(url, headers: {'User-Agent': _appName})
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as List;
+        if (mounted) {
+          setState(() {
+            _locationSuggestions = data.cast<Map<String, dynamic>>();
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error occurred while fetching location suggestions. Check your connection and try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isFetchingSuggestions = false);
+      }
+    }
   }
 
   @override
@@ -591,44 +576,6 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               ),
             ],
           ),
-          //search bar
-          Positioned(
-            top: 70.0,
-            left: 22.0,
-            right: 22.0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondary,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: TextField(
-                controller: _searchController,
-                textInputAction: TextInputAction.search,
-                enabled: !_isSearchingLocation,
-                onSubmitted: (value) {
-                  if (!_isSearchingLocation) _searchLocation(value);
-                },
-                decoration: InputDecoration(
-                  hintText: _isSearchingLocation ? 'Searching...' : 'Search for a location...',
-                  hintStyle: Theme.of(context).textTheme.bodyMedium,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 15,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.search),
-                    onPressed: () =>
-                      _searchLocation(_searchController.text),
-                  ),
-                ),
-              ),
-            ),
-          ),
-           //TODO: rimuovi
-        NavigatoreButton(
-          onPressed: _openNavigatorScreen,
-        ),
           //button to center the map on the user's current location
           Positioned(
             top: 130.0,
@@ -641,6 +588,128 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 Icons.my_location,
                 color: _isLocatingUser ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
               ),
+            ),
+          ),
+          //search bar and location suggestions
+          Positioned(
+            top: 70.0,
+            left: 22.0,
+            right: 22.0,
+            child: Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondary,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    enabled: !_isSearchingLocation,
+                    onChanged: _onSearchChanged,
+                    onSubmitted: (value) {
+                      setState(() => _locationSuggestions.clear());
+                      if (!_isSearchingLocation) _searchLocation(value);
+                    },
+                    decoration: InputDecoration(
+                      hintText: _isSearchingLocation ? 'Searching...' : 'Search for a location...',
+                      hintStyle: Theme.of(context).textTheme.bodyMedium,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _searchController,
+                        builder: (context, value, child) {
+                          if (_isFetchingSuggestions) {
+                            return const Padding(
+                              padding: EdgeInsets.all(12.0),
+                              child: SizedBox(
+                                width: 20, 
+                                height: 20, 
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            );
+                          }
+                          if (value.text.isNotEmpty) {
+                            return IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _locationSuggestions.clear();
+                                });
+                              },
+                            );
+                          }
+                          return IconButton(
+                            icon: const Icon(Icons.search),
+                            onPressed: () {
+                              FocusScope.of(context).requestFocus();
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                if (_locationSuggestions.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8.0),
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.shadow,
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        )
+                      ],
+                    ),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: _locationSuggestions.length,
+                      separatorBuilder: (context, index) => Divider(
+                        height: 1, 
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      itemBuilder: (context, index) {
+                        final suggestion = _locationSuggestions[index];
+                        final name = suggestion['display_name'] ?? 'Unknown location';
+                        
+                        return ListTile(
+                          title: Text(
+                            name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          onTap: () {
+                            FocusScope.of(context).unfocus();
+                            _searchController.text = name;
+                            setState(() {
+                              _locationSuggestions.clear();
+                              _isSearchingLocation = true;
+                            });
+
+                            final lat = double.parse(suggestion['lat']);
+                            final lon = double.parse(suggestion['lon']);                            
+                            _moveCameraTo(lat, lon, 13.0);
+                            _fetchTrailsByLocation(lat, lon).then((_) {
+                              if (mounted) {
+                                setState(() => _isSearchingLocation = false);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
           //button to search for hiking trails in the current map view and show results
