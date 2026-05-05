@@ -70,5 +70,10 @@
 	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+  		<string>fetch</string>
+  		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

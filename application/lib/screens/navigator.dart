@@ -1,3 +1,4 @@
+import 'package:application/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
@@ -28,6 +29,10 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   static const double _offsetBound = 32;
 
   final MapController _mapController = MapController();
+  
+  late Stopwatch _stopwatch;
+  late Timer _timer;
+  Duration _elapsedTime = Duration.zero;
 
   //CONFIGURABLE VARIABLES
 
@@ -44,12 +49,41 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   @override
   void initState() {
     super.initState();
+    _stopwatch = Stopwatch();
+    _stopwatch.start();
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted || !_stopwatch.isRunning) return;
+      setState(() {
+        _elapsedTime = _stopwatch.elapsed;
+      });
+    });
     _buildMap();
   }
 
   @override
   void dispose() {
+    _timer.cancel();
+    _stopwatch.stop();
     super.dispose();
+  }
+
+  void _toggleStopwatch() {
+    setState(() {
+      if (_stopwatch.isRunning) {
+        _stopwatch.stop();
+      } else {
+        _stopwatch.start();
+      }
+      _elapsedTime = _stopwatch.elapsed;
+    });
+    NotificationService.showNotification(title: 'Prova', body: 'notifica prova');
+  }
+
+  void _stopStopwatch() {
+    setState(() {
+      _stopwatch.stop();
+      _elapsedTime = _stopwatch.elapsed;
+    });
   }
 
   Future<void> _buildMap() async {
@@ -301,28 +335,29 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
       children: [
         Expanded(
           child: Stack(
+            alignment: Alignment.bottomCenter,
             children: [
-                        //main map
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentCenter,
-              initialZoom: mapZoom,
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              //main map
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _currentCenter,
+                  initialZoom: mapZoom,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
+                    userAgentPackageName: _appName,
+                  ),
+                  PolylineLayer(
+                    polylines: _buildPolylines(),
+                  ),
+                  CurrentLocationLayer(),
+                ],
               ),
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
-                userAgentPackageName: _appName,
-              ),
-              PolylineLayer(
-                polylines: _buildPolylines(),
-              ),
-              CurrentLocationLayer(),
-            ],
-          ),
               Positioned(
                 top: 60.0,
                 right: 20.0,
@@ -336,51 +371,237 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        SafeArea(
-          top: false,
-          left: false,
-          right: false,
-          bottom: true,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            child: Material(
-              color: Theme.of(context).colorScheme.surface,
-              elevation: 10,
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Navigator',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      trailName,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+              Positioned.fill(
+                child: StatsRecordingCard(
+                  trailName: trailName,
+                  elapsedTime: _elapsedTime,
+                  isRecording: _stopwatch.isRunning,
+                  onToggleRecording: _toggleStopwatch,
+                  onStopRecording: _stopStopwatch,
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ],
     );
+  }
+}
+
+class StatsRecordingCard extends StatefulWidget {
+  
+  final String trailName;
+  final Duration elapsedTime;
+  final bool isRecording;
+  final VoidCallback onToggleRecording;
+  final VoidCallback onStopRecording;
+  
+  const StatsRecordingCard({
+    super.key,
+    required this.trailName,
+    required this.elapsedTime,
+    required this.isRecording,
+    required this.onToggleRecording,
+    required this.onStopRecording,
+  });
+
+  @override
+  State<StatsRecordingCard> createState() => _StatsRecordingCardState();
+}
+
+class _StatsRecordingCardState extends State<StatsRecordingCard> {
+  static const double _minSheetSize = 0.14;
+  static const double _initialSheetSize = 0.14;
+  static const double _maxSheetSize = 0.80;
+  static const double _detailsRevealThreshold = 0.18;
+
+  double _sheetExtent = _initialSheetSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final showDetails = _sheetExtent >= _detailsRevealThreshold;
+
+    return NotificationListener<DraggableScrollableNotification>(
+      onNotification: (notification) {
+        if ((notification.extent - _sheetExtent).abs() > 0.001) {
+          setState(() {
+            _sheetExtent = notification.extent;
+          });
+        }
+        return false;
+      },
+      child: DraggableScrollableSheet(
+        initialChildSize: _initialSheetSize,
+        minChildSize: _minSheetSize,
+        maxChildSize: _maxSheetSize,
+        expand: true,
+        builder: (context, scrollController) {
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                  bottom: Radius.zero,
+                ),
+                border: Border.all(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.25),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                left: false,
+                right: false,
+                bottom: true,
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  physics: const ClampingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 44,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.trailName,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleMedium,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 10,),
+                        Column(
+                          children: [
+                            Text(
+                              'Time',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            //const SizedBox(height: 4),
+                            Text(
+                              _formatDuration(widget.elapsedTime),
+                              style: theme.textTheme.titleLarge,
+                            ),
+                          ],
+                        ),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          child: showDetails
+                              ? Column(
+                                  key: const ValueKey('expanded-stats'),
+                                  children: [
+                                    const SizedBox(height: 14),
+                                    const Divider(height: 1),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                'Distance',
+                                                style: theme.textTheme.bodyMedium,
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              Text(
+                                                '-- km',
+                                                style: theme.textTheme.titleLarge,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height: 48,
+                                          child: VerticalDivider(
+                                            color: theme.colorScheme.outline.withValues(alpha: 0.35),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                'Elevation Gap',
+                                                style: theme.textTheme.bodyMedium,
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                '-- m',
+                                                style: theme.textTheme.titleLarge,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Divider(height: 1),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        //Pause/Resume button
+                                        Expanded(
+                                          flex: 2,
+                                          child: ElevatedButton.icon(
+                                            onPressed: widget.onToggleRecording,
+                                            label: widget.isRecording 
+                                              ? const Text('Pause')
+                                              : const Text('Resume'),
+                                            icon: widget.isRecording 
+                                              ? Icon(Icons.pause)
+                                              : Icon(Icons.play_arrow),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        //Stop button 
+                                        Expanded(
+                                          flex: 3,
+                                          child: ElevatedButton.icon(
+                                            onPressed: widget.onStopRecording,
+                                            label: Text('Stop'),
+                                            icon: Icon(Icons.stop),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  ],
+                                )
+                              : const SizedBox.shrink(key: ValueKey('collapsed-stats')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours.toString().padLeft(2, '0');
+    final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
   }
 }
