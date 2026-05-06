@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:application/services/weather_service.dart';
+import 'package:lottie/lottie.dart';
 
 class TrailDetailsScreen extends StatefulWidget {
   final int trailId;
@@ -21,14 +26,31 @@ class TrailDetailsScreen extends StatefulWidget {
 class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   bool _isLoading = true;
 
-  // Variabili di stato separate per i dati della relazione e quelli aggregati dalle way
   Map<String, dynamic>? _relationTags;
   Set<String> _surfaces = {};
   String? _maxIncline;
   String? _estimatedDistance;
   String? _estimatedDuration;
+  String? _estimatedAscent;
   
   String? _errorMessage;
+
+  List<double>? _elevations;
+  List<double>? _distances;
+  bool _isLoadingElevations = true;
+
+  List<Map<String, dynamic>>? _weatherForecast;
+  bool _isLoadingWeather = true;
+    String _lottieAsset(int code) {
+    if (code == 800) return 'assets/lottie/clear.json';
+    if (code == 801) return 'assets/lottie/few_clouds.json';
+    if (code >= 802) return 'assets/lottie/cloudy.json';
+    if (code >= 700) return 'assets/lottie/fog.json';
+    if (code >= 600) return 'assets/lottie/snow.json';
+    if (code >= 500) return 'assets/lottie/rain.json';
+    if (code >= 300) return 'assets/lottie/drizzle.json';
+    return 'assets/lottie/thunderstorm.json';
+  }
 
   // TODO: define final app name
   final String _appName = 'FlutterHikingApp/1.0';
@@ -66,6 +88,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         double tempMaxInclineValue = 0.0;
         String? tempMaxInclineStr;  
 
+        List<List<LatLng>> segments = [];
+
         for (var el in elements) {
           if (el['type'] == 'relation' && el['tags'] != null) {
             relTags = el['tags'];
@@ -75,7 +99,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             }
             if (el['tags']['incline'] != null) {
               String inclineVal = el['tags']['incline'].toString().toLowerCase().trim();
-              
               if (inclineVal != 'up' && inclineVal != 'down') {
                 String numericPart = inclineVal.replaceAll(RegExp(r'[^0-9.]'), '');
                 if (numericPart.isNotEmpty) {
@@ -88,59 +111,96 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
               }
             }
           }
+          
+          if (el['type'] == 'way' && el['geometry'] != null) {
+            List<LatLng> wayPoints = [];
+            for (var geo in el['geometry']) {
+              wayPoints.add(LatLng(geo['lat'].toDouble(), geo['lon'].toDouble()));
+            }
+            if (wayPoints.isNotEmpty) segments.add(wayPoints);
+          }
+        }
+
+        double meters = 0.0;
+        final distanceCalc = const Distance();
+        for (var seg in segments) {
+          for (int i = 0; i < seg.length - 1; i++) {
+            meters += distanceCalc.as(LengthUnit.Meter, seg[i], seg[i + 1]);
+          }
         }
 
         List<LatLng> allPoints = [];
+        if (segments.isNotEmpty) {
+          allPoints = List.from(segments.first);
+          segments.removeAt(0);
 
-        for (var el in elements) {
-          if (el['type'] == 'way' && el['geometry'] != null) {
-            for (var geo in el['geometry']) {
-              allPoints.add(LatLng(geo['lat'].toDouble(), geo['lon'].toDouble()));
+          while (segments.isNotEmpty) {
+            double minDistance = double.infinity;
+            int bestIndex = -1;
+            int attachMode = -1;
+
+            LatLng currentEnd = allPoints.last;
+            LatLng currentStart = allPoints.first;
+
+            for (int i = 0; i < segments.length; i++) {
+              var seg = segments[i];
+
+              double dEndFirst = distanceCalc.as(LengthUnit.Meter, currentEnd, seg.first);
+              if (dEndFirst < minDistance) { minDistance = dEndFirst; bestIndex = i; attachMode = 0; }
+
+              double dEndLast = distanceCalc.as(LengthUnit.Meter, currentEnd, seg.last);
+              if (dEndLast < minDistance) { minDistance = dEndLast; bestIndex = i; attachMode = 1; }
+
+              double dStartLast = distanceCalc.as(LengthUnit.Meter, currentStart, seg.last);
+              if (dStartLast < minDistance) { minDistance = dStartLast; bestIndex = i; attachMode = 2; }
+
+              double dStartFirst = distanceCalc.as(LengthUnit.Meter, currentStart, seg.first);
+              if (dStartFirst < minDistance) { minDistance = dStartFirst; bestIndex = i; attachMode = 3; }
             }
+
+            if (minDistance > 1000) {
+              break;
+            }
+
+            var bestSeg = segments[bestIndex];
+            if (attachMode == 0) {
+              allPoints.addAll(bestSeg.skip(1));
+            } else if (attachMode == 1) {
+              allPoints.addAll(bestSeg.reversed.skip(1));
+            } else if (attachMode == 2) {
+              allPoints.insertAll(0, bestSeg.sublist(0, bestSeg.length - 1));
+            } else if (attachMode == 3) {
+              allPoints.insertAll(0, bestSeg.reversed.skip(1));
+            }
+            
+            segments.removeAt(bestIndex);
           }
         }
 
+        if (meters > 0) {
+          if (relTags?['distance'] == null) {
+            double estimatedKm = (meters / 1000); 
+            _estimatedDistance = "${estimatedKm.toStringAsFixed(1)} km (estimated)";
+          }
+
+          if (relTags?['duration'] == null && relTags?['time'] == null) {
+            double km = (relTags?['distance'] != null) 
+                ? double.tryParse(relTags!['distance'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? (meters / 1000)
+                : (meters / 1000);
+            double hours = km / 4.0;
+            int totalMinutes = (hours * 60).toInt();
+            _estimatedDuration = "${totalMinutes ~/ 60}h ${totalMinutes % 60}m (estimated)";
+          }
+        }
+        
         if (allPoints.isNotEmpty) {
-          double meters = 0.0;
-          final distanceCalc = const Distance();
-
-          for (var el in elements) {
-            if (el['type'] == 'way' && el['geometry'] != null) {
-              List<LatLng> wayPoints = [];
-              for (var geo in el['geometry']) {
-                wayPoints.add(LatLng(geo['lat'].toDouble(), geo['lon'].toDouble()));
-              }
-              
-              for (int i = 0; i < wayPoints.length - 1; i++) {
-                meters += distanceCalc.as(
-                  LengthUnit.Meter,
-                  wayPoints[i],
-                  wayPoints[i + 1],
-                );
-              }
-            }
-          }
-
-          if (meters > 0) {
-            if (_relationTags?['distance'] == null) {
-              double estimatedKm = (meters / 1000); 
-              _estimatedDistance = "${estimatedKm.toStringAsFixed(1)} km (stima)";
-            }
-
-            if (_relationTags?['duration'] == null && _relationTags?['time'] == null) {
-              double km = (_relationTags?['distance'] != null) 
-                  ? double.tryParse(_relationTags!['distance'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? (meters / 1000)
-                  : (meters / 1000);
-
-              //average hiking speed: 4 km/h
-              double hours = km / 4.0;
-              int totalMinutes = (hours * 60).toInt();
-              int h = totalMinutes ~/ 60;
-              int m = totalMinutes % 60;
-              
-              _estimatedDuration = "${h}h ${m}m (estimated)";
-            }
-          }
+          _fetchElevations(allPoints);
+          _fetchWeather(allPoints.first);
+        } else {
+          setState(() {
+            _isLoadingWeather = false;
+            _isLoadingElevations = false;
+          });
         }
 
         if (relTags != null) {
@@ -170,6 +230,103 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     }
   }
 
+  Future<void> _fetchElevations(List<LatLng> points) async {
+    if (points.isEmpty) {
+      setState(() => _isLoadingElevations = false);
+      return;
+    }
+
+    List<double> allDistances = [0.0];
+    double currentDist = 0.0;
+    final distCalc = const Distance();
+    for (int i = 1; i < points.length; i++) {
+      currentDist += distCalc.as(LengthUnit.Meter, points[i - 1], points[i]);
+      allDistances.add(currentDist);
+    }
+
+    // maximum of 50 coordinates points to avoid hitting API limits
+    const int maxPoints = 50;
+    List<LatLng> sampledPoints = [];
+    List<double> sampledDistances = [];
+
+    if (points.length <= maxPoints) {
+      sampledPoints = points;
+      sampledDistances = allDistances;
+    } else {
+      double step = points.length / maxPoints;
+      for (int i = 0; i < maxPoints; i++) {
+        int index = (i * step).toInt();
+        sampledPoints.add(points[index]);
+        sampledDistances.add(allDistances[index]);
+      }
+      sampledPoints.add(points.last);
+      sampledDistances.add(allDistances.last);
+    }
+
+    try {
+      final url = Uri.parse('https://api.open-elevation.com/api/v1/lookup');
+      
+      final body = json.encode({
+        "locations": sampledPoints
+            .map((p) => {"latitude": p.latitude, "longitude": p.longitude})
+            .toList()
+      });
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: body,
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final results = data['results'] as List;
+
+        double calculatedAscent = 0.0;
+        for (int i = 1; i < results.length; i++) {
+          double prev = (results[i - 1]['elevation'] as num).toDouble();
+          double curr = (results[i]['elevation'] as num).toDouble();
+          double diff = curr - prev;
+          if (diff > 1.5) {
+            calculatedAscent += diff;
+          }
+        }
+        
+        setState(() {
+          _elevations = results.map((e) => (e['elevation'] as num).toDouble()).toList();
+          _distances = sampledDistances;
+          _estimatedAscent = calculatedAscent.round().toString();
+          _isLoadingElevations = false;
+        });
+      } else {
+        setState(() => _isLoadingElevations = false);
+      }
+    } catch (e) {
+      setState(() => _isLoadingElevations = false);
+    }
+  }
+
+  Future<void> _fetchWeather(LatLng location) async {
+    try {
+      final forecast = await WeatherService().fetchMultipleDaysForecast(
+        location.latitude, 
+        location.longitude,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _weatherForecast = forecast;
+          _isLoadingWeather = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingWeather = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,7 +335,12 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
-      body: _buildBody(),
+      body: Stack(
+        children: [
+          _buildBody(),
+          if (!_isLoading) _buildFloatingButtons(),
+        ],
+      ),
     );
   }
 
@@ -211,8 +373,12 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 100.0),
             children: [
+              _buildWeatherBox(),
+              _buildElevationChart(),
+              if (_elevations != null && _elevations!.isNotEmpty) 
+                const SizedBox(height: 16),
               _buildInfoTile('Operator', _relationTags?['operator']),
               _buildInfoTile('Website', _relationTags?['website']),
               _buildInfoTile('Description', _relationTags?['description']),
@@ -223,37 +389,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildInfoTile(String title, String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.8)),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -289,10 +424,10 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
     final String difficulty = _relationTags?['sac_scale'] ?? _relationTags?['cai_scale'] ?? 'N/D';
     
-    final String ascent = _relationTags?['ascent'] ?? 'N/D';
-    String elevationStr = 'N/D';
+    final String ascent = _relationTags?['ascent'] ?? _estimatedAscent ?? 'N/D';
+    String ascentStr = 'N/D';
     if (ascent != 'N/D') {
-      elevationStr = '+$ascent m';
+      ascentStr = (ascent == _estimatedAscent) ? '+$ascent m (estimated)' : '+$ascent m';
     }
 
     return Padding(
@@ -308,7 +443,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           _buildStatCard(Icons.route, 'Distance', distance),
           _buildStatCard(Icons.timer_outlined, 'Duration', duration),
           _buildStatCard(Icons.landscape, 'Difficulty', difficulty),
-          _buildStatCard(Icons.height, 'Elevation', elevationStr),
+          _buildStatCard(Icons.height, 'Ascent', ascentStr),
         ],
       ),
     );
@@ -348,6 +483,411 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeatherBox() {
+    if (_isLoadingWeather) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_weatherForecast == null || _weatherForecast!.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(left: 16.0, bottom: 24.0),
+        child: Text(
+          'Weather data not available.',
+          style: TextStyle(color: AppColors.errorText, fontSize: 16),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16.0, bottom: 12.0),
+          child: Text(
+            'Weather Forecast',
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              fontSize: 16, 
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.8)
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 150,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 16.0),
+            itemCount: _weatherForecast!.length,
+            itemBuilder: (context, index) {
+              final day = _weatherForecast![index];
+              
+              String desc = day['desc'].toString();
+              if (desc.isNotEmpty) {
+                desc = desc[0].toUpperCase() + desc.substring(1);
+              }
+
+              return Container(
+                width: 120,
+                margin: const EdgeInsets.only(right: 12.0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 1,
+                  ),
+                ),
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      day['date'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 14, 
+                        color: Theme.of(context).colorScheme.primary
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Lottie.asset(
+                      _lottieAsset(day['code']),
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.contain,
+                      errorBuilder: (c, e, s) => const Icon(Icons.cloud_outlined, size: 30),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${day['temp_max'].round()}° / ${day['temp_min'].round()}°',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      desc,
+                      style: const TextStyle(fontSize: 14),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildElevationChart() {
+    if (_isLoadingElevations) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_elevations == null || _elevations!.isEmpty) {
+      return  Padding(
+        padding: EdgeInsets.only(left: 16.0, bottom: 24.0),
+        child: Text(
+          'Elevation profile not available.',
+          style: TextStyle(color: AppColors.errorText, fontSize: 16),
+        ),
+      );
+    }
+
+    List<FlSpot> spots = [];
+    double minElev = _elevations!.first;
+    double maxElev = _elevations!.first;
+    double maxDistKm = _distances!.last / 1000;
+
+    for (int i = 0; i < _elevations!.length; i++) {
+      double el = _elevations![i];
+      double distKm = _distances![i] / 1000;
+      spots.add(FlSpot(distKm, el));
+      if (el < minElev) minElev = el;
+      if (el > maxElev) maxElev = el;
+    }
+
+    double chartMinY = (minElev - 20).clamp(0, double.infinity);
+    double chartMaxY = maxElev + 20;
+
+    double totalYRange = chartMaxY - chartMinY;
+    double yInterval = (totalYRange / 4).roundToDouble(); 
+    if (yInterval < 10) yInterval = 10;
+
+    double xInterval;
+    if (maxDistKm <= 5.0) {
+      xInterval = 0.5;
+    } else if (maxDistKm <= 10.0) {
+      xInterval = 1.0;
+    } else if (maxDistKm <= 100.0) {
+      xInterval = 10.0;
+    } else if (maxDistKm <= 200.0) {
+      xInterval = 20.0; 
+    } else {
+      xInterval = 50.0;
+    }
+
+    return SizedBox(
+      height: 220,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, bottom: 16.0),
+            child: Text(
+              'Elevation Profile',
+              style: TextStyle(
+                fontWeight: FontWeight.bold, 
+                fontSize: 16, 
+                color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.8)
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16.0, right: 16.0),
+              child: LineChart(
+                LineChartData(
+                  minX: 0,
+                  maxX: maxDistKm,
+                  lineTouchData: LineTouchData(
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (LineBarSpot touchedSpot) {
+                        return Theme.of(context).colorScheme.secondary;
+                      },
+                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                        return touchedSpots.map((LineBarSpot touchedSpot) {
+                          return LineTooltipItem(
+                            '${touchedSpot.y.toInt()} m',
+                            TextStyle(
+                              color: Theme.of(context).colorScheme.shadow, 
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          );
+                        }).toList();
+                      },
+                    ),
+                  ),
+                  gridData: const FlGridData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 45,
+                        interval: yInterval,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.max || value == meta.min) {
+                            return const SizedBox.shrink();
+                          }
+                          return Container(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '${value.toInt()}m', 
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 25,
+                        interval: xInterval,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.max || value == meta.min || value > maxDistKm) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text('${value.toInt()} km', style: const TextStyle(fontSize: 10)),
+                          );
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minY: chartMinY,
+                  maxY: chartMaxY,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      curveSmoothness: 0.35,
+                      preventCurveOverShooting: true,
+                      color: Theme.of(context).colorScheme.primary,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: false),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoTile(String title, String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.8)),
+                ),
+                const SizedBox(height: 4),
+                _buildLinkedText(value),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLinkedText(String text) {
+    final RegExp urlRegex = RegExp(
+      r'((https?:www\.)|(https?:\/\/)|(www\.))[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9]{1,6}(\/[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)?',
+    );
+    final matches = urlRegex.allMatches(text);
+
+    
+    final List<TextSpan> spans = [];
+    int lastMatchEnd = 0;
+    final TextStyle baseStyle = TextStyle(fontSize: 14);
+
+    if (matches.isEmpty) {
+      return Text(text, style: baseStyle);
+    }
+
+    for (final match in matches) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start), style: baseStyle));
+      }
+
+      final String url = match.group(0)!;
+      final String fullUrl = url.startsWith('http') ? url : 'https://$url';
+
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            fontSize: 15,
+            color: Colors.blue,
+            decoration: TextDecoration.underline,
+            decorationColor: Colors.blue,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.parse(fullUrl);
+              try {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not open the link.')),
+                  );
+                }
+              }
+            },
+        ),
+      );
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastMatchEnd), style: baseStyle));
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
+      style: baseStyle,
+    );
+  }
+
+  Widget _buildFloatingButtons() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 50.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // TODO: open plan screen
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.calendar_month),
+                label: const Text(
+                  'Plan',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16.0),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // TODO: open navigator screen
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.secondary,
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.navigation),
+                label: const Text(
+                  'Start',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),  
           ],
         ),
       ),
