@@ -646,39 +646,37 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           ),
           //button to reload the map in case of tile loading errors, shown only when a tile loading error occurs
           if (_hasMapLoadError)
-            Positioned(
-              top: 500.0,
-              left: 150.0,
-              right: 150.0,
-              child: Center(
-                child: _isRetryingMapLoad
-                    ? Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.secondary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        ),
-                      )
-                    : ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.errorBackground,
-                          foregroundColor: AppColors.errorText,
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        ),
-                        icon: const Icon(Icons.refresh, size: 20),
-                        label: const Text('Reload map', style: TextStyle(fontSize: 20)),
-                        onPressed: _retryMapLoad,
+            Center(
+              child: _isRetryingMapLoad
+                ? Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  ),
+                )
+                : SizedBox(
+                  width: 200,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.errorBackground,
+                      foregroundColor: AppColors.errorText,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
-              ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                    icon: const Icon(Icons.refresh, size: 20),
+                    label: const Text('Reload map', style: TextStyle(fontSize: 20)),
+                    onPressed: _retryMapLoad,
+                  ),
+                ),
             ),
           if (!_hasMapLoadError) ...[
             //button to center the map on the user's current location
