@@ -1,3 +1,4 @@
+import 'package:application/services/helpers/notification_permission_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -57,6 +58,12 @@ class NotificationService {
     String? payload,
     String? soundName,
   }) async {
+    final notificationPermissionsEnabled = await NotificationPermissionHelper.areNotificationEnabled(); 
+
+    if(!notificationPermissionsEnabled) {
+      return;
+    }
+    
     try {
       const AndroidNotificationDetails androidNotificationDetails =
         AndroidNotificationDetails(

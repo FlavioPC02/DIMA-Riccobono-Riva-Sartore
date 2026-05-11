@@ -9,6 +9,12 @@ class AppColors {
   static const Color textSecondary = Color(0xFF5F6368);
   static const Color trialBackground = Color(0xFF0B2911);
 
+  static const Color pauseButtonBackground = Colors.amber;
+  static const Color pauseButtonForeground = Colors.white;
+  static const Color resumeButtonBackground = Colors.green;
+  static const Color stopButtonBackground = Colors.red;
+  static const Color stopButtonForeground = Colors.white;
+
   static const Color errorBackground = Color(0xFFFFEBEE);
   static const Color errorBorder = Color(0xFFEF9A9A);
   static const Color errorText = Color(0xFFC62828);
