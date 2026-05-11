@@ -44,6 +44,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
+  //to deal with potenial map tile loading errors
+  DateTime? _lastTileErrorTime;
+  bool _hasMapLoadError = false;
+  bool _isRetryingMapLoad = false;
+  Key _tileLayerKey = UniqueKey();
+
   //CONFIGURABLE VARIABLES
 
   //TODO: define final app name
@@ -359,6 +365,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  //function to fetch hiking trails from the Overpass API using a given query, with retry logic for multiple servers and error handling
   Future<void> _fetchOverpassResponse(String query, double lat, double lon, bool shouldMoveCamera) async {
     
     final overpassUrl = Uri.parse('https://overpass-api.de/api/interpreter');
@@ -540,6 +547,44 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  //function to retry loading the map tiles in case of loading errors
+  Future<void> _retryMapLoad() async {
+    setState(() {
+      _isRetryingMapLoad = true;
+    });
+
+    try {
+      //test if connection is back
+      await http.get(Uri.parse('https://api.mapbox.com/')).timeout(const Duration(seconds: 3));
+      
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+      
+      if (mounted) {
+        setState(() {
+          _isRetryingMapLoad = false;
+          _hasMapLoadError = false;
+          _tileLayerKey = UniqueKey();
+        });
+      }
+    } catch (e) {
+      //still no connection
+      if (mounted) {
+        setState(() {
+          _isRetryingMapLoad = false;
+        });
+        
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error loading map tiles. Check your connection and try again.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     //needed for AutomaticKeepAliveClientMixin
@@ -569,275 +614,339 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             ),
             children: [
               TileLayer(
+                key: _tileLayerKey,
                 urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
                 userAgentPackageName: _appName,
+                errorTileCallback: (tile, error, stackTrace) {
+                  final now = DateTime.now();
+                  if (_lastTileErrorTime == null || now.difference(_lastTileErrorTime!).inSeconds > 5) {
+                    _lastTileErrorTime = now;
+                    
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _hasMapLoadError = true;
+                        });
+                        
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Error loading map tiles. Check your connection and try again.'),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    });
+                  }
+                },
               ),
               PolylineLayer(
                 polylines: _buildPolylines(),
               ),
             ],
           ),
-          //button to center the map on the user's current location
-          Positioned(
-            top: 130.0,
-            right: 20.0,
-            child: FloatingActionButton(
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              onPressed: _centerMapOnUser,
-              mini: true,
-              child: Icon(
-                Icons.my_location,
-                color: _isLocatingUser ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
-              ),
-            ),
-          ),
-          //search bar and location suggestions
-          Positioned(
-            top: 70.0,
-            left: 22.0,
-            right: 22.0,
-            child: Column(
-              children: [
-                Container(
+          //button to reload the map in case of tile loading errors, shown only when a tile loading error occurs
+          if (_hasMapLoadError)
+            Center(
+              child: _isRetryingMapLoad
+                ? Container(
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.secondary,
-                    borderRadius: BorderRadius.circular(15),
+                    shape: BoxShape.circle,
                   ),
-                  child: TextField(
-                    controller: _searchController,
-                    textInputAction: TextInputAction.search,
-                    enabled: !_isSearchingLocation,
-                    onChanged: _onSearchChanged,
-                    onSubmitted: (value) {
-                      // cancel debounce timer before searching
-                      if (_debounce?.isActive ?? false) _debounce!.cancel();
-                      setState(() {
-                        _locationSuggestions.clear();
-                        _isFetchingSuggestions = false;
-                      });
-                      if (!_isSearchingLocation) _searchLocation(value);
-                    },
-                    decoration: InputDecoration(
-                      hintText: _isSearchingLocation ? 'Searching...' : 'Search for a location...',
-                      hintStyle: Theme.of(context).textTheme.bodyMedium,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 15,
+                  child: const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  ),
+                )
+                : SizedBox(
+                  width: 200,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.errorBackground,
+                      foregroundColor: AppColors.errorText,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _searchController,
-                        builder: (context, value, child) {
-                          if (_isFetchingSuggestions) {
-                            return const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: SizedBox(
-                                width: 20, 
-                                height: 20, 
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            );
-                          }
-                          if (value.text.isNotEmpty) {
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                    icon: const Icon(Icons.refresh, size: 20),
+                    label: const Text('Reload map', style: TextStyle(fontSize: 20)),
+                    onPressed: _retryMapLoad,
+                  ),
+                ),
+            ),
+          if (!_hasMapLoadError) ...[
+            //button to center the map on the user's current location
+            Positioned(
+              top: 130.0,
+              right: 20.0,
+              child: FloatingActionButton(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                onPressed: _centerMapOnUser,
+                mini: true,
+                child: Icon(
+                  Icons.my_location,
+                  color: _isLocatingUser ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
+                ),
+              ),
+            ),
+            //search bar and location suggestions
+            Positioned(
+              top: 70.0,
+              left: 22.0,
+              right: 22.0,
+              child: Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      enabled: !_isSearchingLocation,
+                      onChanged: _onSearchChanged,
+                      onSubmitted: (value) {
+                        // cancel debounce timer before searching
+                        if (_debounce?.isActive ?? false) _debounce!.cancel();
+                        setState(() {
+                          _locationSuggestions.clear();
+                          _isFetchingSuggestions = false;
+                        });
+                        if (!_isSearchingLocation) _searchLocation(value);
+                      },
+                      decoration: InputDecoration(
+                        hintText: _isSearchingLocation ? 'Searching...' : 'Search for a location...',
+                        hintStyle: Theme.of(context).textTheme.bodyMedium,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 15,
+                        ),
+                        suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _searchController,
+                          builder: (context, value, child) {
+                            if (_isFetchingSuggestions) {
+                              return const Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: SizedBox(
+                                  width: 20, 
+                                  height: 20, 
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            }
+                            if (value.text.isNotEmpty) {
+                              return IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _locationSuggestions.clear();
+                                  });
+                                },
+                              );
+                            }
                             return IconButton(
-                              icon: const Icon(Icons.close),
+                              icon: const Icon(Icons.search),
                               onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _locationSuggestions.clear();
-                                });
+                                FocusScope.of(context).requestFocus();
                               },
                             );
-                          }
-                          return IconButton(
-                            icon: const Icon(Icons.search),
-                            onPressed: () {
-                              FocusScope.of(context).requestFocus();
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_locationSuggestions.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8.0),
+                      constraints: const BoxConstraints(maxHeight: 250),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondary,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.shadow,
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          )
+                        ],
+                      ),
+                      child: ListView.separated(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        itemCount: _locationSuggestions.length,
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1, 
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        itemBuilder: (context, index) {
+                          final suggestion = _locationSuggestions[index];
+                          final name = suggestion['display_name'] ?? 'Unknown location';
+                          
+                          return ListTile(
+                            title: Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            onTap: () {
+                              FocusScope.of(context).unfocus();
+                              _searchController.text = name;
+                              setState(() {
+                                _locationSuggestions.clear();
+                                _isSearchingLocation = true;
+                              });
+
+                              final lat = double.parse(suggestion['lat']);
+                              final lon = double.parse(suggestion['lon']);                            
+                              _moveCameraTo(lat, lon, 13.0);
+                              _fetchTrailsByLocation(lat, lon).then((_) {
+                                if (mounted) {
+                                  setState(() => _isSearchingLocation = false);
+                                }
+                              });
                             },
                           );
                         },
                       ),
                     ),
-                  ),
-                ),
-                if (_locationSuggestions.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8.0),
-                    constraints: const BoxConstraints(maxHeight: 250),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).colorScheme.shadow,
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        )
-                      ],
-                    ),
-                    child: ListView.separated(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: _locationSuggestions.length,
-                      separatorBuilder: (context, index) => Divider(
-                        height: 1, 
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      itemBuilder: (context, index) {
-                        final suggestion = _locationSuggestions[index];
-                        final name = suggestion['display_name'] ?? 'Unknown location';
-                        
-                        return ListTile(
-                          title: Text(
-                            name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                ],
+              ),
+            ),
+            //button to search for hiking trails in the current map view and show results
+            Positioned(
+              bottom: 40.0,
+              left: 0,
+              right: 0,
+              child: _foundTrails.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 90.0),
+                      child: Center(
+                        child: ElevatedButton.icon(
+                          onPressed: (_isLoadingTrails || !_isZoomedInEnough)
+                              ? null
+                              : _fetchTrails,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.secondary,
+                            elevation: 6,
+                            disabledBackgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
+                            disabledForegroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 14,
+                            ),
+                          ),
+                          icon: _isLoadingTrails
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                                )
+                              : Icon(
+                                  !_isZoomedInEnough ? Icons.zoom_in : Icons.search,
+                                  size: 24,
+                                ),
+                          label: Text(
+                            _isLoadingTrails
+                                ? 'Searching...'
+                                : (!_isZoomedInEnough
+                                      ? 'Zoom in to search for trails'
+                                      : 'Search for hiking trails in this area'),
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
-                          onTap: () {
-                            FocusScope.of(context).unfocus();
-                            _searchController.text = name;
-                            setState(() {
-                              _locationSuggestions.clear();
-                              _isSearchingLocation = true;
-                            });
-
-                            final lat = double.parse(suggestion['lat']);
-                            final lon = double.parse(suggestion['lon']);                            
-                            _moveCameraTo(lat, lon, 13.0);
-                            _fetchTrailsByLocation(lat, lon).then((_) {
-                              if (mounted) {
-                                setState(() => _isSearchingLocation = false);
-                              }
-                            });
-                          },
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          //button to search for hiking trails in the current map view and show results
-          Positioned(
-            bottom: 40.0,
-            left: 0,
-            right: 0,
-            child: _foundTrails.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 90.0),
-                    child: Center(
-                      child: ElevatedButton.icon(
-                        onPressed: (_isLoadingTrails || !_isZoomedInEnough)
-                            ? null
-                            : _fetchTrails,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.secondary,
-                          elevation: 6,
-                          disabledBackgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
-                          disabledForegroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 14,
-                          ),
-                        ),
-                        icon: _isLoadingTrails
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2.5),
-                              )
-                            : Icon(
-                                !_isZoomedInEnough ? Icons.zoom_in : Icons.search,
-                                size: 24,
-                              ),
-                        label: Text(
-                          _isLoadingTrails
-                              ? 'Searching...'
-                              : (!_isZoomedInEnough
-                                    ? 'Zoom in to search for trails'
-                                    : 'Search for hiking trails in this area'),
-                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
-                    ),
-                  )
-                : SizedBox(
-                    height: 130,
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: _foundTrails.length,
-                      onPageChanged: (int index) {
-                        setState(() {
-                          _selectedTrailIndex = index;
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        final trail = _foundTrails[index];
-                        final isSelected = index == _selectedTrailIndex;
+                    )
+                  : SizedBox(
+                      height: 130,
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: _foundTrails.length,
+                        onPageChanged: (int index) {
+                          setState(() {
+                            _selectedTrailIndex = index;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final trail = _foundTrails[index];
+                          final isSelected = index == _selectedTrailIndex;
 
-                        return GestureDetector(
-                          onTap: () {
-                            if (!isSelected) {
-                              _pageController.animateToPage(
-                                index,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                              );
-                            } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => TrailDetailsScreen(
-                                    trailId: trail['id'],
-                                    trailName: trail['name'],
+                          return GestureDetector(
+                            onTap: () {
+                              if (!isSelected) {
+                                _pageController.animateToPage(
+                                  index,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => TrailDetailsScreen(
+                                      trailId: trail['id'],
+                                      trailName: trail['name'],
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              margin: EdgeInsets.only(
+                                right: 8.0,
+                                left: 8.0,
+                                top: isSelected ? 4.0 : 16.0,
+                                bottom: isSelected ? 4.0 : 16.0,
+                              ),
+                              child: Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Card(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.hiking,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          trail['name'],
+                                          style: Theme.of(context).textTheme.bodyMedium,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              );
-                            }
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: EdgeInsets.only(
-                              right: 8.0,
-                              left: 8.0,
-                              top: isSelected ? 4.0 : 16.0,
-                              bottom: isSelected ? 4.0 : 16.0,
-                            ),
-                            child: Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Icon(
-                                      Icons.hiking,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      trail['name'],
-                                      style: Theme.of(context).textTheme.bodyMedium,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-          ),
+            ),
+          ],
           //close button to clear the drawn trail and reset the search results
           if (_foundTrails.isNotEmpty)
             Positioned(
