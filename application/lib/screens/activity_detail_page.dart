@@ -54,9 +54,9 @@ class ActivityDetailPage extends StatelessWidget {
                       ),
                     );
                     if (confirm == true && context.mounted) {
-                      await context
-                          .read<ActivityCubit>()
-                          .deleteActivity(activity.id);
+                      await context.read<ActivityCubit>().deleteActivity(
+                        activity.id,
+                      );
                       if (context.mounted) Navigator.pop(context);
                     }
                   },
@@ -242,12 +242,10 @@ class _OverviewTabState extends State<_OverviewTab> {
   void initState() {
     super.initState();
     final isPlanned = widget.activity.status == ActivityStatus.planned;
-    final daysUntil =
-        widget.activity.date.difference(DateTime.now()).inDays;
-    _weatherFuture =
-        isPlanned && daysUntil <= 5 && daysUntil >= 0
-            ? WeatherService().fetchWeather(widget.activity.date)
-            : null;
+    final daysUntil = widget.activity.date.difference(DateTime.now()).inDays;
+    _weatherFuture = isPlanned && daysUntil <= 13 && daysUntil >= 0
+        ? WeatherService().fetchWeather(widget.activity.date)
+        : null;
   }
 
   @override
@@ -280,7 +278,7 @@ class _OverviewTabState extends State<_OverviewTab> {
           )
         else if (widget.activity.status == ActivityStatus.planned)
           const _WeatherCardError(
-            message: 'Forecast available only within 5 days of the hike.',
+            message: 'Forecast available only within 14 days of the hike.',
           ),
       ],
     );
@@ -301,7 +299,7 @@ String _lottieAsset(int code) {
   return 'assets/lottie/thunderstorm.json';
 }
 
-// OpenWeatherMap weather condition codes:
+// App weather icon buckets:
 // 2xx Thunderstorm, 3xx Drizzle, 5xx Rain, 6xx Snow,
 // 7xx Atmosphere, 800 Clear, 80x Clouds
 List<Color> _gradientFor(int code) {
@@ -366,7 +364,11 @@ class _WeatherCard extends StatelessWidget {
               ),
               Container(width: 1, height: 40, color: Colors.white30),
               _WeatherStat(
-                icon: Lottie.asset('assets/lottie/wind.json', width: 36, height: 36),
+                icon: Lottie.asset(
+                  'assets/lottie/wind.json',
+                  width: 36,
+                  height: 36,
+                ),
                 value: '${weather.windSpeed.round()} km/h',
                 label: 'Wind',
               ),
@@ -387,8 +389,7 @@ class _WeatherCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 itemCount: weather.hourly.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 4),
-                itemBuilder: (_, i) =>
-                    _HourlySlot(entry: weather.hourly[i]),
+                itemBuilder: (_, i) => _HourlySlot(entry: weather.hourly[i]),
               ),
             ),
           ],
@@ -469,11 +470,7 @@ class _HourlySlot extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          Lottie.asset(
-            _lottieAsset(entry.weatherCode),
-            width: 32,
-            height: 32,
-          ),
+          Lottie.asset(_lottieAsset(entry.weatherCode), width: 32, height: 32),
           Text(
             '${entry.temp.round()}°',
             style: const TextStyle(
@@ -567,10 +564,7 @@ class _NotesTab extends StatelessWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: Text(
-            'No notes yet.',
-            style: TextStyle(color: Colors.grey),
-          ),
+          child: Text('No notes yet.', style: TextStyle(color: Colors.grey)),
         ),
       );
     }
