@@ -327,6 +327,40 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     }
   }
 
+  int _calculateDifficultyLevel() {
+    final cai = _relationTags?['cai_scale']?.toString().toUpperCase();
+    final sac = _relationTags?['sac_scale']?.toString().toLowerCase();
+
+    if (cai != null) {
+      if (cai.contains('EE') || cai.contains('EAI')) return 3;
+      if (cai == 'E') return 2;
+      if (cai == 'T') return 1;
+    }
+
+    if (sac != null) {
+      if (sac.contains('alpine') || sac.contains('t4') || sac.contains('t5') || sac.contains('t6')) return 3;
+      if (sac.contains('mountain_hiking') || sac.contains('t2') || sac.contains('t3')) return 2;
+      if (sac.contains('hiking') || sac.contains('t1')) return 1;
+    }
+
+    String distanceStr = _relationTags?['distance'] ?? _estimatedDistance ?? '0';
+    String ascentStr = _relationTags?['ascent'] ?? _estimatedAscent ?? '0';
+
+    String numDist = distanceStr.replaceAll(RegExp(r'[^0-9.]'), '');
+    String numAscent = ascentStr.replaceAll(RegExp(r'[^0-9.]'), '');
+
+    double distanceKm = double.tryParse(numDist) ?? 0.0;
+    double ascentM = double.tryParse(numAscent) ?? 0.0;
+
+    if (distanceKm == 0 && ascentM == 0) return 0;
+
+    double effortScore = distanceKm + (ascentM / 100);
+    
+    if (effortScore < 7.0) return 1;
+    if (effortScore < 14.0) return 2;
+    return 3;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -421,14 +455,14 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         duration = '$duration h';
       }
     }
-
-    final String difficulty = _relationTags?['sac_scale'] ?? _relationTags?['cai_scale'] ?? 'N/D';
     
     final String ascent = _relationTags?['ascent'] ?? _estimatedAscent ?? 'N/D';
     String ascentStr = 'N/D';
     if (ascent != 'N/D') {
       ascentStr = (ascent == _estimatedAscent) ? '+$ascent m (estimated)' : '+$ascent m';
     }
+
+    int difficulty = _calculateDifficultyLevel();
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -440,16 +474,16 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         mainAxisSpacing: 12,
         childAspectRatio: 2.2,
         children: [
-          _buildStatCard(Icons.route, 'Distance', distance),
-          _buildStatCard(Icons.timer_outlined, 'Duration', duration),
-          _buildStatCard(Icons.landscape, 'Difficulty', difficulty),
-          _buildStatCard(Icons.height, 'Ascent', ascentStr),
+          _buildStatCard(Icons.route, 'Distance', value: distance),
+          _buildStatCard(Icons.timer_outlined, 'Duration', value: duration),
+          _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(difficulty)),
+          _buildStatCard(Icons.height, 'Ascent', value: ascentStr),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(IconData icon, String title, String value) {
+  Widget _buildStatCard(IconData icon, String title, {String? value, Widget? valueWidget}) {
     return Card(
       elevation: 0,
       color: Theme.of(context).colorScheme.secondary,
@@ -474,12 +508,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    value, 
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), 
-                    maxLines: 1, 
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  if (valueWidget != null) 
+                    valueWidget
+                  else if (value != null)
+                    Text(
+                      value, 
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), 
+                      maxLines: 1, 
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
               ),
             ),
@@ -891,6 +928,28 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDifficultyIcons(int level) {
+    if (level == 0) {
+      return const Text('N/D', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold));
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (index) {
+        return Padding(
+          padding: const EdgeInsets.only(right: 2.0, top: 1.0),
+          child: Icon(
+            Icons.landscape,
+            size: 20,
+            color: index < level 
+              ? Theme.of(context).colorScheme.onSurface 
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+          ),
+        );
+      }),
     );
   }
 
