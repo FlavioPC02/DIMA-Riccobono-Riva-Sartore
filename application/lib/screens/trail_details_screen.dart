@@ -8,15 +8,15 @@ import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:application/services/weather_service.dart';
 import 'package:lottie/lottie.dart';
+import 'package:application/screens/navigator.dart';
+import 'package:application/core/models/activity.dart';
 
 class TrailDetailsScreen extends StatefulWidget {
-  final int trailId;
-  final String trailName;
+  final Map<String, dynamic> trail;
 
   const TrailDetailsScreen({
     super.key,
-    required this.trailId,
-    required this.trailName,
+    required this.trail,
   });
 
   @override
@@ -64,7 +64,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   Future<void> _fetchTrailDetails() async {
     final query = """
       [out:json][timeout:15];
-      relation(${widget.trailId});
+      relation(${widget.trail['id']});
       out tags geom; 
       way(r);
       out tags geom;
@@ -365,7 +365,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.trailName),
+        title: Text(widget.trail['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
@@ -907,7 +907,20 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: open navigator screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NavigatorScreen (
+                        trail: widget.trail,
+                        activity: Activity(
+                          id: "",
+                          name: widget.trail['name'],
+                          status: ActivityStatus.planned,
+                          date: DateTime.now(),
+                        ),
+                      ),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,

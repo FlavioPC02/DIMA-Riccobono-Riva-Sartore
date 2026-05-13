@@ -156,8 +156,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
   //get the geometric center of the trail
   LatLng _getPolylineCenter() {
-    LatLng first = widget.trail['coordinates'].first.first;
-    LatLng last = widget.trail['coordinates'].last.last;
+    LatLng first = widget.trail['subTrails'].first.first;
+    LatLng last = widget.trail['subTrails'].last.last;
 
     double lat = (first.latitude + last.latitude) / 2.0;
     double lng = (first.longitude + last.longitude) / 2.0;
@@ -201,7 +201,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   
   //function which adjust mapZoom to fit the entire trail in the viewport
   Future<void> _fitTrailInViewport() async {
-    final coordinates = widget.trail['coordinates'];
+    final coordinates = widget.trail['subTrails'];
     if (coordinates.isEmpty) return;
 
     final bounds = _buildTrailBounds(coordinates);

@@ -895,8 +895,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => TrailDetailsScreen(
-                                      trailId: trail['id'],
-                                      trailName: trail['name'],
+                                      trail: trail,
                                     ),
                                   ),
                                 );
@@ -914,29 +913,24 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15),
                                 ),
-                                child: Card(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Icon(
-                                          Icons.hiking,
-                                          color: Theme.of(context).colorScheme.primary,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          trail['name'],
-                                          style: Theme.of(context).textTheme.bodyMedium,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.hiking,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        trail['name'],
+                                        style: Theme.of(context).textTheme.bodyMedium,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
