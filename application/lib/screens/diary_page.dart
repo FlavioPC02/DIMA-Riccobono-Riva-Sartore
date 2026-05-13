@@ -38,7 +38,7 @@ class _DiaryPageState extends State<DiaryPage>
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: AppColors.primary,
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         title: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
