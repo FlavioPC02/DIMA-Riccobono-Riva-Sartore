@@ -603,7 +603,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
               onPositionChanged: (camera, hasGesture) {
-                final currentZoom = camera.zoom ?? mapZoom;
+                final currentZoom = camera.zoom;
                 final isEnough = currentZoom >= _minZoomThreshold;
                 if (isEnough != _isZoomedInEnough) {
                   setState(() {
