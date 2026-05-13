@@ -15,8 +15,11 @@ class Activity {
   final double xpEarned;
   final String notes;
   final ActivityDifficulty difficulty;
+  double trackedDistance;
+  double trackedElevationGap;
+  Duration trackedTime;
 
-  const Activity({
+  Activity({
     required this.id,
     required this.name,
     required this.status,
@@ -27,6 +30,9 @@ class Activity {
     this.xpEarned = 0,
     this.notes = '',
     this.difficulty = ActivityDifficulty.easy,
+    this.trackedDistance = 0,
+    this.trackedElevationGap = 0,
+    this.trackedTime = Duration.zero,
   });
 
   Activity copyWith({
@@ -40,6 +46,9 @@ class Activity {
     double? xpEarned,
     String? notes,
     ActivityDifficulty? difficulty,
+    double? trackedDistance,
+    double? trackedElevationGap,
+    Duration? trackedTime,
   }) {
     return Activity(
       id: id ?? this.id,
@@ -52,6 +61,9 @@ class Activity {
       xpEarned: xpEarned ?? this.xpEarned,
       notes: notes ?? this.notes,
       difficulty: difficulty ?? this.difficulty,
+      trackedDistance: trackedDistance ?? this.trackedDistance,
+      trackedElevationGap: trackedElevationGap ?? this.trackedElevationGap,
+      trackedTime: trackedTime ?? this.trackedTime,
     );
   }
 
@@ -65,6 +77,9 @@ class Activity {
     'xpEarned': xpEarned,
     'notes': notes,
     'difficulty': difficulty.name,
+    'trackedDistance': trackedDistance,
+    'trackedElevationGap': trackedElevationGap,
+    'trackedTime': trackedTime.inSeconds,
   };
 
   factory Activity.fromJson(String id, Map<String, dynamic> json) {
@@ -81,6 +96,9 @@ class Activity {
       difficulty: ActivityDifficulty.values.byName(
         json['difficulty'] ?? 'easy',
       ),
+      trackedDistance: json['trackedDistance'] ?? 0,
+      trackedElevationGap: json['trackedElevationGap'] ?? 0,
+      trackedTime: Duration(seconds: json['trackedTime'] ?? 0),
     );
   }
 }

@@ -291,7 +291,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Network error. Check your connection and try again.')),
+            const SnackBar(content: Text('Check your connection and try again.')),
           );
         }
       } finally {
@@ -453,7 +453,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
         } else {
           if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Server error: Impossible to fetch trails. Automatically retrying')),
+            const SnackBar(content: Text('Impossible to fetch trails. Automatically retrying')),
           );
         }
         }

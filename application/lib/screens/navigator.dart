@@ -1,5 +1,6 @@
+import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
-import 'package:application/core/models/user_trail_stats.dart';
+import 'package:application/core/models/activity.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:application/widgets/user_location_listener.dart';
 import 'package:flutter/material.dart';
@@ -16,10 +17,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class NavigatorScreen extends StatefulWidget {
   //ottengo un Map<String, dynamic> id, name, coordinates
   final Map<String, dynamic> trail;
+  final Activity activity;
   
   const NavigatorScreen({
-    required this.trail,
     super.key,
+    required this.trail,
+    required this.activity,
   });
 
   @override
@@ -99,17 +102,12 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
       _elapsedTime = _stopwatch.elapsed;
     });
 
-    final finalStats = UserTrailStats(
-      distance: _distance, 
-      elevationGap: _elevationGap, 
-      time: _elapsedTime,
-    );
+    final activity = widget.activity;
+    activity.trackedDistance = _distance;
+    activity.trackedElevationGap = _elevationGap;
+    activity.trackedTime = _elapsedTime;
 
-    debugPrint(
-      'Trail stats: distance=${finalStats.distance}, elevationGap=${finalStats.elevationGap}, time=${finalStats.time}',
-    );
-
-    //TODO: prendi stats e passale all'ultima schermata
+    context.read<ActivityCubit>().updateActivity(activity);
   }
 
   void _showPathDistanceNotification(int distance, {String? direction}) {
