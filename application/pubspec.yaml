@@ -26,8 +26,6 @@ dependencies:
   bloc_test: ^10.0.0
   fl_chart: ^0.68.0
   url_launcher: ^6.2.5
-  intl: ^0.20.2
-  lottie: ^3.2.0
   flutter_map_location_marker: ^10.2.0
   flutter_local_notifications: ^20.1.0
   flutter_map_math: ^0.2.4

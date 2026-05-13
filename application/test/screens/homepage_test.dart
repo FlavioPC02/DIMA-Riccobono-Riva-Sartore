@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:application/screens/diary_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
