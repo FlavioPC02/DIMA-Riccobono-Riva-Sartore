@@ -72,7 +72,7 @@ class _DiaryPageState extends State<DiaryPage>
                 MaterialPageRoute(
                   builder: (_) => BlocProvider.value(
                     value: context.read<ActivityCubit>(),
-                    child: const AddActivityPage(),
+                    //child: const AddActivityPage(),
                   ),
                 ),
               ),
