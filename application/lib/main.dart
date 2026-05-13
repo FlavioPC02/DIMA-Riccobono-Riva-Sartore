@@ -1,5 +1,7 @@
+import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
+import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
 import 'package:application/services/notification_service.dart';
@@ -49,6 +51,9 @@ class RootApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (_) => ProfileCubit(ProfileRepository()),
+        ),
+        BlocProvider(
+          create: (_) => ActivityCubit(ActivityRepository()),
         ),
       ], 
       child: const MainApp(),

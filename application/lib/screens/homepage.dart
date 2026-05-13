@@ -2,6 +2,7 @@ import 'package:application/core/theme/app_colors.dart';
 import 'package:application/screens/profile_screen.dart';
 import 'package:application/services/helpers/notification_permission_helper.dart';
 import 'package:flutter/material.dart';
+import 'diary_page.dart';
 import 'map_page.dart';
 
 class Navigation extends StatefulWidget {
@@ -116,15 +117,6 @@ class _NavigationState extends State<Navigation> {
         ],
       ),
     );
-  }
-}
-
-class DiaryPage extends StatelessWidget {
-  const DiaryPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text("diary", style: TextStyle(fontSize: 40), textAlign: TextAlign.center,),);
   }
 }
 

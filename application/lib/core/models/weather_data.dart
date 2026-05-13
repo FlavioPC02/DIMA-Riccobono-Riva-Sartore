@@ -28,4 +28,8 @@ class WeatherData {
     required this.windSpeed,
     this.hourly = const [],
   });
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> diary
