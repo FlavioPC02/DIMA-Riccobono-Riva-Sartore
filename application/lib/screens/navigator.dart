@@ -45,7 +45,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   LatLng? _lastKnownPosition;
-  double? _lastKnownElevation;
+  double? _startElevation;
   double _distance = 0.0;
   double _elevationGap = 0.0;
 
@@ -99,10 +99,14 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
       _elapsedTime = _stopwatch.elapsed;
     });
 
-    var finalStats = UserTrailStats(
+    final finalStats = UserTrailStats(
       distance: _distance, 
       elevationGap: _elevationGap, 
       time: _elapsedTime,
+    );
+
+    debugPrint(
+      'Trail stats: distance=${finalStats.distance}, elevationGap=${finalStats.elevationGap}, time=${finalStats.time}',
     );
 
     //TODO: prendi stats e passale all'ultima schermata
@@ -123,6 +127,11 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     await _centerMapOnTrail();
     _buildPolylines();
     await _fitTrailInViewport();
+  }
+
+  void _updateElevationGap(double currentElevation) {
+    _startElevation ??= currentElevation;
+    _elevationGap = currentElevation - _startElevation!;
   }
 
   //when the widget is first built, check if location services are enabled and permissions are granted, then fetch the current location
@@ -459,28 +468,27 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     final String trailName = widget.trail['name']?.toString() ?? 'Trail';
 
     return UserLocationListener(
-      onLocationChanged: (userPosition) {
+      onLocationChanged: (userPosition) async {
         if (!_stopwatch.isRunning) return;
 
         if(userPosition != null) {
           checkUserOnTrail(userPosition.position);
-          if (userPosition.positionAccuracy <= 20.0) {
-            var newDistance = _lastKnownPosition == null 
-              ? 0.0 
-              : calculateDistanceHaversine(
-                userPosition.position, 
-                _lastKnownPosition!, 
-              );
-            _distance += newDistance;
-            _lastKnownPosition = userPosition.position;
-          }
-          if (userPosition.altitudeAccuracy <= 20.0) {
-            var newGap = _lastKnownElevation == null 
-              ? 0.0 
-              : userPosition.altitude - _lastKnownElevation!;
-            newGap = newGap >= 1 ? newGap : 0.0;
-            _elevationGap += newGap;
-            _lastKnownElevation = userPosition.altitude;
+          if (mounted) {
+            setState(() {
+              if (userPosition.positionAccuracy <= 20.0) {
+                final newDistance = _lastKnownPosition == null 
+                  ? 0.0 
+                  : calculateDistanceHaversine(
+                      userPosition.position, 
+                      _lastKnownPosition!, 
+                    );
+                _distance += newDistance;
+                _lastKnownPosition = userPosition.position;
+              }
+              if (userPosition.altitudeAccuracy <= 20.0) {
+                _updateElevationGap(userPosition.altitude);
+              }
+            });
           }
         }
       },

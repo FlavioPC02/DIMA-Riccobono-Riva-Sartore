@@ -70,10 +70,21 @@
 	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Questa app utilizza la tua posizione per tenere traccia delle tue statistiche durante le escursioni</string>
 	<key>UIBackgroundModes</key>
 	<array>
   		<string>fetch</string>
   		<string>remote-notification</string>
+	</array>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+	  <string>location-services</string>
+	  <string>gps</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+	  <string>com.school.book.app.background</string>
 	</array>
 </dict>
 </plist>

@@ -24,6 +24,8 @@ dependencies:
   bloc_test: ^10.0.0
   flutter_map_location_marker: ^10.2.0
   flutter_local_notifications: ^20.1.0
+  flutter_map_math: ^0.2.4
+  flutter_background_service: ^5.1.0
 
 dev_dependencies:
   flutter_test:
