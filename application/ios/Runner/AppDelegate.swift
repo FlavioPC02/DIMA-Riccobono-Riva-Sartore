@@ -7,6 +7,10 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    SwiftFlutterBackgroundServicePlugin.taskIdentifier = "com.your.app.background"
+    UIApplication.shared.setMinimumBackgroundFetchInterval(UIApplication.backgroundFetchIntervalMinimum)
+    self.setupLocationManager()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

@@ -2,6 +2,7 @@ import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
+import 'package:application/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,8 @@ void main() async {
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: HydratedStorageDirectory((await getApplicationDocumentsDirectory()).path),
   );
+
+  await NotificationService.initializeNotificationService();
 
   runApp(const RootApp());
 }
@@ -86,6 +89,9 @@ class MainApp extends StatelessWidget {
     return TextTheme(
       headlineMedium: TextStyle(
         fontSize: 28,
+        fontWeight: FontWeight.bold,
+      ),
+      titleLarge: TextStyle(
         fontWeight: FontWeight.bold,
       ),
       bodyMedium: TextStyle(

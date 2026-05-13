@@ -21,6 +21,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
+  final FocusNode _nicknameFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _confirmPasswordFocusNode = FocusNode();
+
   String? _authError;
 
   bool _obscurePassword = true;
@@ -143,6 +147,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_nicknameFocusNode),
                             decoration: const InputDecoration(
                               labelText: 'Email',
                               border: OutlineInputBorder(),
@@ -165,6 +171,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           TextFormField(
                             controller: _nicknameController,
                             keyboardType: TextInputType.name,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_passwordFocusNode),
                             decoration: const InputDecoration(
                               labelText: 'Nickname',
                               border: OutlineInputBorder(),
@@ -182,6 +190,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_confirmPasswordFocusNode),
                             decoration: InputDecoration(
                               labelText: 'Password',
                               border: const OutlineInputBorder(),
@@ -226,6 +236,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             controller: _confirmController,
                             obscureText: _obscureConfirm,
                             enabled: _isPasswordValid,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submitSignUp(context),
                             decoration: InputDecoration(
                               labelText: 'Confirm password',
                               border: const OutlineInputBorder(),
