@@ -8,15 +8,16 @@ import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:application/services/weather_service.dart';
 import 'package:lottie/lottie.dart';
+import 'package:application/screens/navigator.dart';
+import 'package:application/core/models/activity.dart';
+import 'package:application/screens/add_activity_page.dart';
 
 class TrailDetailsScreen extends StatefulWidget {
-  final int trailId;
-  final String trailName;
+  final Map<String, dynamic> trail;
 
   const TrailDetailsScreen({
     super.key,
-    required this.trailId,
-    required this.trailName,
+    required this.trail,
   });
 
   @override
@@ -38,6 +39,10 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   List<double>? _elevations;
   List<double>? _distances;
   bool _isLoadingElevations = true;
+
+  double _distanceKm = 0.0;
+  int _durationMinutes = 0;
+  int _difficulty = 0;
 
   List<Map<String, dynamic>>? _weatherForecast;
   bool _isLoadingWeather = true;
@@ -64,7 +69,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   Future<void> _fetchTrailDetails() async {
     final query = """
       [out:json][timeout:15];
-      relation(${widget.trailId});
+      relation(${widget.trail['id']});
       out tags geom; 
       way(r);
       out tags geom;
@@ -179,8 +184,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
         if (meters > 0) {
           if (relTags?['distance'] == null) {
-            double estimatedKm = (meters / 1000); 
-            _estimatedDistance = "${estimatedKm.toStringAsFixed(1)} km (estimated)";
+            _distanceKm = (meters / 1000); 
+            _estimatedDistance = "${_distanceKm.toStringAsFixed(1)} km";
           }
 
           if (relTags?['duration'] == null && relTags?['time'] == null) {
@@ -188,8 +193,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                 ? double.tryParse(relTags!['distance'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? (meters / 1000)
                 : (meters / 1000);
             double hours = km / 4.0;
-            int totalMinutes = (hours * 60).toInt();
-            _estimatedDuration = "${totalMinutes ~/ 60}h ${totalMinutes % 60}m (estimated)";
+            _durationMinutes = (hours * 60).toInt();
+            _estimatedDuration = "${_durationMinutes ~/ 60}h ${_durationMinutes % 60}m";
           }
         }
         
@@ -365,7 +370,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.trailName),
+        centerTitle: true,
+        title: Text(widget.trail['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
@@ -459,13 +465,13 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     final String ascent = _relationTags?['ascent'] ?? _estimatedAscent ?? 'N/D';
     String ascentStr = 'N/D';
     if (ascent != 'N/D') {
-      ascentStr = (ascent == _estimatedAscent) ? '+$ascent m (estimated)' : '+$ascent m';
+      ascentStr = '+$ascent m';
     }
 
-    int difficulty = _calculateDifficultyLevel();
+    _difficulty = _calculateDifficultyLevel();
 
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
       child: GridView.count(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -476,7 +482,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         children: [
           _buildStatCard(Icons.route, 'Distance', value: distance),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: duration),
-          _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(difficulty)),
+          _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(_difficulty)),
           _buildStatCard(Icons.height, 'Ascent', value: ascentStr),
         ],
       ),
@@ -560,10 +566,20 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         ),
         SizedBox(
           height: 150,
-          child: ListView.builder(
+          child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(left: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0), 
             itemCount: _weatherForecast!.length,
+            separatorBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                child: VerticalDivider(
+                  color: Theme.of(context).colorScheme.primary,
+                  thickness: 1,
+                  width: 1,
+                ),
+              );
+            },
             itemBuilder: (context, index) {
               final day = _weatherForecast![index];
               
@@ -573,17 +589,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
               }
 
               return Container(
-                width: 120,
-                margin: const EdgeInsets.only(right: 12.0),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.primary,
-                    width: 1,
-                  ),
                 ),
-                padding: const EdgeInsets.all(12.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -885,7 +893,28 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: open plan screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddActivityPage(
+                        activity: Activity(
+                          id: "",
+                          name: widget.trail['name'],
+                          status: ActivityStatus.planned,
+                          date: DateTime.now(),
+                          trailName: widget.trail['name'],
+                          distanceKm: _distanceKm,
+                          durationMinutes: _durationMinutes,
+                          difficulty: 
+                            _difficulty == 1 ? ActivityDifficulty.easy : 
+                            _difficulty == 2 ? ActivityDifficulty.moderate : 
+                            _difficulty == 3 ? ActivityDifficulty.hard:
+                            //TODO: handle difficulty unknown case
+                            ActivityDifficulty.easy,
+                        ),
+                      ),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -907,7 +936,20 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: open navigator screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NavigatorScreen (
+                        trail: widget.trail,
+                        activity: Activity(
+                          id: "",
+                          name: widget.trail['name'],
+                          status: ActivityStatus.planned,
+                          date: DateTime.now(),
+                        ),
+                      ),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
@@ -936,20 +978,31 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       return const Text('N/D', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold));
     }
 
-    return Row(
+    return Column(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (index) {
-        return Padding(
-          padding: const EdgeInsets.only(right: 2.0, top: 1.0),
-          child: Icon(
-            Icons.landscape,
-            size: 20,
-            color: index < level 
-              ? Theme.of(context).colorScheme.onSurface 
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
-        );
-      }),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (index) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 1.0, top: 2.0),
+              child: Icon(
+                index < level 
+                  ? Icons.landscape
+                  : Icons.landscape_outlined,
+                size: 20,
+                color: Theme.of(context).colorScheme.onSurface, 
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 3.0),
+        Text(
+          level == 1 ? '(Beginner)' : level == 2 ? '(Intermediate)' : '(Expert)',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 

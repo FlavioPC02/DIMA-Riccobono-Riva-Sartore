@@ -271,7 +271,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       final height = MediaQuery.of(context).size.height;
 
       final Offset topLeftPixel = Offset(0.0, _centerMapButtonTopOffset);
-      
+
       final Offset bottomRightPixel = Offset(width, height - _closeButtonBottomOffset);
 
       final LatLng topLeft = camera.screenOffsetToLatLng(topLeftPixel);
@@ -293,7 +293,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Network error. Check your connection and try again.')),
+            const SnackBar(content: Text('Check your connection and try again.')),
           );
         }
       } finally {
@@ -455,7 +455,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
         } else {
           if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Server error: Impossible to fetch trails. Automatically retrying')),
+            const SnackBar(content: Text('Impossible to fetch trails. Automatically retrying')),
           );
         }
         }
@@ -905,8 +905,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => TrailDetailsScreen(
-                                      trailId: trail['id'],
-                                      trailName: trail['name'],
+                                      trail: trail,
                                     ),
                                   ),
                                 );
