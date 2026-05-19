@@ -1,14 +1,19 @@
+
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/cubit/location_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
+import 'package:application/services/location_engine.dart';
+import 'package:application/services/helpers/background_service_helper.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:hive_ce_flutter/adapters.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,7 +33,18 @@ void main() async {
     storageDirectory: HydratedStorageDirectory((await getApplicationDocumentsDirectory()).path),
   );
 
+  await Hive.initFlutter();
+  await Hive.openBox('location_box'); 
+
   await NotificationService.initializeNotificationService();
+  
+  try {
+    await BackgroundServiceHelper.instance.initializeService();
+  } catch (e, st) {
+    // don't block app startup if background service fails to initialize
+    debugPrint('BackgroundService initialize failed: $e');
+    debugPrint('$st');
+  }
 
   runApp(const RootApp());
 }
@@ -54,6 +70,14 @@ class RootApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (_) => ActivityCubit(ActivityRepository()),
+        ),
+        BlocProvider(
+          create: (_) {
+            final cubit = LocationCubit(
+              engine: LocationEngine.foreground(),
+            );
+            return cubit;
+          }
         ),
       ], 
       child: const MainApp(),

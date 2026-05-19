@@ -74,6 +74,7 @@
 	<string>Questa app utilizza la tua posizione per tenere traccia delle tue statistiche durante le escursioni</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>location</string>
   		<string>fetch</string>
   		<string>remote-notification</string>
 	</array>
@@ -84,7 +85,7 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-	  <string>com.school.book.app.background</string>
+	  <string>com.example.application.background</string>
 	</array>
 </dict>
 </plist>

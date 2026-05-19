@@ -1,4 +1,4 @@
-import 'package:application/core/models/user_position.dart';
+import 'package:application/core/models/location_point.dart';
 
 abstract class UserLocationState{
 	const UserLocationState();
@@ -7,10 +7,10 @@ abstract class UserLocationState{
 	const factory UserLocationState.unknown() = _Unknown;
 
 	//known state with the last known user position.
-	const factory UserLocationState.known(UserPosition position) = _Known;
+	const factory UserLocationState.known(LocationPoint position) = _Known;
 
   const factory UserLocationState.error(
-    UserPosition? lastKnownPosition,
+    LocationPoint? lastKnownPosition,
     Object? error,
   ) = _Error;
 
@@ -22,8 +22,8 @@ abstract class UserLocationState{
 
 	T when<T>({
     required T Function() unknown, 
-    required T Function(UserPosition position) known, 
-    required T Function(UserPosition? lastKnownPosition, Object? err) error,
+    required T Function(LocationPoint position) known, 
+    required T Function(LocationPoint? lastKnownPosition, Object? err) error,
   }) {
 		if (this is _Known) {return known((this as _Known).position);}
     else if (this is _Error) {return error((this as _Error).lastKnownPosition, (this as _Error).error);}
@@ -36,12 +36,12 @@ class _Unknown extends UserLocationState {
 }
 
 class _Known extends UserLocationState {
-	final UserPosition position;
+	final LocationPoint position;
 	const _Known(this.position);
 }
 
 class _Error extends UserLocationState {
-  final UserPosition? lastKnownPosition;
+  final LocationPoint? lastKnownPosition;
   final Object? error;
   const _Error(this.lastKnownPosition, this.error);
 }

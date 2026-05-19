@@ -1,6 +1,8 @@
-import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/cubit/location_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/repository/location_repository.dart';
+import 'package:application/services/lifecycle_manager.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:application/widgets/user_location_listener.dart';
 import 'package:flutter/material.dart';
@@ -33,12 +35,13 @@ class NavigatorScreen extends StatefulWidget {
 
 class _NavigatorScreenState extends State<NavigatorScreen> {
 
-  bool _isLocatingUser = false;
   static const double _offsetBound = 32;
   static const double _offTrailThresholdMeters = 50.0;
   static const double R = 6371000; // Earth radius in meters
 
   double _degToRad(double deg) => deg * (3.141592653589793 / 180.0);
+
+  late final LifecycleManager _lifecycleManager;
 
   final MapController _mapController = MapController();
   
@@ -47,10 +50,11 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   Duration _elapsedTime = Duration.zero;
   DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(0);
 
-  LatLng? _lastKnownPosition;
-  double? _startElevation;
+  int _routeStartIndex = 0;
   double _distance = 0.0;
   double _elevationGap = 0.0;
+
+  bool _isLocatingUser = false;
 
   //CONFIGURABLE VARIABLES
 
@@ -67,14 +71,26 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   @override
   void initState() {
     super.initState();
+    
+    final cubit = context.read<LocationCubit>();
+
+    cubit.startForegroundTracking();
+
+    _lifecycleManager = LifecycleManager(cubit);
+    _routeStartIndex = LocationRepository.getRoute().length;
+
     _stopwatch = Stopwatch();
     _stopwatch.start();
+    
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (!mounted || !_stopwatch.isRunning) return;
       setState(() {
         _elapsedTime = _stopwatch.elapsed;
       });
     });
+
+    WidgetsBinding.instance.addObserver(_lifecycleManager);
+
     _buildMap();
   }
 
@@ -82,6 +98,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   void dispose() {
     _timer.cancel();
     _stopwatch.stop();
+    WidgetsBinding.instance.removeObserver(_lifecycleManager);
     super.dispose();
   }
 
@@ -97,9 +114,11 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   }
 
   void _stopRecording() {
+    //TODO: svuota hive per essere pronto per una nuova registrazione
     setState(() {
       _stopwatch.stop();
       _elapsedTime = _stopwatch.elapsed;
+      _recalculateTrackedStatsFromRoute();
     });
 
     final activity = widget.activity;
@@ -107,7 +126,14 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     activity.trackedElevationGap = _elevationGap;
     activity.trackedTime = _elapsedTime;
 
-    context.read<ActivityCubit>().updateActivity(activity);
+    context.read<LocationCubit>().stopTracking();
+
+    //if (activity.id == '') {
+    //  context.read<ActivityCubit>().addActivity(activity);
+    //}
+    //else {
+    //  context.read<ActivityCubit>().updateActivity(activity);
+    //}
   }
 
   void _showPathDistanceNotification(int distance, {String? direction}) {
@@ -127,9 +153,42 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     await _fitTrailInViewport();
   }
 
-  void _updateElevationGap(double currentElevation) {
-    _startElevation ??= currentElevation;
-    _elevationGap = currentElevation - _startElevation!;
+  void _recalculateTrackedStatsFromRoute() {
+    final route = LocationRepository.getRoute();
+    if (_routeStartIndex > route.length) {
+      _routeStartIndex = 0;
+    }
+
+    final sessionRoute = route.skip(_routeStartIndex).toList();
+    if (sessionRoute.isEmpty) {
+      _distance = 0.0;
+      _elevationGap = 0.0;
+      return;
+    }
+
+    double distance = 0.0;
+    LatLng? lastAcceptedPosition;
+    double? startElevation;
+    double elevationGap = 0.0;
+
+    for (final point in sessionRoute) {
+      final position = LatLng(point.lat, point.lng);
+
+      if (point.positionAccuracy <= 20.0) {
+        if (lastAcceptedPosition != null) {
+          distance += calculateDistanceHaversine(position, lastAcceptedPosition);
+        }
+        lastAcceptedPosition = position;
+      }
+
+      if (point.altitudeAccuracy <= 20.0) {
+        startElevation ??= point.altitude;
+        elevationGap += (point.altitude - startElevation);
+      }
+    }
+
+    _distance = distance;
+    _elevationGap = elevationGap;
   }
 
   //when the widget is first built, check if location services are enabled and permissions are granted, then fetch the current location
@@ -466,26 +525,15 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     final String trailName = widget.trail['name']?.toString() ?? 'Trail';
 
     return UserLocationListener(
-      onLocationChanged: (userPosition) async {
+      onLocationChanged: (userPosition) {
         if (!_stopwatch.isRunning) return;
 
         if(userPosition != null) {
-          checkUserOnTrail(userPosition.position);
+          final position = LatLng(userPosition.lat, userPosition.lng);
+          checkUserOnTrail(position);
           if (mounted) {
             setState(() {
-              if (userPosition.positionAccuracy <= 20.0) {
-                final newDistance = _lastKnownPosition == null 
-                  ? 0.0 
-                  : calculateDistanceHaversine(
-                      userPosition.position, 
-                      _lastKnownPosition!, 
-                    );
-                _distance += newDistance;
-                _lastKnownPosition = userPosition.position;
-              }
-              if (userPosition.altitudeAccuracy <= 20.0) {
-                _updateElevationGap(userPosition.altitude);
-              }
+              _recalculateTrackedStatsFromRoute();
             });
           }
         }
@@ -748,7 +796,7 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                                           child: ElevatedButton.icon(
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: AppColors.stopButtonBackground,
-                                              foregroundColor: AppColors.stopButtonForeground,
+                                              foregroundColor: Colors.cyan,
                                             ),
                                             onPressed: widget.onStopRecording,
                                             label: Text('Stop'),

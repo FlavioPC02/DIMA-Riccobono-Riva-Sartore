@@ -20,7 +20,7 @@ class Activity {
   Duration trackedTime;
 
   Activity({
-    required this.id,
+    this.id = '',
     required this.name,
     required this.status,
     required this.date,

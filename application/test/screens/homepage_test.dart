@@ -3,7 +3,7 @@ import 'package:application/screens/diary_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:application/core/models/settings.dart';
 import 'package:application/core/models/profile.dart';
 import '../utils/pump_app.dart';
@@ -11,7 +11,7 @@ import '../utils/pump_app.dart';
 import 'package:application/screens/homepage.dart';
 import 'package:application/screens/profile_screen.dart';
 import 'package:application/screens/map_page.dart';
-import '../mocks/mocks.mocks.dart'; 
+import '../mocks/mocks_manual.dart'; 
 
 import '../utils/map_test_helper.dart';
 
@@ -20,7 +20,8 @@ void main() {
   late MockProfileCubit mockProfileCubit;
 
   setUpAll(() async {
-    dotenv.testLoad(fileInput: '''MAPBOX_ACCESS_TOKEN=test_token_123''');
+    const envString = '''MAPBOX_ACCESS_TOKEN=test_token_123''';
+    dotenv.loadFromString(envString: envString);
     HttpOverrides.global = FakeHttpOverrides();
   });
 
@@ -30,8 +31,8 @@ void main() {
     mockSettingsCubit = MockSettingsCubit();
     mockProfileCubit = MockProfileCubit();
 
-    when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-    when(mockSettingsCubit.state).thenReturn(
+    when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+    when(() => mockSettingsCubit.state).thenReturn(
       Settings(
         notifications: true,
         ferrata: true,
@@ -39,8 +40,8 @@ void main() {
       ),
     );
 
-    when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
-    when(mockProfileCubit.state).thenReturn(
+    when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+    when(() => mockProfileCubit.state).thenReturn(
       Profile(
         nickname: 'test_user', 
         mail: 'test@mail.it', 

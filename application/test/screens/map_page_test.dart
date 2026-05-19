@@ -12,7 +12,8 @@ void main() {
   late MockGeolocatorPlatform mockGeolocator;
 
   setUpAll(() async {
-    dotenv.testLoad(fileInput: '''MAPBOX_ACCESS_TOKEN=test_token_123''');
+    const envString = '''MAPBOX_ACCESS_TOKEN=test_token_123''';
+    dotenv.loadFromString(envString: envString);
     
     HttpOverrides.global = FakeHttpOverrides();
   });

@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:application/core/models/profile.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 
-import '../mocks/mocks.mocks.dart';
+import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
 
 ProfileRepository createRepository({
@@ -16,13 +16,13 @@ ProfileRepository createRepository({
 }) {
 	final db = databaseService ?? MockDatabaseService();
 
-	when(db.fetchProfile()).thenAnswer((_) async => initialProfile?.toJson());
-	when(db.saveProfile(any)).thenAnswer((_) async {});
-	when(db.streamProfile()).thenAnswer((_) => stream ?? Stream.empty());
+	when(() => db.fetchProfile()).thenAnswer((_) async => initialProfile?.toJson());
+	when(() => db.saveProfile(any())).thenAnswer((_) async {});
+	when(() => db.streamProfile()).thenAnswer((_) => stream ?? Stream.empty());
 
 	return ProfileRepository(
-		//hasCurrentUser: () => authenticated,
-		//databaseServiceFactory: () => db,
+		hasCurrentUser: () => authenticated,
+		databaseServiceFactory: () => db,
 	);
 }
 
