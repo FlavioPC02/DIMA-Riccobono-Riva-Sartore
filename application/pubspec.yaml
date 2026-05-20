@@ -30,6 +30,8 @@ dependencies:
   flutter_background_service: ^5.1.0
   hive_ce: ^2.15.0
   hive_ce_flutter: ^2.2.0
+  equatable: ^2.0.8
+  get_it: ^9.2.1
 
 dev_dependencies:
   flutter_test:

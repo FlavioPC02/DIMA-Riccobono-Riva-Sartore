@@ -1,7 +1,6 @@
 import 'package:application/core/theme/app_colors.dart';
 import 'package:application/screens/profile_screen.dart';
 import 'package:application/services/helpers/notification_permission_helper.dart';
-import 'package:application/services/helpers/background_service_helper.dart';
 import 'package:flutter/material.dart';
 import 'diary_page.dart';
 import 'map_page.dart';
@@ -23,12 +22,6 @@ class _NavigationState extends State<Navigation> {
   }
 
   Future<void> _requestPermissions() async {
-    // Request background location tracking permissions
-    final backgroundPermissionsGranted = await BackgroundServiceHelper.instance.requestBackgroundPermissions();
-    if (!backgroundPermissionsGranted) {
-      _showBackgroundPermissionDialog();
-    }
-
     // Request notification permissions
     final notificationGranted = await NotificationPermissionHelper.requestNotificationPermissions();
     if (!notificationGranted) {
@@ -40,53 +33,6 @@ class _NavigationState extends State<Navigation> {
     setState(() {
       _currentPageIndex = index;
     });
-  }
-
-  // Dialog shown when background location permissions are denied
-  void _showBackgroundPermissionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: const Text('Background tracking permission required', textAlign: TextAlign.center),
-          content: const Text(
-            'To track your location in the background when the screen is off, '
-            'please enable "Allow all the time" location permission in settings.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    // Open location settings
-                    await BackgroundServiceHelper.instance.requestBackgroundPermissions();
-                  },
-                  child: const Text('Enable background location permission'),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.errorBackground,
-                  ),
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Ignore', style: TextStyle(color: AppColors.errorText)),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
   }
 
   // Dialog shown when notification permissions are denied

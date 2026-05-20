@@ -1,67 +1,160 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:application/core/models/location_point.dart';
-import 'package:application/core/models/user_location_state.dart';
 import 'package:application/core/repository/location_repository.dart';
-import 'package:application/services/location_engine.dart';
-import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:application/services/helpers/background_service_helper.dart';
+import 'package:equatable/equatable.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:latlong2/latlong.dart';
 
-class LocationCubit extends Cubit<UserLocationState> {
+part '../models/location_state.dart';
 
-  final LocationEngine engine;
-  StreamSubscription<LocationPoint>? _sub;
+class LocationCubit extends Cubit<LocationState>{
+  LocationCubit(this._repository) : super(const LocationState.idle());
+  
+  final ILocationRepository _repository;
+  StreamSubscription<LocationPoint>? _locationSub;
 
-  LocationCubit({
-    required this.engine,
-  }) : super(UserLocationState.unknown());
+  Future<void> startTracking() async {
+    if(state.isTracking) return;
+    
+    //Rehydrate persisted points and recompute metrics so the displayed totals survive an app restart
+    final saved = _repository.getAll();
+    final (dist, gap, asc, desc) = _computeMetrics(saved);
 
+    emit(LocationState.tracking(
+      points: saved,
+      current: saved.isEmpty ? null : saved.last,
+      distance: dist,
+      elevationGap: gap,
+      totalAscent: asc,
+      totalDescent: desc,
+    ));
+    
+    await startBackgroundTracking();
 
-  Future<void> startForegroundTracking() async {
-    try {
-      await engine.start();
-      await _sub?.cancel();
+    //listen for points coming from the background isolate
+    _locationSub = backgroundLocationStream.listen(
+      (point) {
+        if(isClosed) return;
 
-      _sub = engine.stream.listen(
-        (point) {
-          emit(UserLocationState.known(point),);
-        },
-        onError: (err) {
-          LocationPoint? lastKnown;
-          state.when(
-            unknown: () {}, 
-            known: (position) {
-              lastKnown = position;
-            }, 
-            error: (_, _) {},
-          );
-          
-          emit(
-            UserLocationState.error(
-              lastKnown, 
-              err,
-            ),
-          );
+        final newPoints = [...state.points, point];
+
+        //Distance: add the leg from previous fix to the new one
+        double addedDistance = 0;
+        if (state.points.isNotEmpty) {
+          addedDistance = _haversine(state.points.last, point);
         }
-      );
-    } catch (e) {
-      emit(
-        UserLocationState.error(null, e)
-      );
-    }
+        final newDistance = state.distance + addedDistance;
+
+        //Elevation
+        double? newGap = state.elevationGap;
+        double newAscent = state.totalAscent;
+        double newDescent = state.totalDescent;
+
+        final firstAlt = newPoints.first.altitude;
+        newGap = point.altitude - firstAlt;
+
+        if(state.points.isNotEmpty) {
+          final prev = state.points.last;
+          final delta = point.altitude - prev.altitude;
+          if (delta > 0) {
+            newAscent += delta;
+          }
+          else {
+            newDescent += delta.abs();
+          }
+        }
+
+        emit(LocationState.tracking(
+          points: newPoints,
+          current: point,
+          distance: newDistance,
+          elevationGap: newGap,
+          totalAscent: newAscent,
+          totalDescent: newDescent,
+        ));
+      },
+      onError: (e) {
+        if (!isClosed) emit(LocationState.error(e.toString()));
+      }
+    );
   }
 
   Future<void> stopTracking() async {
-    await engine.stop();
-    await _sub?.cancel();
-    LocationRepository.clearRoute();
+    await _locationSub?.cancel();
+    _locationSub = null;
+    await stopBackgroundTracking();
+    if (!isClosed) emit(const LocationState.idle());
+  }
 
-    emit(const UserLocationState.unknown());
+  Future<void> clearHistory() async {
+    await _repository.clear();
+    if(!isClosed) {
+      emit(LocationState.tracking(points: const [], current: state.current));
+    }
   }
 
   @override
   Future<void> close() async {
-    await _sub?.cancel();
-    await engine.close();
-    await super.close();
+    await stopTracking();
+    return super.close();
   }
+
+  //Helpers
+  (double dist, double? gap, double asc, double desc) _computeMetrics(List<LocationPoint> pts) {
+    if (pts.isEmpty) return (0, null, 0, 0);
+
+    double dist = 0;
+    double asc = 0;
+    double desc = 0;
+    double? gap;
+
+    final firstAlt = pts.first.altitude;
+
+    for (var i = 1; i < pts.length; i++) {
+      dist += _haversine(pts[i - 1], pts[i]);
+
+      final prevAlt = pts[i - 1].altitude;
+      final currAlt = pts[i].altitude;
+
+      final delta = currAlt - prevAlt;
+      if (delta > 0) {
+        asc += delta;
+      } else {
+        desc += delta.abs();
+      }
+    }
+
+    gap = pts.last.altitude - firstAlt;
+
+    return (dist, gap, asc, desc);
+  }
+
+  double _haversine(LocationPoint a, LocationPoint b) {
+//    const double r = 6371000; // Earth radius in meters
+//    double dLat = _degToRad(position.latitude - lkp.latitude);
+//    double dLng = _degToRad(position.longitude - lkp.longitude);
+//
+//    double a = math.sin(dLat / 2.0) * math.sin(dLat / 2.0) +
+//      math.cos(_degToRad(lkp.latitude)) * math.cos(_degToRad(position.latitude)) *
+//      math.sin(dLng / 2.0) * math.sin(dLng / 2.0);
+//
+//    double c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a));
+//    double distance = r * c;
+//
+//    if(distance < 5.0) {
+//      return 0.0;
+//    } else {
+//      return distance;
+//    }
+
+    LatLng first = LatLng(a.lat, a.lng);
+    LatLng second = LatLng(b.lat, b.lng);
+
+    return Haversine().distance(first, second);
+  }
+
+  double _degToRad(double deg) => deg * (math.pi / 180.0);
 }

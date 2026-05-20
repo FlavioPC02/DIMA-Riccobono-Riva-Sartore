@@ -1,14 +1,12 @@
-
 import 'package:application/core/cubit/activity_cubit.dart';
-import 'package:application/core/cubit/location_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
-import 'package:application/services/location_engine.dart';
 import 'package:application/services/helpers/background_service_helper.dart';
 import 'package:application/services/notification_service.dart';
+import 'package:application/services/service_locator.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,18 +31,11 @@ void main() async {
     storageDirectory: HydratedStorageDirectory((await getApplicationDocumentsDirectory()).path),
   );
 
-  await Hive.initFlutter();
-  await Hive.openBox('location_box'); 
-
   await NotificationService.initializeNotificationService();
-  
-  try {
-    await BackgroundServiceHelper.instance.initializeService();
-  } catch (e, st) {
-    // don't block app startup if background service fails to initialize
-    debugPrint('BackgroundService initialize failed: $e');
-    debugPrint('$st');
-  }
+
+  await Hive.initFlutter();
+  await initializeBackgroundService();
+  await setupLocator();
 
   runApp(const RootApp());
 }
@@ -70,14 +61,6 @@ class RootApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (_) => ActivityCubit(ActivityRepository()),
-        ),
-        BlocProvider(
-          create: (_) {
-            final cubit = LocationCubit(
-              engine: LocationEngine.foreground(),
-            );
-            return cubit;
-          }
         ),
       ], 
       child: const MainApp(),

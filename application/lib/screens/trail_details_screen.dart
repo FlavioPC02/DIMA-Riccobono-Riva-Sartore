@@ -916,6 +916,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                           id: "",
                           name: widget.trail['name'],
                           status: ActivityStatus.planned,
+                          durationMinutes: _fromStringToMinutesInt(_estimatedDuration),
                           date: DateTime.now(),
                         ),
                       ),
@@ -964,6 +965,19 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         );
       }),
     );
+  }
+
+  int _fromStringToMinutesInt(String? duration) {
+    if (duration == null) return 0;
+
+    final match = RegExp(r'^(\d+)\s*h\s*(\d+)\s*m(?:\s*\(estimated\))?$')
+      .firstMatch(duration.trim());
+
+    if (match == null) return 0;
+
+    final hours = int.tryParse(match.group(1) ?? '') ?? 0;
+    final minutes = int.tryParse(match.group(2) ?? '') ?? 0;
+    return (hours * 60) + minutes;
   }
 
 }

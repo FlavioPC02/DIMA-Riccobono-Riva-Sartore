@@ -67,16 +67,17 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
+	<string>This app needs your location to show your position on the navigator.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Questa app utilizza la tua posizione per mostrarti le escursioni vicine.</string>
+	<string>This app needs your location in the background to continue tracking while the navigator is active.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Questa app utilizza la tua posizione per tenere traccia delle tue statistiche durante le escursioni</string>
+	<string>This app needs your location in the background to continue tracking while the navigator is active.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
   		<string>fetch</string>
   		<string>remote-notification</string>
+		<string>processing</string>
 	</array>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
@@ -85,7 +86,7 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-	  <string>com.example.application.background</string>
+	  <string>dev.flutter.background_service</string>
 	</array>
 </dict>
 </plist>

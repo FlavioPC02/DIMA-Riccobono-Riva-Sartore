@@ -1,36 +1,38 @@
 import 'package:application/core/models/location_point.dart';
-import 'package:flutter/material.dart';
-import 'package:hive_ce/hive.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive_ce_flutter/adapters.dart';
 
-class LocationRepository {
-  static Box get _box => Hive.box('location_box');
+abstract class ILocationRepository {
+  Future<void> save(LocationPoint point);
 
-  //save latest position
-  static Future<void> saveCurrent(LocationPoint point) async {
-    debugPrint('arrivato nuovo punto');
-    await _box.put('latest', point.toMap());
+  List<LocationPoint> getAll();
+
+  Future<void> clear();
+
+  //watch for new points added by background isolate
+  ValueListenable<Box<LocationPoint>> watch();
+}
+
+class HiveLocationRepository implements ILocationRepository {
+  static const _boxName = 'location_box';
+
+  late Box<LocationPoint> _box;
+
+  Future<void> init() async {
+    _box = await Hive.openBox<LocationPoint>(_boxName);
   }
 
-  //append to route
-  static Future<void> addToRoute(LocationPoint point) async {
-    final List list = _box.get('route', defaultValue: []);
-    list.add(point.toMap());
-    await _box.put('route', list);
+  @override
+  Future<void> save(LocationPoint point) async {
+    await _box.add(point);
   }
 
-  //get latest location
-  static LocationPoint? getLatest() {
-    final data = _box.get('latest');
-    return data == null ? null : LocationPoint.fromMap(data);
-  }
+  @override
+  List<LocationPoint> getAll() => _box.values.toList();
 
-  //get full route
-  static List<LocationPoint> getRoute() {
-    final List list = _box.get('route', defaultValue: []);
-    return list.map<LocationPoint>((e) => LocationPoint.fromMap(e)).toList();
-  }
+  @override
+  Future<void> clear() async => _box.clear();
 
-  static void clearRoute() {
-    _box.clear();
-  }
+  @override
+  ValueListenable<Box<LocationPoint>> watch() => _box.listenable();
 }

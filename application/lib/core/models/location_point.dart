@@ -6,7 +6,7 @@ class LocationPoint {
   //TODO: necessario salvare accuracy o posso evitare?
   final double positionAccuracy;
   final double altitudeAccuracy;
-  final int timestamp;
+  final DateTime timestamp;
 
   LocationPoint({
     required this.lat,
@@ -23,7 +23,7 @@ class LocationPoint {
     'altitude': altitude,
     'positionAccuracy': positionAccuracy,
     'altitudeAccuracy': altitudeAccuracy,
-    'timestamp': timestamp,
+    'timestamp': timestamp.toIso8601String(),
   };
 
   static LocationPoint fromMap(Map data) {
@@ -33,7 +33,7 @@ class LocationPoint {
       altitude: data['altitude'], 
       positionAccuracy: data['positionAccuracy'], 
       altitudeAccuracy: data['altitudeAccuracy'], 
-      timestamp: data['timestamp'],
+      timestamp: DateTime.parse(data['timestamp'] as String),
     );
   }
 }
