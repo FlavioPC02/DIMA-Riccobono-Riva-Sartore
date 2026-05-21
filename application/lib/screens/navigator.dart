@@ -92,14 +92,22 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   }
 
   void _toggleStopwatch() {
+    final shouldStartTracking = !_stopwatch.isRunning;
+
     setState(() {
-      if (_stopwatch.isRunning) {
-        _stopwatch.stop();
-      } else {
+      if (shouldStartTracking) {
         _stopwatch.start();
+      } else {
+        _stopwatch.stop();
       }
       _elapsedTime = _stopwatch.elapsed;
     });
+
+    if (shouldStartTracking) {
+      unawaited(_locationCubit.startTracking());
+    } else {
+      unawaited(_locationCubit.stopTracking());
+    }
   }
 
   void _stopRecording() {
