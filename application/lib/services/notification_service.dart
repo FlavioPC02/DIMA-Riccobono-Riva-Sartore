@@ -17,7 +17,6 @@ class NotificationService {
 
   static Future<void> initializeNotificationService() async {
     if(_isInitialized) {
-      debugPrint('Notification already initialized');
       return;
     }
 

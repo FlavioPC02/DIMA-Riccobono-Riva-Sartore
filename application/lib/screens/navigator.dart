@@ -46,6 +46,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(
     0,
   );
+  late final LocationCubit _locationCubit;
 
   bool _isLocatingUser = false;
 
@@ -65,6 +66,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   void initState() {
     super.initState();
 
+    _locationCubit = sl<LocationCubit>();
+
     _stopwatch = Stopwatch();
     _stopwatch.start();
 
@@ -76,12 +79,15 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     });
 
     _buildMap();
+    _locationCubit.startTracking();
   }
 
   @override
   void dispose() {
     _timer.cancel();
     _stopwatch.stop();
+    _locationCubit.stopTracking();
+    _locationCubit.close();
     super.dispose();
   }
 
@@ -482,20 +488,19 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   Widget build(BuildContext context) {
     final String trailName = widget.trail['name']?.toString() ?? 'Trail';
 
-    return BlocProvider(
-      create: (_) => sl<LocationCubit>()..startTracking(),
+    return BlocProvider.value(
+      value: _locationCubit,
       child: PopScope(
         onPopInvokedWithResult: (didPop, _) {
-          if (didPop) context.read<LocationCubit>().stopTracking();
+          if (didPop) _locationCubit.stopTracking();
         },
         child: BlocBuilder<LocationCubit, LocationState>(
           builder: (context, state) {
+            
             if (state.current != null) {
               final position = LatLng(state.current!.lat, state.current!.lng);
               checkUserOnTrail(position);
             }
-
-            debugPrint('${widget.activity.durationMinutes}');
 
             return Stack(
               alignment: Alignment.bottomCenter,

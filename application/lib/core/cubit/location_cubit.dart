@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:application/core/models/location_point.dart';
 import 'package:application/core/repository/location_repository.dart';
@@ -36,9 +35,8 @@ class LocationCubit extends Cubit<LocationState>{
 
     //listen for points coming from the background isolate
     _locationSub = backgroundLocationStream.listen(
-      (point) {
+      (point) async {
         if(isClosed) return;
-
         final newPoints = [...state.points, point];
 
         //Distance: add the leg from previous fix to the new one
@@ -75,6 +73,10 @@ class LocationCubit extends Cubit<LocationState>{
           totalAscent: newAscent,
           totalDescent: newDescent,
         ));
+
+        unawaited(
+          _repository.save(point),
+        );
       },
       onError: (e) {
         if (!isClosed) emit(LocationState.error(e.toString()));
@@ -155,6 +157,4 @@ class LocationCubit extends Cubit<LocationState>{
 
     return Haversine().distance(first, second);
   }
-
-  double _degToRad(double deg) => deg * (math.pi / 180.0);
 }

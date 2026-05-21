@@ -4,10 +4,7 @@ import 'dart:ui';
 import 'package:application/core/models/location_point.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:hive_ce_flutter/adapters.dart';
-import 'package:path_provider/path_provider.dart';
 
-const _notificationChannelId = 'gps_tracker_channel';
 const _notificationChannelName = 'GPS Tracker';
 const _notificationId = 888;
 
@@ -60,14 +57,9 @@ Stream<LocationPoint> get backgroundLocationStream {
 
 @pragma('vm:entry-point')
 void onBackgroundServiceStart(ServiceInstance service) async {
+
   //make platform channels work in background isolate
   DartPluginRegistrant.ensureInitialized();
-
-  //initialize Hive in background isolate
-  final dir = await getApplicationDocumentsDirectory();
-  await Hive.initFlutter(dir.path);
-  //Hive.registerAdapter<LocationPoint>(LocationPointAdapter());
-  final box = await Hive.openBox<LocationPoint>('location_box');
 
   //Android foreground notification update
   if(service is AndroidServiceInstance) {
@@ -81,7 +73,6 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 
   service.on('stopService').listen((_) async {
     await _positionSub?.cancel();
-    await box.close();
     await service.stopSelf();
   });
 
@@ -99,6 +90,7 @@ void onBackgroundServiceStart(ServiceInstance service) async {
   _positionSub = Geolocator.getPositionStream(
     locationSettings: locationSettings,
   ).listen((Position pos) async {
+
     final point = LocationPoint(
       lat: pos.latitude, 
       lng: pos.longitude, 
@@ -107,8 +99,6 @@ void onBackgroundServiceStart(ServiceInstance service) async {
       altitudeAccuracy: pos.altitudeAccuracy, 
       timestamp: pos.timestamp,
     );
-
-    await box.add(point);
 
     service.invoke('location', {
       'lat': point.lat,
