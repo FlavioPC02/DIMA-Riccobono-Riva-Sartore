@@ -1,249 +1,140 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
+
 import 'package:application/screens/map_page.dart';
 
+import '../utils/map_test_helper.dart';
+
 void main() {
-  
-  Widget createWidgetUnderTest() {
-    return const MaterialApp(
-      home: Scaffold(
-        body: MapPage(),
-      ),
-    );
-  }
+  late MockGeolocatorPlatform mockGeolocator;
 
-  group(
-    'Map page UI Structure',
-    () {
-      testWidgets(
-        'Map page is rendered as a StatelessWidget',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
+  setUpAll(() async {
+    dotenv.testLoad(fileInput: '''MAPBOX_ACCESS_TOKEN=test_token_123''');
+    
+    HttpOverrides.global = FakeHttpOverrides();
+  });
 
-          final mapPageFinder = find.byType(MapPage);
+  setUp(() {
+    mockGeolocator = MockGeolocatorPlatform();
+    GeolocatorPlatform.instance = mockGeolocator;
+  });
 
-          expect(mapPageFinder, findsOneWidget);
-        },
-      );
+  group('MapPage Widget Tests', () {
 
-      testWidgets(
-        'MainMapWidget is created within MapPage',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
+    testWidgets('Renders MapPage correctly with search bar and buttons', (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: MapPage()));
+      await tester.pump(const Duration(seconds: 1));
 
-          final mainMapWidgetFinder = find.byType(MainMapWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Search for a location...'), findsOneWidget);
+      expect(find.byIcon(Icons.my_location), findsOneWidget);
+      
+      await tearDownMap(tester); 
+    });
 
-          expect(mainMapWidgetFinder, findsOneWidget);
-        },
-      );
+    testWidgets('Shows location service dialog if GPS is disabled', (WidgetTester tester) async {
+      mockGeolocator.locationServiceEnabled = false;
 
-      testWidgets(
-        'Map page has search bar TextField',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
+      await tester.pumpWidget(const MaterialApp(home: MapPage()));
+      await tester.pump(const Duration(seconds: 1));
 
-          final textFieldFinder = find.byType(TextField);
+      expect(find.text('Location service required'), findsOneWidget);
+      expect(find.text('Enable location permission'), findsOneWidget);
+      
+      await tearDownMap(tester); 
+    });
 
-          expect(textFieldFinder, findsOneWidget);
-        },
-      );
+    testWidgets('Shows location permission dialog if permission is denied', (WidgetTester tester) async {
+      mockGeolocator.permission = LocationPermission.denied;
 
-      testWidgets(
-        'Search bar has correct hint text',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
+      await tester.pumpWidget(const MaterialApp(home: MapPage()));
+      await tester.pump(const Duration(seconds: 1));
 
-          final searchHintFinder = find.text('Search for a location...');
+      expect(find.text('Location permission required'), findsOneWidget);
+      expect(find.text('Enable location permission'), findsOneWidget);
+      
+      await tearDownMap(tester); 
+    });
 
-          expect(searchHintFinder, findsOneWidget);
-        },
-      );
+    testWidgets('Search input triggers debounce and updates UI', (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: MapPage()));
+      await tester.pump(const Duration(seconds: 1));
 
-      testWidgets(
-        'Map page has FloatingActionButton for location',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Milano');
+      await tester.pump(); 
+      expect(find.byIcon(Icons.close), findsOneWidget);
 
-          final floatingActionButtonFinder = find.byType(FloatingActionButton);
+      await tester.pump(const Duration(seconds: 2));
 
-          expect(floatingActionButtonFinder, findsWidgets);
-        },
-      );
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+      
+      TextField textField = tester.widget(find.byType(TextField));
+      expect(textField.controller!.text, isEmpty);
+      
+      await tearDownMap(tester); 
+    });
 
-      testWidgets(
-        'Location button has my_location icon',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
+    testWidgets('Center map on user button works', (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: MapPage()));
+      await tester.pump(const Duration(seconds: 1));
 
-          final locationIconFinder = find.byIcon(Icons.my_location);
+      await tester.tap(find.widgetWithIcon(FloatingActionButton, Icons.my_location));
+      await tester.pump(const Duration(seconds: 3));
 
-          expect(locationIconFinder, findsOneWidget);
-        },
-      );
+      expect(tester.takeException(), isNull);
+      
+      await tearDownMap(tester); 
+    });
 
-      testWidgets(
-        'Map page has proper Stack and Positioned widgets',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
+    testWidgets('Fetches trails from Overpass API and shows/closes PageView', (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: MapPage()));
+      await tester.pump(const Duration(seconds: 1));
 
-          final stackFinder = find.byType(Stack);
+      final searchButton = find.text('Search for hiking trails in this area');
+      expect(searchButton, findsOneWidget);
+      await tester.tap(searchButton);
+      
+      await tester.pump(const Duration(seconds: 2));
 
-          expect(stackFinder, findsWidgets);
-        },
-      );
-    },
-  );
+      expect(find.byType(PageView), findsOneWidget);
+      expect(find.text('Sentiero Test Coverage'), findsOneWidget);
 
-  group(
-    'Search bar functionality',
-    () {
-      testWidgets(
-        'Search bar accepts text input',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
+      final closeTrailsButton = find.widgetWithIcon(FloatingActionButton, Icons.close);
+      await tester.tap(closeTrailsButton);
+      await tester.pump(const Duration(seconds: 1));
 
-          final searchBarFinder = find.byType(TextField);
+      expect(find.byType(PageView), findsNothing);
+      expect(find.text('Search for hiking trails in this area'), findsOneWidget);
 
-          await tester.enterText(searchBarFinder, 'Paris');
-          await tester.pump();
+      await tearDownMap(tester);
+    });
 
-          expect(find.text('Paris'), findsOneWidget);
-        },
-      );
+    testWidgets('Nominatim search yields suggestions and tapping one fetches trails', (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: MapPage()));
+      await tester.pump(const Duration(seconds: 1));
 
-      testWidgets(
-        'Search button is present in search bar',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Mil');
+      
+      await tester.pump(const Duration(seconds: 2));
 
-          final searchIconFinder = find.byIcon(Icons.search);
+      final suggestionFinder = find.text('Milano, Italia');
+      expect(suggestionFinder, findsOneWidget);
 
-          expect(searchIconFinder, findsOneWidget);
-        },
-      );
+      await tester.tap(suggestionFinder);
+      
+      await tester.pump(const Duration(seconds: 2));
 
-      testWidgets(
-        'Text input action is set to search',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
+      TextField textField = tester.widget(find.byType(TextField));
+      expect(textField.controller!.text, 'Milano, Italia');
 
-          final textFieldFinder = find.byType(TextField);
-          final textFieldWidget = tester.widget(textFieldFinder) as TextField;
+      expect(find.byType(PageView), findsOneWidget);
+      expect(find.text('Sentiero Test Coverage'), findsOneWidget);
 
-          expect(textFieldWidget.textInputAction, TextInputAction.search);
-        },
-      );
-
-      testWidgets(
-        'Search bar can be cleared',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
-
-          final searchBarFinder = find.byType(TextField);
-
-          await tester.enterText(searchBarFinder, 'Rome');
-          await tester.pump();
-          expect(find.text('Rome'), findsOneWidget);
-
-          await tester.enterText(searchBarFinder, '');
-          await tester.pump();
-          expect(find.text('Rome'), findsNothing);
-        },
-      );
-    },
-  );
-
-  group(
-    'Location button functionality',
-    () {
-      testWidgets(
-        'Location button is present and tappable',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
-
-          final locationButtonFinder = find.byIcon(Icons.my_location);
-
-          expect(locationButtonFinder, findsOneWidget);
-        },
-      );
-
-      testWidgets(
-        'Location button is inside a FloatingActionButton',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
-
-          final locationIconFinder = find.byIcon(Icons.my_location);
-          final fabFinder = find.ancestor(
-            of: locationIconFinder,
-            matching: find.byType(FloatingActionButton),
-          );
-
-          expect(fabFinder, findsOneWidget);
-        },
-      );
-
-      testWidgets(
-        'Location button has mini size',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
-
-          final fabFinder = find.byType(FloatingActionButton);
-          bool hasMiniButton = false;
-
-          for (int i = 0; i < fabFinder.evaluate().length; i++) {
-            final fab = tester.widget<FloatingActionButton>(fabFinder.at(i));
-            if (fab.mini) {
-              hasMiniButton = true;
-              break;
-            }
-          }
-
-          expect(hasMiniButton, isTrue);
-        },
-      );
-    },
-  );
-
-  group(
-    'Widget state management',
-    () {
-      testWidgets(
-        'MainMapWidget extends StatefulWidget',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-
-          final mainMapWidgetFinder = find.byType(MainMapWidget);
-
-          expect(mainMapWidgetFinder, findsOneWidget);
-        },
-      );
-
-      testWidgets(
-        'Multiple pumpAndSettle calls maintain widget state',
-        (tester) async {
-          await tester.pumpWidget(createWidgetUnderTest());
-          await tester.pumpAndSettle();
-
-          final textFieldFinder = find.byType(TextField);
-          expect(textFieldFinder, findsOneWidget);
-
-          await tester.pumpAndSettle();
-
-          expect(textFieldFinder, findsOneWidget);
-        },
-      );
-    },
-  );
+      await tearDownMap(tester);
+    });
+  });
 }
-

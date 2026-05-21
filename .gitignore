@@ -6,6 +6,7 @@
 *.swp
 .buildlog/
 .history
+.env
 
 
 
@@ -121,3 +122,5 @@ app.*.symbols
 # macOs File 
 .DS_Store
 **/.DS_Store
+
+.vscode

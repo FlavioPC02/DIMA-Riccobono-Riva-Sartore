@@ -4,25 +4,22 @@ import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
+import 'package:application/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'screens/login_screen.dart';
 import 'firebase_options.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui' as ui;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  //mapbox public token used to display the map
   await dotenv.load(fileName: ".env");
-  //removed for now to avoid github token scanning bot
-  //TODO: when a definitive package name is chosen, restrict token usage inside mapbox dashboard to prevent unauthorized use 
-  MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '');
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -30,6 +27,8 @@ void main() async {
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: HydratedStorageDirectory((await getApplicationDocumentsDirectory()).path),
   );
+
+  await NotificationService.initializeNotificationService();
 
   runApp(const RootApp());
 }
@@ -39,6 +38,12 @@ class RootApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Block the rotation for the app
+    SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+    ]);
+    
     return MultiBlocProvider(
       providers: [
         BlocProvider(
@@ -59,51 +64,91 @@ class RootApp extends StatelessWidget {
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
+  static SwitchThemeData _buildSwitchTheme(ColorScheme colorScheme) {
+    return SwitchThemeData(
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return colorScheme.primary;
+        }
+        return null;
+      }),
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return colorScheme.secondary;
+        }
+        return null;
+      }),
+    );
+  }
+
+  static ElevatedButtonThemeData _buildElevatedButtonTheme() {
+    return ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        minimumSize: const ui.Size(double.infinity, 50),
+        shape: const StadiumBorder(),
+      ),
+    );
+  }
+
+  static TextTheme _buildTextTheme() {
+    return TextTheme(
+      headlineMedium: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+      ),
+      titleLarge: TextStyle(
+        fontWeight: FontWeight.bold,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 16,
+      ),
+    );
+  }
+
+  static InputDecorationTheme _buildInputDecorationTheme() {
+    return InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final lightColorScheme = ColorScheme.fromSeed(
+      seedColor: Color(0xFFFFFFFF),
+      primary: Color(0xFFE95F2A),
+      secondary: Color(0xFFFFFFFF),
+      tertiary: Color(0xFFE1E1E1),
+      shadow: Color(0xFF000000),
+    );
+
+    final darkColorScheme = ColorScheme.fromSeed(
+      seedColor: Color(0xFF21211F),
+      primary: Color(0xFFE95F2A),
+      secondary: Color(0xFF21211F),
+      tertiary: Color(0xFF141414),
+      shadow: Color(0xFFAAAAAA),
+      brightness: Brightness.dark,
+    );
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Color(0xFFFFFFFF),
-            primary: Color(0xFFE95F2A),
-            secondary: Color(0xFFFFFFFF),
-            tertiary: Color(0xFFE1E1E1),
-          ),
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Color(0xFF21211F),
-            primary: Color(0xFFE95F2A),
-            secondary: Color(0xFF21211F),
-            tertiary: Color(0xFF141414),
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-        //scaffoldBackgroundColor: AppColors.background,
-        textTheme: const TextTheme(
-          headlineMedium: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-          bodyMedium: TextStyle(
-            fontSize: 16,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            minimumSize: const ui.Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+        colorScheme: lightColorScheme,
+        useMaterial3: true,
+        switchTheme: _buildSwitchTheme(lightColorScheme),
+        elevatedButtonTheme: _buildElevatedButtonTheme(),
+        textTheme: _buildTextTheme(),
+        inputDecorationTheme: _buildInputDecorationTheme(),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: darkColorScheme,
+        useMaterial3: true,
+        switchTheme: _buildSwitchTheme(darkColorScheme),
+        textTheme: _buildTextTheme(),
+        elevatedButtonTheme: _buildElevatedButtonTheme(),
+        inputDecorationTheme: _buildInputDecorationTheme(),
       ),
       home: const LoginScreen(),
     );
