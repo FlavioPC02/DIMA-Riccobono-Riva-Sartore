@@ -29,6 +29,7 @@ class Profile {
     'nickname': nickname,
     'email': mail,
     'xp': xp,
+    'level': level,
   };
 
   factory Profile.fromJson(Map<String, dynamic> json) {

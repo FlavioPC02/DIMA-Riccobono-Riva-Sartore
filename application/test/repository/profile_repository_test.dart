@@ -54,6 +54,7 @@ void main() {
 				nickname: 'test',
 				mail: 'test@mail.com',
 				xp: 42.0,
+        level: 1,
 			),
 		);
 

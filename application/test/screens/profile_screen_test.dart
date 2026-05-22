@@ -34,6 +34,7 @@ void main() {
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
@@ -75,6 +76,7 @@ void main() {
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
@@ -120,6 +122,7 @@ void main() {
                   nickname: 'test', 
                   mail: 'test@mail.it', 
                   xp: 0.66,
+                  level: 1,
                 ),
               );
 
@@ -163,6 +166,7 @@ void main() {
                   nickname: 'test', 
                   mail: 'test@mail.it', 
                   xp: 0.66,
+                  level: 1,
                 ),
               );
 
@@ -208,6 +212,7 @@ void main() {
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
@@ -286,6 +291,7 @@ void main() {
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
@@ -344,6 +350,7 @@ void main() {
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 

@@ -36,6 +36,7 @@ class NavigatorScreen extends StatefulWidget {
 
 class _NavigatorScreenState extends State<NavigatorScreen> {
   static const double _offsetBound = 32;
+  static const double _offsetBoundTop = 37;
   static const double _offTrailThresholdMeters = 50.0;
   static const double R = 6371000; // Earth radius in meters
 
@@ -114,13 +115,14 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   }
 
   Future<void> _stopRecording() async {
-    //TODO: svuota hive per essere pronto per una nuova registrazione
     setState(() {
       _stopwatch.stop();
       _elapsedTime = _stopwatch.elapsed;
     });
 
     final cubit = _locationCubit;
+    final activityCubit = context.read<ActivityCubit>();
+    final profileCubit = context.read<ProfileCubit>();
 
     final activity = widget.activity;
     activity.trackedDistance = cubit.state.distance;
@@ -128,28 +130,30 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     activity.trackedTime = _elapsedTime;
     activity.status = ActivityStatus.completed;
 
-    try {
-      await cubit.stopTracking();
+    await cubit.stopTracking();
 
-      final activityCubit = context.read<ActivityCubit>();
-      if (activity.id.isEmpty) {
-        await activityCubit.addActivity(activity);
-      } else {
-        await activityCubit.updateActivity(activity);
-      }
-
-      //update profile stats
-      final profile = context.read<ProfileCubit>().state;
-      context.read<ProfileCubit>().updateXp(profile.xp + activity.xpEarned);
-    } finally {
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.of(context, rootNavigator: true).pushReplacement(
-        MaterialPageRoute(builder: (_) => const Navigation()),
-      );
+    if (!mounted) {
+      return;
     }
+
+    if (activity.id.isEmpty) {
+      await activityCubit.addActivity(activity);
+    } else {
+      await activityCubit.updateActivity(activity);
+    }
+    
+    //update profile stats
+    final profile = profileCubit.state;
+    profileCubit.updateXp(profile.xp + activity.xpEarned);
+    cubit.clearHistory();
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context, rootNavigator: true).pushReplacement(
+      MaterialPageRoute(builder: (_) => const Navigation()),
+    );
   }
 
   void _showPathDistanceNotification(int distance, {String? direction}) {
@@ -175,12 +179,16 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   //when the widget is first built, check if location services are enabled and permissions are granted, then fetch the current location
   Future<void> _centerMapOnTrail() async {
     bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
+    if (!mounted) return;
+
     if (!serviceEnabled) {
       _showLocationServiceDialog();
       return;
     }
 
     geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+    if (!mounted) return;
+
     if (permission == geo.LocationPermission.denied ||
         permission == geo.LocationPermission.deniedForever) {
       _showLocationPermissionDialog();
@@ -241,19 +249,27 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
   //function which adjust mapZoom to fit the entire trail in the viewport
   Future<void> _fitTrailInViewport() async {
+    if (!mounted) return;
+
     final coordinates = widget.trail['subTrails'];
     if (coordinates.isEmpty) return;
 
     final bounds = _buildTrailBounds(coordinates);
+    final collapsedCardHeight = StatsRecordingCard.collapsedSheetHeight(
+      context,
+      widget.trail['name']?.toString() ?? 'Trail',
+    );
 
     _mapController.fitCamera(
       CameraFit.bounds(
         bounds: bounds,
         padding: EdgeInsets.fromLTRB(
           _offsetBound,
-          MediaQuery.of(context).padding.top + _offsetBound,
+          MediaQuery.of(context).padding.top + _offsetBoundTop,
           _offsetBound,
-          _offsetBound,
+          MediaQuery.of(context).padding.bottom +
+              collapsedCardHeight +
+              _offsetBound,
         ),
       ),
     );
@@ -604,23 +620,59 @@ class StatsRecordingCard extends StatefulWidget {
     required this.stats,
   });
 
+  static double collapsedSheetHeight(
+    BuildContext context,
+    String trailName,
+  ) {
+    final mediaQuery = MediaQuery.of(context);
+    final textStyle = Theme.of(context).textTheme.titleMedium;
+    final availableWidth = mediaQuery.size.width - 36;
+    final textPainter = TextPainter(
+      text: TextSpan(text: trailName, style: textStyle),
+      textDirection: Directionality.of(context),
+      textAlign: TextAlign.center,
+      maxLines: null,
+    )..layout(maxWidth: availableWidth);
+
+    const double collapsedTopPadding = 16;
+    const double collapsedBottomPadding = 16;
+    return collapsedTopPadding + textPainter.height + collapsedBottomPadding;
+  }
+
   @override
   State<StatsRecordingCard> createState() => _StatsRecordingCardState();
 }
 
 class _StatsRecordingCardState extends State<StatsRecordingCard> {
   static const double _minSheetSize = 0.14;
-  static const double _initialSheetSize = 0.14;
   static const double _maxSheetSize = 0.80;
-  static const double _detailsRevealThreshold = 0.18;
+  static const double _detailsRevealOffset = 0.08;
   static const int _fractionalDigits = 2;
 
-  double _sheetExtent = _initialSheetSize;
+  double _sheetExtent = _minSheetSize;
+  double _collapsedSheetSize = _minSheetSize;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final collapsedSheetSize = _calculateCollapsedSheetSize(
+      context,
+      widget.trailName,
+    );
+    if ((collapsedSheetSize - _collapsedSheetSize).abs() > 0.001) {
+      _collapsedSheetSize = collapsedSheetSize;
+      if (_sheetExtent < _collapsedSheetSize) {
+        _sheetExtent = _collapsedSheetSize;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showDetails = _sheetExtent >= _detailsRevealThreshold;
+    final showDetails = _sheetExtent >=
+        math.min(_collapsedSheetSize + _detailsRevealOffset, _maxSheetSize);
 
     return NotificationListener<DraggableScrollableNotification>(
       onNotification: (notification) {
@@ -632,8 +684,8 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
         return false;
       },
       child: DraggableScrollableSheet(
-        initialChildSize: _initialSheetSize,
-        minChildSize: _minSheetSize,
+        initialChildSize: _collapsedSheetSize,
+        minChildSize: _collapsedSheetSize,
         maxChildSize: _maxSheetSize,
         expand: true,
         builder: (context, scrollController) {
@@ -660,170 +712,164 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                   controller: scrollController,
                   physics: const ClampingScrollPhysics(),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+                    padding: EdgeInsets.fromLTRB(
+                      18,
+                      showDetails ? 10 : 16,
+                      18,
+                      showDetails ? 14 : 16,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Center(
-                          child: Container(
-                            width: 44,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
                         Text(
                           widget.trailName,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.titleMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                         ),
-                        const SizedBox(height: 12),
-                        const Divider(height: 10),
-                        Column(
-                          children: [
-                            Text('Time', style: theme.textTheme.bodyMedium),
-                            //const SizedBox(height: 4),
-                            Text(
-                              _formatDuration(widget.elapsedTime),
-                              style: theme.textTheme.titleLarge,
+                        if (showDetails) ...[
+                          const SizedBox(height: 12),
+                          Center(
+                            child: Container(
+                              width: 44,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
                             ),
-                          ],
-                        ),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          switchInCurve: Curves.easeOut,
-                          switchOutCurve: Curves.easeIn,
-                          child: showDetails
-                              ? Column(
-                                  key: const ValueKey('expanded-stats'),
+                          ),
+                          const SizedBox(height: 12),
+                          const Divider(height: 10),
+                          Column(
+                            children: [
+                              Text('Time', style: theme.textTheme.bodyMedium),
+                              Text(
+                                _formatDuration(widget.elapsedTime),
+                                style: theme.textTheme.titleLarge,
+                              ),
+                            ],
+                          ),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeIn,
+                            child: Column(
+                              key: const ValueKey('expanded-stats'),
+                              children: [
+                                const SizedBox(height: 14),
+                                const Divider(height: 1),
+                                const SizedBox(height: 14),
+                                Column(
                                   children: [
-                                    const SizedBox(height: 14),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: 14),
-                                    Column(
-                                      children: [
-                                        Text('ETA', style: theme.textTheme.bodyMedium),
-                                        Text(
-                                          _formatDuration(widget.eta),
-                                          style: theme.textTheme.titleLarge,
-                                        )
-                                      ],
-                                    ),  
-                                    const SizedBox(height: 14),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            children: [
-                                              Text(
-                                                'Distance',
-                                                style:
-                                                    theme.textTheme.bodyMedium,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              Text(
-                                                widget.stats.getDistanceLabel(),
-                                                style:
-                                                    theme.textTheme.titleLarge,
-                                              ),
-                                            ],
+                                    Text('ETA', style: theme.textTheme.bodyMedium),
+                                    Text(
+                                      _formatDuration(widget.eta),
+                                      style: theme.textTheme.titleLarge,
+                                    )
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                const Divider(height: 1),
+                                const SizedBox(height: 14),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            'Distance',
+                                            style: theme.textTheme.bodyMedium,
+                                            textAlign: TextAlign.center,
                                           ),
-                                        ),
-                                        SizedBox(
-                                          height: 48,
-                                          child: VerticalDivider(
-                                            color: theme.colorScheme.outline
-                                                .withValues(alpha: 0.35),
+                                          Text(
+                                            widget.stats.getDistanceLabel(),
+                                            style: theme.textTheme.titleLarge,
                                           ),
-                                        ),
-                                        Expanded(
-                                          child: Column(
-                                            children: [
-                                              Text(
-                                                'Elevation Gap',
-                                                style:
-                                                    theme.textTheme.bodyMedium,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                widget.stats
-                                                    .getElevationGapLabel(),
-                                                style:
-                                                    theme.textTheme.titleLarge,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                    const SizedBox(height: 14),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        //Pause/Resume button
-                                        Expanded(
-                                          flex: 2,
-                                          child: ElevatedButton.icon(
-                                            onPressed: widget.onToggleRecording,
-                                            label: widget.isRecording
-                                                ? const Text('Pause')
-                                                : const Text('Resume'),
-                                            icon: widget.isRecording
-                                                ? Icon(Icons.pause)
-                                                : Icon(Icons.play_arrow),
-                                            style: widget.isRecording
-                                                ? ElevatedButton.styleFrom(
-                                                    backgroundColor: AppColors
-                                                        .pauseButtonBackground,
-                                                    foregroundColor: AppColors
-                                                        .pauseButtonForeground,
-                                                  )
-                                                : ElevatedButton.styleFrom(
-                                                    backgroundColor: AppColors
-                                                        .resumeButtonBackground,
-                                                    foregroundColor: AppColors
-                                                        .pauseButtonForeground,
-                                                  ),
+                                    SizedBox(
+                                      height: 48,
+                                      child: VerticalDivider(
+                                        color: theme.colorScheme.outline
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            'Elevation Gap',
+                                            style: theme.textTheme.bodyMedium,
+                                            textAlign: TextAlign.center,
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        //Stop button
-                                        Expanded(
-                                          flex: 3,
-                                          child: ElevatedButton.icon(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors
-                                                  .stopButtonBackground,
-                                              foregroundColor: AppColors
-                                                  .stopButtonForeground,
-                                            ),
-                                            onPressed: widget.onStopRecording,
-                                            label: Text('Stop'),
-                                            icon: Icon(Icons.stop),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            widget.stats.getElevationGapLabel(),
+                                            style: theme.textTheme.titleLarge,
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ],
-                                )
-                              : const SizedBox.shrink(
-                                  key: ValueKey('collapsed-stats'),
                                 ),
-                        ),
+                                const SizedBox(height: 14),
+                                const Divider(height: 1),
+                                const SizedBox(height: 14),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: ElevatedButton.icon(
+                                        onPressed: widget.onToggleRecording,
+                                        label: widget.isRecording
+                                            ? const Text('Pause')
+                                            : const Text('Resume'),
+                                        icon: widget.isRecording
+                                            ? const Icon(Icons.pause)
+                                            : const Icon(Icons.play_arrow),
+                                        style: widget.isRecording
+                                            ? ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors
+                                                    .pauseButtonBackground,
+                                                foregroundColor: AppColors
+                                                    .pauseButtonForeground,
+                                              )
+                                            : ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors
+                                                    .resumeButtonBackground,
+                                                foregroundColor: AppColors
+                                                    .pauseButtonForeground,
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      flex: 3,
+                                      child: ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors
+                                              .stopButtonBackground,
+                                          foregroundColor: AppColors
+                                              .stopButtonForeground,
+                                        ),
+                                        onPressed: widget.onStopRecording,
+                                        label: const Text('Stop'),
+                                        icon: const Icon(Icons.stop),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -841,6 +887,25 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
     final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
     return '$hours:$minutes:$seconds';
+  }
+
+  static double _calculateCollapsedSheetHeight(
+    BuildContext context,
+    String trailName,
+  ) {
+    return StatsRecordingCard.collapsedSheetHeight(context, trailName);
+  }
+
+  double _calculateCollapsedSheetSize(
+    BuildContext context,
+    String trailName,
+  ) {
+    final mediaQuery = MediaQuery.of(context);
+    final collapsedHeight = _calculateCollapsedSheetHeight(context, trailName);
+    final collapsedSize =
+        collapsedHeight / mediaQuery.size.height + mediaQuery.padding.bottom / mediaQuery.size.height;
+
+    return collapsedSize.clamp(_minSheetSize, _maxSheetSize);
   }
 
   double truncateToDecimalPlaces(num value) =>

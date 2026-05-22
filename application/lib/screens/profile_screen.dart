@@ -10,8 +10,12 @@ import 'package:application/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-int xpToNextLevel(int level, {int baseXp = 100, double growth = 1.2}) {
-  return (baseXp * pow(growth, level - 1)).round();
+int totalXpTillNextLevel(int level, {int baseXp = 100, double growth = 1.2}) {
+  int totalXp = 0;
+  for (var i = 0; i < level + 1; i ++) {
+    totalXp += (baseXp * pow(growth, level - 1)).round();
+  }
+  return totalXp;
 }
 
 class ProfilePage extends StatefulWidget {
@@ -127,7 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   _Header(
                     nickname: profile.nickname,
                     email: profile.mail,
-                    xpLength: profile.xp / xpToNextLevel(profile.level),
+                    xpLength: profile.xp / totalXpTillNextLevel(profile.level + 1),
                     level: profile.level,
                   ),
 
@@ -140,7 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         (distance, activity) => activity.status == ActivityStatus.completed
                             ? distance + activity.trackedDistance
                             : distance,
-                      ),
+                      ) / 1000, //kilometers
                     ),
                     difficultyLevel: settings.difficulty,
                     ondifficultyChanged: (value) {

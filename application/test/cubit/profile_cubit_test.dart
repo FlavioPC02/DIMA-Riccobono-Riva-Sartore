@@ -54,6 +54,7 @@ void main() {
           nickname: 'test',
           mail: 'test@mail.com',
           xp: 1.0,
+          level: 1,
         ),
       ),
     ),
@@ -79,7 +80,7 @@ void main() {
     final sub = cubit.stream.listen(emitted.add);
 
     await Future<void>.delayed(Duration.zero);
-    controller.add(Profile(nickname: 'test', mail: 'test@mail.com', xp: 200.0));
+    controller.add(Profile(nickname: 'test', mail: 'test@mail.com', xp: 200.0, level: 1));
     controller.add(null);
     await Future<void>.delayed(Duration.zero);
 
