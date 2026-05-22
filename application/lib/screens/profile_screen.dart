@@ -1,10 +1,18 @@
+import 'dart:math';
+
+import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
+import 'package:application/core/models/activity.dart';
 import 'package:application/core/theme/app_colors.dart';
 import 'package:application/screens/login_screen.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+int xpToNextLevel(int level, {int baseXp = 100, double growth = 1.2}) {
+  return (baseXp * pow(growth, level - 1)).round();
+}
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -71,10 +79,15 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  double truncateToDecimalPlaces(num value) =>
+      (value * pow(10, 2)).truncate() /
+        pow(10, 2);
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsCubit>().state;
     final profile = context.watch<ProfileCubit>().state;
+    final activities = context.watch<ActivityCubit>().state;
 
     if (!_isNicknameFormExpanded && _nicknameController.text != profile.nickname) {
       _nicknameController.text = profile.nickname;
@@ -114,14 +127,21 @@ class _ProfilePageState extends State<ProfilePage> {
                   _Header(
                     nickname: profile.nickname,
                     email: profile.mail,
-                    xpLength: 0.66, //TODO: metti l'esperienza -> diventerà currXP / totXP
-                    level: 4, //TODO: Prendi livello giusto dal DB
+                    xpLength: profile.xp / xpToNextLevel(profile.level),
+                    level: profile.level,
                   ),
 
                   // Stats & difficulty card
                   _StatsdifficultySection(
-                    hikeNumber: 120, //TODO: prendi dal DB
-                    distance: 350, //TODO: prendi dal DB
+                    hikeNumber: activities.length,
+                    distance: truncateToDecimalPlaces(
+                      activities.fold<double>(
+                        0.0,
+                        (distance, activity) => activity.status == ActivityStatus.completed
+                            ? distance + activity.trackedDistance
+                            : distance,
+                      ),
+                    ),
                     difficultyLevel: settings.difficulty,
                     ondifficultyChanged: (value) {
                       setState(() {
@@ -256,7 +276,6 @@ class _Header extends StatelessWidget {
               Text(
                 'XP Level',
                 textAlign: TextAlign.left,
-                //TODO: style
               ),
               Text(
                 'Level $level',

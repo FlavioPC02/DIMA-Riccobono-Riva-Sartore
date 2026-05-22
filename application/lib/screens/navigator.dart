@@ -1,6 +1,9 @@
+import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/screens/homepage.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:flutter/material.dart';
@@ -110,28 +113,43 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     }
   }
 
-  void _stopRecording() {
+  Future<void> _stopRecording() async {
     //TODO: svuota hive per essere pronto per una nuova registrazione
     setState(() {
       _stopwatch.stop();
       _elapsedTime = _stopwatch.elapsed;
     });
 
-    final cubit = context.read<LocationCubit>();
+    final cubit = _locationCubit;
 
     final activity = widget.activity;
     activity.trackedDistance = cubit.state.distance;
     activity.trackedElevationGap = cubit.state.elevationGap ?? 0.0;
     activity.trackedTime = _elapsedTime;
+    activity.status = ActivityStatus.completed;
 
-    cubit.stopTracking();
+    try {
+      await cubit.stopTracking();
 
-    //if (activity.id == '') {
-    //  context.read<ActivityCubit>().addActivity(activity);
-    //}
-    //else {
-    //  context.read<ActivityCubit>().updateActivity(activity);
-    //}
+      final activityCubit = context.read<ActivityCubit>();
+      if (activity.id.isEmpty) {
+        await activityCubit.addActivity(activity);
+      } else {
+        await activityCubit.updateActivity(activity);
+      }
+
+      //update profile stats
+      final profile = context.read<ProfileCubit>().state;
+      context.read<ProfileCubit>().updateXp(profile.xp + activity.xpEarned);
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context, rootNavigator: true).pushReplacement(
+        MaterialPageRoute(builder: (_) => const Navigation()),
+      );
+    }
   }
 
   void _showPathDistanceNotification(int distance, {String? direction}) {

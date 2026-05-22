@@ -32,6 +32,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   String? _estimatedDistance;
   String? _estimatedDuration;
   String? _estimatedAscent;
+  ActivityDifficulty difficulty = ActivityDifficulty.easy;
   
   String? _errorMessage;
 
@@ -356,8 +357,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
     double effortScore = distanceKm + (ascentM / 100);
     
-    if (effortScore < 7.0) return 1;
-    if (effortScore < 14.0) return 2;
+    if (effortScore < 7.0) {
+      difficulty = ActivityDifficulty.easy;
+      return 1;
+    }
+    if (effortScore < 14.0) {
+      difficulty = ActivityDifficulty.moderate;
+      return 2;
+    }
+    difficulty = ActivityDifficulty.hard;
     return 3;
   }
 
@@ -918,6 +926,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                           status: ActivityStatus.planned,
                           durationMinutes: _fromStringToMinutesInt(_estimatedDuration),
                           date: DateTime.now(),
+                          difficulty: difficulty,
+                          xpEarned: _calculateXpFromDifficulty(difficulty),
                         ),
                       ),
                     ),
@@ -978,6 +988,17 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     final hours = int.tryParse(match.group(1) ?? '') ?? 0;
     final minutes = int.tryParse(match.group(2) ?? '') ?? 0;
     return (hours * 60) + minutes;
+  }
+
+  double _calculateXpFromDifficulty(ActivityDifficulty difficulty) {
+    switch (difficulty) {
+      case ActivityDifficulty.easy:
+        return 50;
+      case ActivityDifficulty.moderate:
+        return 100;
+      case ActivityDifficulty.hard:
+        return 200;
+    }
   }
 
 }
