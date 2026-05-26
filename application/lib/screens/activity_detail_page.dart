@@ -23,8 +23,6 @@ class ActivityDetailPage extends StatelessWidget {
             SliverAppBar(
               pinned: true,
               expandedHeight: 260,
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textPrimary,
               elevation: 0,
               actions: [
                 IconButton(
@@ -66,9 +64,6 @@ class ActivityDetailPage extends StatelessWidget {
                 background: _ActivityHeader(activity: activity),
               ),
               bottom: const TabBar(
-                labelColor: AppColors.textPrimary,
-                unselectedLabelColor: Colors.white70,
-                indicatorColor: AppColors.secondary,
                 indicatorWeight: 3,
                 tabs: [
                   Tab(text: 'Overview'),
@@ -112,7 +107,6 @@ class _ActivityHeader extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -207,7 +201,6 @@ class _HeaderStat extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                color: AppColors.textPrimary,
                 fontSize: 13,
               ),
             ),
@@ -217,7 +210,6 @@ class _HeaderStat extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            color: AppColors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),

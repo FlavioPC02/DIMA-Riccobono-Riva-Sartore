@@ -46,15 +46,11 @@ class _DiaryPageState extends State<DiaryPage>
             SizedBox(width: 12),
             Text(
               'Diary',
-              style: TextStyle(fontSize: 28, color: AppColors.textPrimary),
             ),
           ],
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.textPrimary,
-          unselectedLabelColor: AppColors.textPrimary,
-          indicatorColor: AppColors.secondary,
           indicatorWeight: 3,
           tabs: const [
             Tab(text: 'Completed'),
