@@ -39,6 +39,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   static const double _offsetBoundTop = 37;
   static const double _offTrailThresholdMeters = 50.0;
   static const double R = 6371000; // Earth radius in meters
+  static const double _movementSpeedThresholdMps = 0.4;
+  static const Duration _movementSampleMaxAge = Duration(seconds: 12);
 
   double _degToRad(double deg) => deg * (math.pi / 180.0);
 
@@ -583,7 +585,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                 Positioned.fill(
                   child: StatsRecordingCard(
                     trailName: trailName,
-                    eta: Duration(minutes: widget.activity.durationMinutes) - _elapsedTime, //TODO: sottrazione solo se mi sto muovendo
+                    eta: _calculateEta(state),
                     elapsedTime: _elapsedTime,
                     isRecording: _stopwatch.isRunning,
                     onToggleRecording: _toggleStopwatch,
@@ -597,6 +599,43 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
         ),
       ),
     );
+  }
+
+  Duration _calculateEta(LocationState stats) {
+    final plannedDuration = Duration(minutes: widget.activity.durationMinutes);
+    if (!_isUserMoving(stats)) {
+      return plannedDuration;
+    }
+
+    final remaining = plannedDuration - _elapsedTime;
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  bool _isUserMoving(LocationState stats) {
+    if (stats.points.length < 2) {
+      return false;
+    }
+
+    final latestPoint = stats.points.last;
+    final previousPoint = stats.points[stats.points.length - 2];
+    final sampleAge = DateTime.now().difference(latestPoint.timestamp);
+    if (sampleAge > _movementSampleMaxAge) {
+      return false;
+    }
+
+    final elapsedSeconds = latestPoint.timestamp
+        .difference(previousPoint.timestamp)
+        .inSeconds;
+    if (elapsedSeconds <= 0) {
+      return false;
+    }
+
+    final traveledMeters = Haversine().distance(
+      LatLng(previousPoint.lat, previousPoint.lng),
+      LatLng(latestPoint.lat, latestPoint.lng),
+    );
+
+    return traveledMeters / elapsedSeconds >= _movementSpeedThresholdMps;
   }
 }
 
