@@ -205,6 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Show error banner if there's an authentication error
                   if (_authError != null) _buildErrorBanner(),
                   const SizedBox(height: 32),
+                  
                   _buildForm(),
                   const SizedBox(height: 24),
                   SizedBox(
