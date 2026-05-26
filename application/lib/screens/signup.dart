@@ -16,20 +16,26 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  // Controllers for text fields
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
+  // Focus nodes for navigating with keyboard
   final FocusNode _nicknameFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
   final FocusNode _confirmPasswordFocusNode = FocusNode();
 
+  // Variable to hold authentication error messages
   String? _authError;
 
+  // Variables for password visibility and validation
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isPasswordValid = false;
+
+  // State variable
   bool _isLoading = false;
 
   @override
@@ -39,6 +45,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   @override
+  // Dispose controllers and focus nodes to free resources
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -58,22 +65,26 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     try {
-      final user = await AuthService().registerUser(_emailController.text, _passwordController.text);
+      final user = await AuthService().registerUser(
+        _emailController.text,
+        _passwordController.text,
+      );
       if (user == null) {
         throw Exception('User creation failed');
       }
 
       // Add user record to database
-      await DatabaseService().createUser(_emailController.text.trim(), _nicknameController.text.trim());
+      await DatabaseService().createUser(
+        _emailController.text.trim(),
+        _nicknameController.text.trim(),
+      );
 
       // When user created close dialogue and load homepage
       if (context.mounted) {
-        
-        Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-            builder: (_) => const Navigation(),
-          ),
-        );
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).push(MaterialPageRoute(builder: (_) => const Navigation()));
       }
     } catch (e) {
       setState(() {
@@ -81,7 +92,6 @@ class _SignupScreenState extends State<SignupScreen> {
         _isLoading = false;
       });
     }
-
   }
 
   void goToLogin(BuildContext context) {
@@ -95,217 +105,217 @@ class _SignupScreenState extends State<SignupScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 32,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(
-                      Icons.terrain,
-                      size: 80,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Welcome',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Sign up to start organizing your hiking trails.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 32),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(Icons.terrain, size: 80),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Welcome',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sign up to start organizing your hiking trails.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 32),
 
-                    if(_authError != null) ... [
-                      const SizedBox(height: 16,),
-
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.errorBackground,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.errorBorder),
-                        ),
-                        child: Text(
-                          _authError!,
-                          style: const TextStyle(color: AppColors.errorText),
-                        ),
-                      ),
-                    ],
-                    Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_nicknameFocusNode),
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.email_outlined),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Insert your email';
-                              }
-
-                              if (!value.contains('@') || !value.contains('.')) {
-                                return 'Insert a valid email address';
-                              }
-
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextFormField(
-                            controller: _nicknameController,
-                            keyboardType: TextInputType.name,
-                            textInputAction: TextInputAction.next,
-                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_passwordFocusNode),
-                            decoration: const InputDecoration(
-                              labelText: 'Nickname',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.account_circle,),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Insert your nickname';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16,),
-
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            textInputAction: TextInputAction.next,
-                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_confirmPasswordFocusNode),
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              border: const OutlineInputBorder(),
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                ),
-                              ),
-                            ),
-                            onChanged: (value) {
-                              final isValid = value.isNotEmpty && value.length >= 6;
-                          
-                              if (isValid != _isPasswordValid) {
-                                setState(() {
-                                  _isPasswordValid = isValid;
-                                });
-                              }
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Insert your password';
-                              }
-
-                              if (value.length < 6) {
-                                return 'Password must be at least six-characters long';
-                              }
-
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16,),
-
-                          TextFormField(
-                            controller: _confirmController,
-                            obscureText: _obscureConfirm,
-                            enabled: _isPasswordValid,
-                            textInputAction: TextInputAction.done,
-                            onFieldSubmitted: (_) => _submitSignUp(context),
-                            decoration: InputDecoration(
-                              labelText: 'Confirm password',
-                              border: const OutlineInputBorder(),
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _obscureConfirm = !_obscureConfirm;
-                                  });
-                                },
-                                icon: Icon(
-                                  _obscureConfirm
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                ),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Confirm your password';
-                              }
-
-                              if (value != _passwordController.text) {
-                                return 'Password mismatch';
-                              }
-
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    SizedBox(
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : () {
-                          _submitSignUp(context);
-                        },
-                        child: _isLoading ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        ) : const Text('Sign Up'),
-                      ),
-                    ),
-
+                  if (_authError != null) ...[
                     const SizedBox(height: 16),
 
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorBackground,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.errorBorder),
+                      ),
+                      child: Text(
+                        _authError!,
+                        style: const TextStyle(color: AppColors.errorText),
+                      ),
+                    ),
+                  ],
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text('Already have an account?'),
-                        TextButton(
-                          onPressed: () {
-                            goToLogin(context);
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) => FocusScope.of(
+                            context,
+                          ).requestFocus(_nicknameFocusNode),
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Insert your email';
+                            }
+
+                            if (!value.contains('@') || !value.contains('.')) {
+                              return 'Insert a valid email address';
+                            }
+
+                            return null;
                           },
-                          child: const Text('Login'),
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _nicknameController,
+                          keyboardType: TextInputType.name,
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) => FocusScope.of(
+                            context,
+                          ).requestFocus(_passwordFocusNode),
+                          decoration: const InputDecoration(
+                            labelText: 'Nickname',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.account_circle),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Insert your nickname';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) => FocusScope.of(
+                            context,
+                          ).requestFocus(_confirmPasswordFocusNode),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            final isValid =
+                                value.isNotEmpty && value.length >= 6;
+
+                            if (isValid != _isPasswordValid) {
+                              setState(() {
+                                _isPasswordValid = isValid;
+                              });
+                            }
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Insert your password';
+                            }
+
+                            if (value.length < 6) {
+                              return 'Password must be at least six-characters long';
+                            }
+
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _confirmController,
+                          obscureText: _obscureConfirm,
+                          enabled: _isPasswordValid,
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _submitSignUp(context),
+                          decoration: InputDecoration(
+                            labelText: 'Confirm password',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _obscureConfirm = !_obscureConfirm;
+                                });
+                              },
+                              icon: Icon(
+                                _obscureConfirm
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Confirm your password';
+                            }
+
+                            if (value != _passwordController.text) {
+                              return 'Password mismatch';
+                            }
+
+                            return null;
+                          },
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              _submitSignUp(context);
+                            },
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Sign Up'),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text('Already have an account?'),
+                      TextButton(
+                        onPressed: () {
+                          goToLogin(context);
+                        },
+                        child: const Text('Login'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
