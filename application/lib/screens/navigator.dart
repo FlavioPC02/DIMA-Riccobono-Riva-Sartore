@@ -52,6 +52,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(
     0,
   );
+  Duration _remainingEta = Duration.zero;
+  DateTime? _lastEtaUpdateAt;
   late final LocationCubit _locationCubit;
 
   bool _isLocatingUser = false;
@@ -76,6 +78,9 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
     _stopwatch = Stopwatch();
     _stopwatch.start();
+
+    _remainingEta = Duration(minutes: widget.activity.durationMinutes);
+    _lastEtaUpdateAt = DateTime.now();
 
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (!mounted || !_stopwatch.isRunning) return;
@@ -514,19 +519,49 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     }
   }
 
-  //UserLocationListener(
-  //  onLocationChanged: (userPosition) {
-  //    if (!_stopwatch.isRunning) return;
-  //    if(userPosition != null) {
-  //      final position = LatLng(userPosition.lat, userPosition.lng);
-  //      checkUserOnTrail(position);
-  //      if (mounted) {
-  //        setState(() {
-  //          _recalculateTrackedStatsFromRoute();
-  //        });
-  //      }
-  //    }
-  //  },
+  Duration _calculateEta(LocationState stats) {
+    final now = DateTime.now();
+
+    if (!_isUserMoving(stats)) {
+      _lastEtaUpdateAt = now;
+      return _remainingEta;
+    }
+
+    final lastUpdateAt = _lastEtaUpdateAt ?? now;
+    _lastEtaUpdateAt = now;
+
+    final nextRemaining = _remainingEta - now.difference(lastUpdateAt);
+    _remainingEta = nextRemaining.isNegative ? Duration.zero : nextRemaining;
+
+    return _remainingEta;
+  }
+
+  bool _isUserMoving(LocationState stats) {
+    if (stats.points.length < 2) {
+      return false;
+    }
+
+    final latestPoint = stats.points.last;
+    final previousPoint = stats.points[stats.points.length - 2];
+    final sampleAge = DateTime.now().difference(latestPoint.timestamp);
+    if (sampleAge > _movementSampleMaxAge) {
+      return false;
+    }
+
+    final elapsedSeconds = latestPoint.timestamp
+        .difference(previousPoint.timestamp)
+        .inSeconds;
+    if (elapsedSeconds <= 0) {
+      return false;
+    }
+
+    final traveledMeters = Haversine().distance(
+      LatLng(previousPoint.lat, previousPoint.lng),
+      LatLng(latestPoint.lat, latestPoint.lng),
+    );
+
+    return traveledMeters / elapsedSeconds >= _movementSpeedThresholdMps;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -599,43 +634,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
         ),
       ),
     );
-  }
-
-  Duration _calculateEta(LocationState stats) {
-    final plannedDuration = Duration(minutes: widget.activity.durationMinutes);
-    if (!_isUserMoving(stats)) {
-      return plannedDuration;
-    }
-
-    final remaining = plannedDuration - _elapsedTime;
-    return remaining.isNegative ? Duration.zero : remaining;
-  }
-
-  bool _isUserMoving(LocationState stats) {
-    if (stats.points.length < 2) {
-      return false;
-    }
-
-    final latestPoint = stats.points.last;
-    final previousPoint = stats.points[stats.points.length - 2];
-    final sampleAge = DateTime.now().difference(latestPoint.timestamp);
-    if (sampleAge > _movementSampleMaxAge) {
-      return false;
-    }
-
-    final elapsedSeconds = latestPoint.timestamp
-        .difference(previousPoint.timestamp)
-        .inSeconds;
-    if (elapsedSeconds <= 0) {
-      return false;
-    }
-
-    final traveledMeters = Haversine().distance(
-      LatLng(previousPoint.lat, previousPoint.lng),
-      LatLng(latestPoint.lat, latestPoint.lng),
-    );
-
-    return traveledMeters / elapsedSeconds >= _movementSpeedThresholdMps;
   }
 }
 
