@@ -1,4 +1,5 @@
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/extensions/duration_formatting.dart';
 import 'package:application/core/models/weather_data.dart';
 import 'package:application/services/weather_service.dart';
 import 'package:flutter/material.dart';
@@ -104,10 +105,7 @@ class _ActivityHeader extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               activity.name,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -117,7 +115,7 @@ class _ActivityHeader extends StatelessWidget {
                 _HeaderStat(
                   icon: Icons.schedule,
                   label: 'Duration',
-                  value: _formatDuration(activity.durationMinutes),
+                  value: activity.durationMinutes.toMinuteDurationLabel(),
                 ),
                 const SizedBox(width: 32),
                 _HeaderStat(
@@ -131,14 +129,6 @@ class _ActivityHeader extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDuration(int minutes) {
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    if (h == 0) return '${m}m';
-    if (m == 0) return '${h}h';
-    return '${h}h ${m}m';
   }
 }
 
@@ -196,23 +186,15 @@ class _HeaderStat extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: 16, color: AppColors.textPrimary),
+            Icon(icon, size: 16, color: Colors.grey.shade600),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-              ),
-            ),
+            Text(label, style: const TextStyle(fontSize: 13)),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -539,8 +521,11 @@ class _StatsTab extends StatelessWidget {
       children: [
         _DifficultyRow(difficulty: activity.difficulty),
         _StatRow(label: 'Distance', value: '${activity.distanceKm} km'),
-        _StatRow(label: 'Duration', value: '${activity.durationMinutes} min'),
+        _StatRow(label: 'Duration', value: activity.durationMinutes.toMinuteDurationLabel()),
         _StatRow(label: 'XP Earned', value: '${activity.xpEarned}'),
+        _StatRow(label: 'Elevation Gain', value: '${activity.trackedElevationGap} m'),
+        _StatRow(label: 'Tracked Distance', value: '${activity.trackedDistance} km'),
+        _StatRow(label: 'Tracked Time', value: activity.trackedTime.toCompactLabel()),
       ],
     );
   }
