@@ -643,7 +643,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     }
 
     if (_elevations == null || _elevations!.isEmpty) {
-      return  Padding(
+      return const Padding(
         padding: EdgeInsets.only(left: 16.0, bottom: 24.0),
         child: Text(
           'Elevation profile not available.',
