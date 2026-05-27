@@ -7,7 +7,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import '../core/models/activity.dart';
-import '../core/theme/app_colors.dart';
 
 class ActivityDetailPage extends StatelessWidget {
   final Activity activity;

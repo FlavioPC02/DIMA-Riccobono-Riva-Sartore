@@ -2,17 +2,13 @@ import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 class AddActivityPage extends StatefulWidget {
   final Activity activity;
 
-  const AddActivityPage({
-    super.key,
-    required this.activity,
-  });
+  const AddActivityPage({super.key, required this.activity});
 
   @override
   State<AddActivityPage> createState() => _AddActivityPageState();
@@ -22,15 +18,19 @@ class _AddActivityPageState extends State<AddActivityPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
-  final _notesController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.activity.date;
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
@@ -48,7 +48,21 @@ class _AddActivityPageState extends State<AddActivityPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
-    final activity = widget.activity;
+    final activity = Activity(
+      id: '',
+      name: _nameController.text.trim(),
+      status: ActivityStatus.planned,
+      date: _selectedDate,
+      trailName: widget.activity.trailName,
+      distanceKm: widget.activity.distanceKm,
+      durationMinutes: widget.activity.durationMinutes,
+      xpEarned: 0,
+      notes: '',
+      difficulty: widget.activity.difficulty,
+      trackedDistance: 0,
+      trackedElevationGap: 0,
+      trackedTime: Duration.zero,
+    );
 
     await context.read<ActivityCubit>().addActivity(activity);
 
@@ -95,16 +109,19 @@ class _AddActivityPageState extends State<AddActivityPage> {
             TextFormField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: widget.activity.name,
-                border: OutlineInputBorder(),
+                labelText: 'Name',
+                hintText: widget.activity.name,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
-            TextField(
-              decoration: InputDecoration(
-                labelText: widget.activity.trailName,
+            TextFormField(
+              initialValue: widget.activity.trailName,
+              readOnly: true,
+              decoration: const InputDecoration(
+                labelText: 'Trail',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -119,7 +136,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
                   border: OutlineInputBorder(),
                   suffixIcon: Icon(Icons.calendar_today),
                 ),
-                child: Text(DateFormat('dd/MM/yyyy').format(widget.activity.date)),
+                child: Text(DateFormat('dd/MM/yyyy').format(_selectedDate)),
               ),
             ),
             const SizedBox(height: 24),
@@ -128,18 +145,22 @@ class _AddActivityPageState extends State<AddActivityPage> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: widget.activity.distanceKm.toString(),
+                  child: TextFormField(
+                    initialValue: widget.activity.distanceKm.toString(),
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Distance (km)',
                       border: OutlineInputBorder(),
                     ),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: widget.activity.durationMinutes.toString(),
+                  child: TextFormField(
+                    initialValue: widget.activity.durationMinutes.toString(),
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Duration (min)',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -147,22 +168,13 @@ class _AddActivityPageState extends State<AddActivityPage> {
               ],
             ),
             const SizedBox(height: 16),
-            TextField(
-              decoration: InputDecoration(
-                labelText: widget.activity.difficulty.toString(),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _SectionLabel('Notes'),
-            const SizedBox(height: 8),
             TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(
-                hintText: 'Optional notes…',
-                border: OutlineInputBorder(),
+              initialValue: widget.activity.difficulty.name,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Difficulty',
+                border: const OutlineInputBorder(),
               ),
-              maxLines: 4,
             ),
           ],
         ),

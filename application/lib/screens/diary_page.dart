@@ -1,7 +1,6 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/screens/activity_detail_page.dart';
-import 'package:application/screens/add_activity_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/theme/app_colors.dart';
@@ -22,7 +21,6 @@ class _DiaryPageState extends State<DiaryPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() => setState(() {}));
   }
 
   @override
@@ -33,8 +31,6 @@ class _DiaryPageState extends State<DiaryPage>
 
   @override
   Widget build(BuildContext context) {
-    final isPlannedTab = _tabController.index == 1;
-
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -44,9 +40,7 @@ class _DiaryPageState extends State<DiaryPage>
           children: [
             Icon(Icons.book, size: 30),
             SizedBox(width: 12),
-            Text(
-              'Diary',
-            ),
+            Text('Diary'),
           ],
         ),
         bottom: TabBar(
@@ -58,23 +52,6 @@ class _DiaryPageState extends State<DiaryPage>
           ],
         ),
       ),
-      floatingActionButton: isPlannedTab
-          ? FloatingActionButton(
-              heroTag: 'add_planned_activity',
-              backgroundColor: AppColors.secondary,
-              foregroundColor: AppColors.textPrimary,
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider.value(
-                    value: context.read<ActivityCubit>(),
-                    //child: const AddActivityPage(),
-                  ),
-                ),
-              ),
-              child: const Icon(Icons.add),
-            )
-          : null,
       body: BlocBuilder<ActivityCubit, List<Activity>>(
         builder: (context, activities) {
           final completed = activities
@@ -127,7 +104,8 @@ class _ActivityList extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: activities.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => _ActivityCard(activity: activities[index]),
+      itemBuilder: (context, index) =>
+          _ActivityCard(activity: activities[index]),
     );
   }
 }
@@ -149,7 +127,10 @@ class _EmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -168,9 +149,7 @@ class _ActivityCard extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.hiking),
         title: Text(activity.name),
-        subtitle: Text(
-          DateFormat('dd/MM/yyyy').format(activity.date)
-        ),
+        subtitle: Text(DateFormat('dd/MM/yyyy').format(activity.date)),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
           Navigator.push(

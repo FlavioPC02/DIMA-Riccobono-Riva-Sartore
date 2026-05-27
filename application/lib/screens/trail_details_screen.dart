@@ -75,16 +75,28 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       out tags geom;
     """;
 
-    final overpassUrl = Uri.parse('https://overpass-api.de/api/interpreter');
+    final overpassServers = [
+      Uri.parse('https://overpass-api.de/api/interpreter'),
+      Uri.parse('https://overpass.private.coffee/api/interpreter'),
+      Uri.parse('https://overpass.kumi.systems/api/interpreter'),
+    ];
 
-    try {
-      final response = await http.post(
-        overpassUrl,
-        body: query,
-        headers: {'User-Agent': _appName},
-      ).timeout(const Duration(seconds: 15));
+    bool hadNetworkError = false;
+    int? lastStatusCode;
 
-      if (response.statusCode == 200) {
+    for (final overpassUrl in overpassServers) {
+      try {
+        final response = await http.post(
+          overpassUrl,
+          body: query,
+          headers: {'User-Agent': _appName},
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode != 200) {
+          lastStatusCode = response.statusCode;
+          continue;
+        }
+
         final data = json.decode(response.body);
         final elements = data['elements'] as List;
 
@@ -221,18 +233,22 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             _isLoading = false;
           });
         }
-      } else {
-        setState(() {
-          _errorMessage = 'Error occurred while retriving trail details';
-          _isLoading = false;
-        });
+
+        return;
+      } catch (e) {
+        hadNetworkError = true;
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Network error. Check your connection and try again.';
-        _isLoading = false;
-      });
     }
+
+    if (!mounted) return;
+    setState(() {
+      _errorMessage = lastStatusCode == null && hadNetworkError
+          ? 'Network error. Check your connection and try again.'
+          : 'Trail details are temporarily unavailable. Try again later.';
+      _isLoading = false;
+      _isLoadingWeather = false;
+      _isLoadingElevations = false;
+    });
   }
 
   Future<void> _fetchElevations(List<LatLng> points) async {
