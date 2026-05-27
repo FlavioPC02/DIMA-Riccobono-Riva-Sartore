@@ -3,9 +3,21 @@ import 'package:application/services/database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ActivityRepository {
+  final bool Function()? hasCurrentUser;
+  final DatabaseService Function()? databaseServiceFactory;
+
+  ActivityRepository({this.hasCurrentUser, this.databaseServiceFactory});
+
   DatabaseService? _remoteOrNull() {
-    if (FirebaseAuth.instance.currentUser == null) return null;
-    return DatabaseService();
+    final hasUser = hasCurrentUser != null
+        ? hasCurrentUser!()
+        : FirebaseAuth.instance.currentUser != null;
+
+    if (!hasUser) return null;
+
+    return databaseServiceFactory != null
+        ? databaseServiceFactory!()
+        : DatabaseService();
   }
 
   Stream<List<Activity>> streamActivities() {

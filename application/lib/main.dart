@@ -4,7 +4,7 @@ import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
-import 'package:application/services/helpers/background_service_helper.dart';
+import 'package:application/services/background_tracking_service.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -36,7 +36,7 @@ void main() async {
 
   await Hive.initFlutter();
   Hive.registerAdapter(LocationPointAdapter());
-  await initializeBackgroundService();
+  await DefaultBackgroundTrackingService().initialize();
   await setupLocator();
 
   runApp(const RootApp());

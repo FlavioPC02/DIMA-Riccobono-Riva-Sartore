@@ -66,41 +66,36 @@ void main() {
 		expect(result.xp, 42.0);
 	});
 
-//	test('saveRemote does nothing when user is not authenticated', () async {
-//		final db = MockDatabaseService();
-//		when(db.saveProfile(any)).thenAnswer((_) async {});
-//
-//		final repository = ProfileRepository(
-//			hasCurrentUser: () => false,
-//			databaseServiceFactory: () => db,
-//		);
-//
-//		await repository.saveRemote(
-//			Profile(nickname: 'test', mail: 'test@mail.com', xp: 1.0),
-//		);
-//
-//		verifyNever(db.saveProfile(any));
-//	});
+	test('saveRemote does nothing when user is not authenticated', () async {
+		final db = MockDatabaseService();
+		when(() => db.saveProfile(any())).thenAnswer((_) async {});
 
-//	test('saveRemote forwards Profile JSON to the database', () async {
-//		final db = MockDatabaseService();
-//		when(db.saveProfile(any)).thenAnswer((_) async {});
-//
-//		final repository = ProfileRepository(
-//			hasCurrentUser: () => true,
-//			databaseServiceFactory: () => db,
-//		);
-//
-//		final profile = Profile(
-//			nickname: 'test',
-//			mail: 'test@mail.com',
-//			xp: 7.5,
-//		);
-//
-//		await repository.saveRemote(profile);
-//
-//		verify(db.saveProfile(profile.toJson())).called(1);
-//	});
+		final repository = createRepository(authenticated: false, databaseService: db);
+
+		await repository.saveRemote(
+			Profile(nickname: 'test', mail: 'test@mail.com', xp: 1.0, level: 0),
+		);
+
+		verifyNever(() => db.saveProfile(any()));
+	});
+
+	test('saveRemote forwards Profile JSON to the database', () async {
+		final db = MockDatabaseService();
+		when(() => db.saveProfile(any())).thenAnswer((_) async {});
+
+		final repository = createRepository(authenticated: true, databaseService: db);
+
+		final profile = Profile(
+			nickname: 'test',
+			mail: 'test@mail.com',
+			xp: 7.5,
+      level: 0,
+		);
+
+		await repository.saveRemote(profile);
+
+		verify(() => db.saveProfile(profile.toJson())).called(1);
+	});
 
 	test('streamRemote returns empty stream when user is not authenticated', () async {
 		final repository = createRepository(authenticated: false);

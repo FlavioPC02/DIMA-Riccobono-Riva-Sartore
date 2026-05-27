@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:application/core/models/location_point.dart';
 import 'package:application/core/repository/location_repository.dart';
-import 'package:application/services/helpers/background_service_helper.dart';
+import 'package:application/services/background_tracking_service.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';
@@ -10,9 +10,15 @@ import 'package:latlong2/latlong.dart';
 part '../models/location_state.dart';
 
 class LocationCubit extends Cubit<LocationState>{
-  LocationCubit(this._repository) : super(const LocationState.idle());
+  LocationCubit(
+    this._repository, {
+    BackgroundTrackingService? backgroundTrackingService,
+  }) : _backgroundTrackingService =
+          backgroundTrackingService ?? DefaultBackgroundTrackingService(),
+      super(const LocationState.idle());
   
   final ILocationRepository _repository;
+  final BackgroundTrackingService _backgroundTrackingService;
   StreamSubscription<LocationPoint>? _locationSub;
 
   Future<void> startTracking() async {
@@ -31,10 +37,10 @@ class LocationCubit extends Cubit<LocationState>{
       totalDescent: desc,
     ));
     
-    await startBackgroundTracking();
+    await _backgroundTrackingService.startTracking();
 
     //listen for points coming from the background isolate
-    _locationSub = backgroundLocationStream.listen(
+    _locationSub = _backgroundTrackingService.watchLocation().listen(
       (point) async {
         if(isClosed) return;
         final newPoints = [...state.points, point];
@@ -87,7 +93,7 @@ class LocationCubit extends Cubit<LocationState>{
   Future<void> stopTracking() async {
     await _locationSub?.cancel();
     _locationSub = null;
-    await stopBackgroundTracking();
+    await _backgroundTrackingService.stopTracking();
     if (!isClosed) emit(const LocationState.idle());
   }
 

@@ -126,6 +126,7 @@ void main() {
       'nickname': 'parsingTest',
       'email': 'other@test.com',
       'xp': 700.0,
+      'level': 0,
     };
 
     final parsed = cubit.fromJson(map);
@@ -133,6 +134,7 @@ void main() {
     expect(parsed!.nickname, 'parsingTest');
     expect(parsed.mail, 'other@test.com');
     expect(parsed.xp, 700.0);
+    expect(parsed.level, 0);
     expect(cubit.toJson(parsed), map);
 
     await cubit.close();

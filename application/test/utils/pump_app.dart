@@ -1,17 +1,22 @@
+import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../mocks/mocks_manual.dart';
+
 Widget pumpApp({
   required Widget child,
-  required SettingsCubit settingsCubit,
-  required ProfileCubit profileCubit,
+  SettingsCubit? settingsCubit,
+  ProfileCubit? profileCubit,
+  ActivityCubit? activityCubit,
 }) {
   return MultiBlocProvider(
     providers: [
-      BlocProvider<SettingsCubit>.value(value: settingsCubit),
-      BlocProvider<ProfileCubit>.value(value: profileCubit,),
+      BlocProvider<SettingsCubit>.value(value: settingsCubit ?? MockSettingsCubit(),),
+      BlocProvider<ProfileCubit>.value(value: profileCubit ?? MockProfileCubit(),),
+      BlocProvider<ActivityCubit>.value(value: activityCubit ?? MockActivityCubit(),)
     ],
     child: MaterialApp(
       theme: ThemeData(
