@@ -1,10 +1,10 @@
+import 'package:application/services/map_management_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
-import 'package:geolocator/geolocator.dart' as geo;
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
@@ -74,7 +74,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.85);
-    _checkInitialLocation();
+    DefaultMapManagementService().checkStartingLocation(context, _mapController);
   }
 
   @override
@@ -84,155 +84,6 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     _pageController.dispose();
     _debounce?.cancel();
     super.dispose();
-  }
-
-  //when the widget is first built, check if location services are enabled and permissions are granted, then fetch the current location
-  Future<void> _checkInitialLocation() async {
-    bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      _showLocationServiceDialog();
-      return;
-    }
-
-    geo.LocationPermission permission = await geo.Geolocator.checkPermission();
-    if (permission == geo.LocationPermission.denied ||
-        permission == geo.LocationPermission.deniedForever) {
-      _showLocationPermissionDialog();
-      return;
-    }
-
-    //fetch the current location and center the map on it
-    geo.Position position = await geo.Geolocator.getCurrentPosition();
-    _moveCameraTo(position.latitude, position.longitude, mapZoom);
-  }
-
-  //function to move the camera to a specific location with a given zoom level
-  void _moveCameraTo(double lat, double lng, double zoom) {
-    _currentCenter = LatLng(lat, lng);
-    _mapController.move(_currentCenter, zoom);
-  }
-
-  // dialog shown when location services are disabled
-  void _showLocationServiceDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: const Text('Location service required', textAlign: TextAlign.center),
-          content: const Text(
-            'Enable GPS to obtain the current location.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    //open device settings to allow the user to enable location services
-                    geo.Geolocator.openLocationSettings();
-                  },
-                  child: const Text('Enable location permission'),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.errorBackground,
-                  ),
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Ignore', style: TextStyle(color: AppColors.errorText)),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // dialog shown when location permissions are denied
-  void _showLocationPermissionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: const Text('Location permission required', textAlign: TextAlign.center),
-          content: const Text(
-            'Without enabling the permission, it is not possible to obtain the current location.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    //request location permissions
-                    await geo.Geolocator.requestPermission();
-                  },
-                  child: const Text('Enable location permission'),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.errorBackground,
-                  ),
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Ignore', style: TextStyle(color: AppColors.errorText)),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  //when the location button is pressed, check permissions and fetch the current location, then center the map on it
-  Future<void> _centerMapOnUser() async {
-    setState(() {
-      _isLocatingUser = true;
-    });
-
-    bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
-    geo.LocationPermission permission = await geo.Geolocator.checkPermission();
-
-    if (!serviceEnabled) {
-      if (mounted) setState(() => _isLocatingUser = false);
-      _showLocationServiceDialog();
-      return;
-    }
-
-    if (permission == geo.LocationPermission.denied ||
-        permission == geo.LocationPermission.deniedForever) {
-      if (mounted) setState(() => _isLocatingUser = false);
-      _showLocationPermissionDialog();
-      return;
-    }
-
-    geo.Position position = await geo.Geolocator.getCurrentPosition();
-    if (mounted) {
-      setState(() {
-        _isLocatingUser = false;
-      });
-      _moveCameraTo(position.latitude, position.longitude, mapZoom);
-    }
   }
 
   //function to build polyline layers declaratively
@@ -447,7 +298,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             if (mounted && shouldMoveCamera) {
               //zoom map to show the trails in the given radius
               double zoom = 14.5 - (log(_searchRadius / 1000) / log(2));
-              _moveCameraTo(lat, lon, zoom);
+              _currentCenter = DefaultMapManagementService().moveCamera(lat, lon, zoom, _mapController);
             }
           }
           
@@ -696,7 +547,15 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               right: 20.0,
               child: FloatingActionButton(
                 backgroundColor: Theme.of(context).colorScheme.secondary,
-                onPressed: _centerMapOnUser,
+                onPressed: () {
+                  setState(() {
+                    _isLocatingUser = true;
+                  });
+                  DefaultMapManagementService().centerMap(context, _currentCenter, _mapController, zoom: mapZoom);
+                  setState(() {
+                    _isLocatingUser = false;
+                  });
+                },
                 mini: true,
                 child: Icon(
                   Icons.my_location,
@@ -817,7 +676,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
                               final lat = double.parse(suggestion['lat']);
                               final lon = double.parse(suggestion['lon']);                            
-                              _moveCameraTo(lat, lon, 13.0);
+                              setState(() {
+                                _currentCenter = DefaultMapManagementService().moveCamera(lat, lon, 13.0, _mapController);
+                              });
                               _fetchTrailsByLocation(lat, lon).then((_) {
                                 if (mounted) {
                                   setState(() => _isSearchingLocation = false);

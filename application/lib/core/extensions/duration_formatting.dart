@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 extension DurationFormatting on Duration {
   String toCompactLabel({bool includeSeconds = true}) {
     final hours = inHours;
@@ -21,5 +23,11 @@ extension DurationFormatting on Duration {
 extension MinuteDurationFormatting on int {
   String toMinuteDurationLabel() {
     return Duration(minutes: this).toCompactLabel(includeSeconds: false);
+  }
+}
+
+extension DateTimeFormatting on DateTime {
+  String toCompactLabel() {
+    return DateFormat('HH:mm').format(this);
   }
 }

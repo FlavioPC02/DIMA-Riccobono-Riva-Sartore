@@ -117,6 +117,7 @@ class MainApp extends StatelessWidget {
       secondary: Color(0xFFFFFFFF),
       tertiary: Color(0xFFE1E1E1),
       shadow: Color(0xFF000000),
+      onSecondary: Color(0xFF21211F),
     );
 
     final darkColorScheme = ColorScheme.fromSeed(
@@ -125,6 +126,7 @@ class MainApp extends StatelessWidget {
       secondary: Color(0xFF21211F),
       tertiary: Color(0xFF141414),
       shadow: Color(0xFFAAAAAA),
+      onSecondary: Color(0xFFFFFFFF),
       brightness: Brightness.dark,
     );
 

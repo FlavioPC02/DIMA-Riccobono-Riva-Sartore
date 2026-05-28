@@ -5,6 +5,7 @@ import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/extensions/duration_formatting.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/screens/homepage.dart';
+import 'package:application/services/map_management_service.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart' as geo;
+import 'package:url_launcher/url_launcher.dart';
 import '../core/theme/app_colors.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -191,7 +193,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     if (!mounted) return;
 
     if (!serviceEnabled) {
-      _showLocationServiceDialog();
+      DefaultMapManagementService().showServiceDialog(context);
       return;
     }
 
@@ -200,7 +202,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
     if (permission == geo.LocationPermission.denied ||
         permission == geo.LocationPermission.deniedForever) {
-      _showLocationPermissionDialog();
+      DefaultMapManagementService().showPermissionDialog(context);
       return;
     }
 
@@ -282,147 +284,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
         ),
       ),
     );
-  }
-
-  //function to move the camera to a specific location with a given zoom level
-  void _moveCameraTo(double lat, double lng, double zoom) {
-    _currentCenter = LatLng(lat, lng);
-    _mapController.move(_currentCenter, zoom);
-  }
-
-  // dialog shown when location services are disabled
-  void _showLocationServiceDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: const Text(
-            'Location service required',
-            textAlign: TextAlign.center,
-          ),
-          content: const Text(
-            'Enable GPS to obtain the current location.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    //open device settings to allow the user to enable location services
-                    geo.Geolocator.openLocationSettings();
-                  },
-                  child: const Text('Enable location permission'),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.errorBackground,
-                  ),
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text(
-                    'Ignore',
-                    style: TextStyle(color: AppColors.errorText),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // dialog shown when location permissions are denied
-  void _showLocationPermissionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: const Text(
-            'Location permission required',
-            textAlign: TextAlign.center,
-          ),
-          content: const Text(
-            'Without enabling the permission, it is not possible to obtain the current location.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    //request location permissions
-                    await geo.Geolocator.requestPermission();
-                  },
-                  child: const Text('Enable location permission'),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.errorBackground,
-                  ),
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text(
-                    'Ignore',
-                    style: TextStyle(color: AppColors.errorText),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  //when the location button is pressed, check permissions and fetch the current location, then center the map on it
-  Future<void> _centerMapOnUser() async {
-    setState(() {
-      _isLocatingUser = true;
-    });
-
-    bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
-    geo.LocationPermission permission = await geo.Geolocator.checkPermission();
-
-    if (!serviceEnabled) {
-      if (mounted) setState(() => _isLocatingUser = false);
-      _showLocationServiceDialog();
-      return;
-    }
-
-    if (permission == geo.LocationPermission.denied ||
-        permission == geo.LocationPermission.deniedForever) {
-      if (mounted) setState(() => _isLocatingUser = false);
-      _showLocationPermissionDialog();
-      return;
-    }
-
-    geo.Position position = await geo.Geolocator.getCurrentPosition();
-    if (mounted) {
-      setState(() {
-        _isLocatingUser = false;
-      });
-      _moveCameraTo(position.latitude, position.longitude, mapZoom);
-    }
   }
 
   //function to build polyline layers declaratively
@@ -521,12 +382,12 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     }
   }
 
-  Duration _calculateEta(LocationState stats) {
+  DateTime _calculateEta(LocationState stats) {
     final now = DateTime.now();
 
     if (!_isUserMoving(stats)) {
       _lastEtaUpdateAt = now;
-      return _remainingEta;
+      return now.add(_remainingEta);
     }
 
     final lastUpdateAt = _lastEtaUpdateAt ?? now;
@@ -535,7 +396,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     final nextRemaining = _remainingEta - now.difference(lastUpdateAt);
     _remainingEta = nextRemaining.isNegative ? Duration.zero : nextRemaining;
 
-    return _remainingEta;
+    return now.add(_remainingEta);
   }
 
   bool _isUserMoving(LocationState stats) {
@@ -603,6 +464,16 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                     ),
                     PolylineLayer(polylines: _buildPolylines()),
                     CurrentLocationLayer(),
+                    RichAttributionWidget(
+                      attributions: [
+                        TextSourceAttribution(
+                          'OpenStreetMap contributors',
+                          onTap: () => launchUrl(
+                            Uri.parse('https://openstreetmap.org/copyright'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
                 Positioned(
@@ -610,7 +481,20 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                   right: 20.0,
                   child: FloatingActionButton(
                     backgroundColor: Theme.of(context).colorScheme.secondary,
-                    onPressed: _centerMapOnUser,
+                    onPressed: () {
+                      setState(() {
+                        _isLocatingUser = true;
+                      });
+                      DefaultMapManagementService().centerMap(
+                        context,
+                        _currentCenter,
+                        _mapController,
+                        zoom: mapZoom,
+                      );
+                      setState(() {
+                        _isLocatingUser = false;
+                      });
+                    },
                     mini: true,
                     child: Icon(
                       Icons.my_location,
@@ -640,7 +524,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
 class StatsRecordingCard extends StatefulWidget {
   final String trailName;
-  final Duration eta;
+  final DateTime eta;
   final Duration elapsedTime;
   final bool isRecording;
   final VoidCallback onToggleRecording;
@@ -763,7 +647,7 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                             width: 44,
                             height: 4,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
+                              color: theme.colorScheme.onSecondary,
                               borderRadius: BorderRadius.circular(99),
                             ),
                           ),
@@ -772,7 +656,11 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                         Text(
                           widget.trailName,
                           textAlign: TextAlign.center,
-                          style: theme.textTheme.titleMedium,
+                          style: theme.textTheme.titleMedium!
+                            .copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                           softWrap: true,
                         ),
                         if (showDetails) ...[
