@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:application/core/models/profile.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 
-import '../mocks/mocks.mocks.dart';
+import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
 
 ProfileRepository createRepository({
@@ -16,13 +16,13 @@ ProfileRepository createRepository({
 }) {
 	final db = databaseService ?? MockDatabaseService();
 
-	when(db.fetchProfile()).thenAnswer((_) async => initialProfile?.toJson());
-	when(db.saveProfile(any)).thenAnswer((_) async {});
-	when(db.streamProfile()).thenAnswer((_) => stream ?? Stream.empty());
+	when(() => db.fetchProfile()).thenAnswer((_) async => initialProfile?.toJson());
+	when(() => db.saveProfile(any())).thenAnswer((_) async {});
+	when(() => db.streamProfile()).thenAnswer((_) => stream ?? Stream.empty());
 
 	return ProfileRepository(
-		//hasCurrentUser: () => authenticated,
-		//databaseServiceFactory: () => db,
+		hasCurrentUser: () => authenticated,
+		databaseServiceFactory: () => db,
 	);
 }
 
@@ -54,6 +54,7 @@ void main() {
 				nickname: 'test',
 				mail: 'test@mail.com',
 				xp: 42.0,
+        level: 1,
 			),
 		);
 
@@ -65,41 +66,36 @@ void main() {
 		expect(result.xp, 42.0);
 	});
 
-//	test('saveRemote does nothing when user is not authenticated', () async {
-//		final db = MockDatabaseService();
-//		when(db.saveProfile(any)).thenAnswer((_) async {});
-//
-//		final repository = ProfileRepository(
-//			hasCurrentUser: () => false,
-//			databaseServiceFactory: () => db,
-//		);
-//
-//		await repository.saveRemote(
-//			Profile(nickname: 'test', mail: 'test@mail.com', xp: 1.0),
-//		);
-//
-//		verifyNever(db.saveProfile(any));
-//	});
+	test('saveRemote does nothing when user is not authenticated', () async {
+		final db = MockDatabaseService();
+		when(() => db.saveProfile(any())).thenAnswer((_) async {});
 
-//	test('saveRemote forwards Profile JSON to the database', () async {
-//		final db = MockDatabaseService();
-//		when(db.saveProfile(any)).thenAnswer((_) async {});
-//
-//		final repository = ProfileRepository(
-//			hasCurrentUser: () => true,
-//			databaseServiceFactory: () => db,
-//		);
-//
-//		final profile = Profile(
-//			nickname: 'test',
-//			mail: 'test@mail.com',
-//			xp: 7.5,
-//		);
-//
-//		await repository.saveRemote(profile);
-//
-//		verify(db.saveProfile(profile.toJson())).called(1);
-//	});
+		final repository = createRepository(authenticated: false, databaseService: db);
+
+		await repository.saveRemote(
+			Profile(nickname: 'test', mail: 'test@mail.com', xp: 1.0, level: 0),
+		);
+
+		verifyNever(() => db.saveProfile(any()));
+	});
+
+	test('saveRemote forwards Profile JSON to the database', () async {
+		final db = MockDatabaseService();
+		when(() => db.saveProfile(any())).thenAnswer((_) async {});
+
+		final repository = createRepository(authenticated: true, databaseService: db);
+
+		final profile = Profile(
+			nickname: 'test',
+			mail: 'test@mail.com',
+			xp: 7.5,
+      level: 0,
+		);
+
+		await repository.saveRemote(profile);
+
+		verify(() => db.saveProfile(profile.toJson())).called(1);
+	});
 
 	test('streamRemote returns empty stream when user is not authenticated', () async {
 		final repository = createRepository(authenticated: false);

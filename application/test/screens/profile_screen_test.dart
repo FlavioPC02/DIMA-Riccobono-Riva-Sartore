@@ -3,9 +3,9 @@ import 'package:application/core/models/settings.dart';
 import 'package:application/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 
-import '../mocks/mocks.mocks.dart';
+import '../mocks/mocks_manual.dart';
 import '../utils/pump_app.dart';
 import '../utils/test_config.dart';
 
@@ -21,7 +21,7 @@ void main() {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
 
-          when(mockSettingsCubit.state).thenReturn(
+          when(() => mockSettingsCubit.state).thenReturn(
             Settings(
               notifications: true,
               ferrata: true,
@@ -29,16 +29,17 @@ void main() {
             ),
           );
 
-          when(mockProfileCubit.state).thenReturn(
+          when(() => mockProfileCubit.state).thenReturn(
             Profile(
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
-          when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-          when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
 
           await tester.pumpWidget(
             pumpApp(
@@ -53,7 +54,7 @@ void main() {
           await tester.tap(find.byType(SwitchListTile).first);
           await tester.pump();
 
-          verify(mockSettingsCubit.updateFerrata(any)).called(1);
+          verify(() => mockSettingsCubit.updateFerrata(any())).called(1);
       });
 
       testWidgets(
@@ -62,7 +63,7 @@ void main() {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
 
-          when(mockSettingsCubit.state).thenReturn(
+          when(() => mockSettingsCubit.state).thenReturn(
             Settings(
               notifications: true,
               ferrata: true,
@@ -70,16 +71,17 @@ void main() {
             ),
           );
 
-          when(mockProfileCubit.state).thenReturn(
+          when(() => mockProfileCubit.state).thenReturn(
             Profile(
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
-          when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-          when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
 
           await tester.pumpWidget(
             pumpApp(
@@ -94,7 +96,7 @@ void main() {
           await tester.drag(sliderFinder, const Offset(100, 0)); // Dragging slider to the right => expert difficulty
           await tester.pump();
 
-          verify(mockSettingsCubit.updateDifficulty(2)).called(1);
+          verify(() => mockSettingsCubit.updateDifficulty(2)).called(1);
         }
       );
       
@@ -107,7 +109,7 @@ void main() {
               final mockSettingsCubit = MockSettingsCubit();
               final mockProfileCubit = MockProfileCubit();
 
-              when(mockSettingsCubit.state).thenReturn(
+              when(() => mockSettingsCubit.state).thenReturn(
                 Settings(
                   notifications: true,
                   ferrata: true,
@@ -115,16 +117,17 @@ void main() {
                 ),
               );
 
-              when(mockProfileCubit.state).thenReturn(
+              when(() => mockProfileCubit.state).thenReturn(
                 Profile(
                   nickname: 'test', 
                   mail: 'test@mail.it', 
                   xp: 0.66,
+                  level: 1,
                 ),
               );
 
-              when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-              when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+              when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+              when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
 
               await tester.pumpWidget(
                 pumpApp(
@@ -140,7 +143,7 @@ void main() {
               await tester.tap(ferrataSwitchFinder);
               await tester.pump();
 
-              verify(mockSettingsCubit.updateFerrata(false)).called(1);
+              verify(() => mockSettingsCubit.updateFerrata(false)).called(1);
             }
           );
 
@@ -150,7 +153,7 @@ void main() {
               final mockSettingsCubit = MockSettingsCubit();
               final mockProfileCubit = MockProfileCubit();
 
-              when(mockSettingsCubit.state).thenReturn(
+              when(() => mockSettingsCubit.state).thenReturn(
                 Settings(
                   notifications: true,
                   ferrata: true,
@@ -158,16 +161,17 @@ void main() {
                 ),
               );
 
-              when(mockProfileCubit.state).thenReturn(
+              when(() => mockProfileCubit.state).thenReturn(
                 Profile(
                   nickname: 'test', 
                   mail: 'test@mail.it', 
                   xp: 0.66,
+                  level: 1,
                 ),
               );
 
-              when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-              when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+              when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+              when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
 
               await tester.pumpWidget(
                 pumpApp(
@@ -183,7 +187,7 @@ void main() {
               await tester.tap(notificationSwitchFinder);
               await tester.pump();
 
-              verify(mockSettingsCubit.updateNotifications(false)).called(1);
+              verify(() => mockSettingsCubit.updateNotifications(false)).called(1);
             }
           );
         }
@@ -195,7 +199,7 @@ void main() {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
 
-          when(mockSettingsCubit.state).thenReturn(
+          when(() => mockSettingsCubit.state).thenReturn(
             Settings(
               notifications: true,
               ferrata: true,
@@ -203,16 +207,17 @@ void main() {
             ),
           );
 
-          when(mockProfileCubit.state).thenReturn(
+          when(() => mockProfileCubit.state).thenReturn(
             Profile(
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
-          when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-          when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
 
           await tester.pumpWidget(
             pumpApp(
@@ -273,7 +278,7 @@ void main() {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
 
-          when(mockSettingsCubit.state).thenReturn(
+          when(() => mockSettingsCubit.state).thenReturn(
             Settings(
               notifications: true,
               ferrata: true,
@@ -281,16 +286,17 @@ void main() {
             ),
           );
 
-          when(mockProfileCubit.state).thenReturn(
+          when(() => mockProfileCubit.state).thenReturn(
             Profile(
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
-          when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-          when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
 
           await tester.pumpWidget(
             pumpApp(
@@ -321,7 +327,7 @@ void main() {
           await tester.tap(saveNicknameButtonFinder);
           await tester.pump();
 
-          verify(mockProfileCubit.updateNickname('newNickname')).called(1);
+          verify(() => mockProfileCubit.updateNickname('newNickname')).called(1);
         }
       );
 
@@ -331,7 +337,7 @@ void main() {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
 
-          when(mockSettingsCubit.state).thenReturn(
+          when(() => mockSettingsCubit.state).thenReturn(
             Settings(
               notifications: true,
               ferrata: true,
@@ -339,16 +345,17 @@ void main() {
             ),
           );
 
-          when(mockProfileCubit.state).thenReturn(
+          when(() => mockProfileCubit.state).thenReturn(
             Profile(
               nickname: 'test', 
               mail: 'test@mail.it', 
               xp: 0.66,
+              level: 1,
             ),
           );
 
-          when(mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
-          when(mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
 
           await tester.pumpWidget(
             pumpApp(

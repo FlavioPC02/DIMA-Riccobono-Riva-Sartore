@@ -4,9 +4,9 @@ import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/models/profile.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 
-import '../mocks/mocks.mocks.dart';
+import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
 
 MockProfileRepository createMockRepo({
@@ -15,9 +15,9 @@ MockProfileRepository createMockRepo({
   }) {
   final repo = MockProfileRepository();
 
-  when(repo.fetchRemote()).thenAnswer((_) async => initialProfile);
-  when(repo.streamRemote()).thenAnswer((_) => remoteStream ?? Stream.empty());
-  when(repo.saveRemote(any)).thenAnswer((_) async {});
+  when(() => repo.fetchRemote()).thenAnswer((_) async => initialProfile);
+  when(() => repo.streamRemote()).thenAnswer((_) => remoteStream ?? Stream.empty());
+  when(() => repo.saveRemote(any())).thenAnswer((_) async {});
 
   return repo;
 }
@@ -54,6 +54,7 @@ void main() {
           nickname: 'test',
           mail: 'test@mail.com',
           xp: 1.0,
+          level: 1,
         ),
       ),
     ),
@@ -79,7 +80,7 @@ void main() {
     final sub = cubit.stream.listen(emitted.add);
 
     await Future<void>.delayed(Duration.zero);
-    controller.add(Profile(nickname: 'test', mail: 'test@mail.com', xp: 200.0));
+    controller.add(Profile(nickname: 'test', mail: 'test@mail.com', xp: 200.0, level: 1));
     controller.add(null);
     await Future<void>.delayed(Duration.zero);
 
@@ -114,7 +115,7 @@ void main() {
     cubit.updateXp(300.0);
 
     await Future<void>.delayed(Duration.zero);
-    verify(repo.saveRemote(any)).called(greaterThanOrEqualTo(2));
+    verify(() => repo.saveRemote(any())).called(greaterThanOrEqualTo(2));
 
     await cubit.close();
   });
@@ -125,6 +126,7 @@ void main() {
       'nickname': 'parsingTest',
       'email': 'other@test.com',
       'xp': 700.0,
+      'level': 0,
     };
 
     final parsed = cubit.fromJson(map);
@@ -132,6 +134,7 @@ void main() {
     expect(parsed!.nickname, 'parsingTest');
     expect(parsed.mail, 'other@test.com');
     expect(parsed.xp, 700.0);
+    expect(parsed.level, 0);
     expect(cubit.toJson(parsed), map);
 
     await cubit.close();

@@ -7,7 +7,7 @@ enum ActivityDifficulty { easy, moderate, hard }
 class Activity {
   final String id;
   final String name;
-  final ActivityStatus status;
+  ActivityStatus status;
   final DateTime date;
   final String trailName;
   final double distanceKm;
@@ -20,7 +20,7 @@ class Activity {
   Duration trackedTime;
 
   Activity({
-    required this.id,
+    this.id = '',
     required this.name,
     required this.status,
     required this.date,

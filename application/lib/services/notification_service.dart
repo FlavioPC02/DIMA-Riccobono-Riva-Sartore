@@ -4,7 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
   static final AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'high_importance_channel', 
+    'gps_tracker_channel', 
     'High Importance Notifications',
     importance: Importance.high,
     playSound: true,
@@ -17,7 +17,6 @@ class NotificationService {
 
   static Future<void> initializeNotificationService() async {
     if(_isInitialized) {
-      debugPrint('Notification already initialized');
       return;
     }
 
@@ -70,6 +69,7 @@ class NotificationService {
           'high_importance_channel',
           'High Importance Notifications',
           channelDescription: 'High Importance Notifications from App',
+          icon: 'ic_bg_service_small',
           importance: Importance.max,
           priority: Priority.high,
           showWhen: true,

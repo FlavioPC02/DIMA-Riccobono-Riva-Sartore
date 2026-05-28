@@ -4,9 +4,9 @@ import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/settings.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 
-import '../mocks/mocks.mocks.dart';
+import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
 
 MockSettingsRepository createMockRepo({
@@ -15,9 +15,9 @@ MockSettingsRepository createMockRepo({
 }) {
   final repo = MockSettingsRepository();
 
-  when(repo.fetchRemote()).thenAnswer((_) async => initialSettings);
-  when(repo.streamRemote()).thenAnswer((_) => remoteStream ?? Stream.empty());
-  when(repo.saveRemote(any)).thenAnswer((_) async {});
+  when(() => repo.fetchRemote()).thenAnswer((_) async => initialSettings);
+  when(() => repo.streamRemote()).thenAnswer((_) => remoteStream ?? Stream.empty());
+  when(() => repo.saveRemote(any())).thenAnswer((_) async {});
 
   return repo;
 }
@@ -123,7 +123,7 @@ void main() {
     cubit.updateDifficulty(0.3);
 
     await Future<void>.delayed(Duration.zero);
-    verify(repo.saveRemote(any)).called(greaterThanOrEqualTo(3));
+    verify(() => repo.saveRemote(any())).called(greaterThanOrEqualTo(3));
 
     await cubit.close();
   });

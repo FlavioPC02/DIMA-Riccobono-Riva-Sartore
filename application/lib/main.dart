@@ -4,16 +4,20 @@ import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:application/core/repository/settings_repository.dart';
+import 'package:application/services/background_tracking_service.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:application/services/service_locator.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:hive_ce_flutter/adapters.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'screens/homepage.dart';
+import 'package:application/core/models/location_point.dart';
 import 'screens/login_screen.dart';
 import 'firebase_options.dart';
 import 'dart:ui' as ui;
@@ -31,6 +35,11 @@ void main() async {
   );
 
   await NotificationService.initializeNotificationService();
+
+  await Hive.initFlutter();
+  Hive.registerAdapter(LocationPointAdapter());
+  await DefaultBackgroundTrackingService().initialize();
+  await setupLocator();
 
   runApp(const RootApp());
 }

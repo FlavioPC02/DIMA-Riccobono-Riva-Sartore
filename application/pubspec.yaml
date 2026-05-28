@@ -15,30 +15,32 @@ dependencies:
   flutter_map: ^8.3.0
   latlong2: ^0.9.0
   geolocator: ^14.0.2
-  fluttertoast: ^9.0.0
   intl: ^0.20.2
   lottie: ^3.2.0
   http: ^1.6.0
-  flutter_dotenv: ^5.1.0
+  flutter_dotenv: ^6.0.1
   hydrated_bloc: ^11.0.0
   path_provider: ^2.1.5
   flutter_bloc: ^9.1.1
   bloc_test: ^10.0.0
-  fl_chart: ^0.68.0
+  fl_chart: ^1.2.0
   url_launcher: ^6.2.5
   flutter_map_location_marker: ^10.2.0
   flutter_local_notifications: ^20.1.0
-  flutter_map_math: ^0.2.4
   flutter_background_service: ^5.1.0
+  hive_ce: ^2.15.0
+  hive_ce_flutter: ^2.2.0
+  equatable: ^2.0.8
+  get_it: ^9.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   geolocator_platform_interface: ^4.0.0
-  mockito: ^5.4.0
-  build_runner: ^2.7.1
+  mocktail: ^1.0.5
   plugin_platform_interface: ^2.1.8
+  build_runner: ^2.9.0
 
 flutter:
   uses-material-design: true

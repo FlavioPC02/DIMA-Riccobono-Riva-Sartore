@@ -1,8 +1,11 @@
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/screens/homepage.dart';
 import 'package:application/services/notification_service.dart';
-import 'package:application/widgets/user_location_listener.dart';
+import 'package:application/services/service_locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -18,7 +21,7 @@ class NavigatorScreen extends StatefulWidget {
   //ottengo un Map<String, dynamic> id, name, coordinates
   final Map<String, dynamic> trail;
   final Activity activity;
-  
+
   const NavigatorScreen({
     super.key,
     required this.trail,
@@ -26,31 +29,34 @@ class NavigatorScreen extends StatefulWidget {
   });
 
   @override
-  State<NavigatorScreen> createState(){
+  State<NavigatorScreen> createState() {
     return _NavigatorScreenState();
-  } 
+  }
 }
 
 class _NavigatorScreenState extends State<NavigatorScreen> {
-
-  bool _isLocatingUser = false;
   static const double _offsetBound = 32;
+  static const double _offsetBoundTop = 37;
   static const double _offTrailThresholdMeters = 50.0;
   static const double R = 6371000; // Earth radius in meters
+  static const double _movementSpeedThresholdMps = 0.4;
+  static const Duration _movementSampleMaxAge = Duration(seconds: 12);
 
-  double _degToRad(double deg) => deg * (3.141592653589793 / 180.0);
+  double _degToRad(double deg) => deg * (math.pi / 180.0);
 
   final MapController _mapController = MapController();
-  
+
   late Stopwatch _stopwatch;
   late Timer _timer;
   Duration _elapsedTime = Duration.zero;
-  DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(
+    0,
+  );
+  Duration _remainingEta = Duration.zero;
+  DateTime? _lastEtaUpdateAt;
+  late final LocationCubit _locationCubit;
 
-  LatLng? _lastKnownPosition;
-  double? _startElevation;
-  double _distance = 0.0;
-  double _elevationGap = 0.0;
+  bool _isLocatingUser = false;
 
   //CONFIGURABLE VARIABLES
 
@@ -67,51 +73,101 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   @override
   void initState() {
     super.initState();
+
+    _locationCubit = sl<LocationCubit>();
+
     _stopwatch = Stopwatch();
     _stopwatch.start();
+
+    _remainingEta = Duration(minutes: widget.activity.durationMinutes);
+    _lastEtaUpdateAt = DateTime.now();
+
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (!mounted || !_stopwatch.isRunning) return;
       setState(() {
         _elapsedTime = _stopwatch.elapsed;
       });
     });
+
     _buildMap();
+    _locationCubit.startTracking();
   }
 
   @override
   void dispose() {
     _timer.cancel();
     _stopwatch.stop();
+    _locationCubit.stopTracking();
+    _locationCubit.close();
     super.dispose();
   }
 
   void _toggleStopwatch() {
+    final shouldStartTracking = !_stopwatch.isRunning;
+
     setState(() {
-      if (_stopwatch.isRunning) {
-        _stopwatch.stop();
-      } else {
+      if (shouldStartTracking) {
         _stopwatch.start();
+      } else {
+        _stopwatch.stop();
       }
       _elapsedTime = _stopwatch.elapsed;
     });
+
+    if (shouldStartTracking) {
+      unawaited(_locationCubit.startTracking());
+    } else {
+      unawaited(_locationCubit.stopTracking());
+    }
   }
 
-  void _stopRecording() {
+  Future<void> _stopRecording() async {
     setState(() {
       _stopwatch.stop();
       _elapsedTime = _stopwatch.elapsed;
     });
 
-    final activity = widget.activity;
-    activity.trackedDistance = _distance;
-    activity.trackedElevationGap = _elevationGap;
-    activity.trackedTime = _elapsedTime;
+    final cubit = _locationCubit;
+    final activityCubit = context.read<ActivityCubit>();
+    final profileCubit = context.read<ProfileCubit>();
 
-    context.read<ActivityCubit>().updateActivity(activity);
+    final activity = widget.activity;
+    activity.trackedDistance = cubit.state.distance;
+    activity.trackedElevationGap = cubit.state.elevationGap ?? 0.0;
+    activity.trackedTime = _elapsedTime;
+    activity.status = ActivityStatus.completed;
+
+    await cubit.stopTracking();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (activity.id.isEmpty) {
+      await activityCubit.addActivity(activity);
+    } else {
+      await activityCubit.updateActivity(activity);
+    }
+    
+    //update profile stats
+    final profile = profileCubit.state;
+    profileCubit.updateXp(profile.xp + activity.xpEarned);
+    cubit.clearHistory();
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context, rootNavigator: true).pushReplacement(
+      MaterialPageRoute(builder: (_) => const Navigation()),
+    );
   }
 
   void _showPathDistanceNotification(int distance, {String? direction}) {
-    final notificationsEnabled = context.read<SettingsCubit>().state.notifications;
+    final notificationsEnabled = context
+        .read<SettingsCubit>()
+        .state
+        .notifications;
 
     if (!notificationsEnabled) return;
 
@@ -127,20 +183,19 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     await _fitTrailInViewport();
   }
 
-  void _updateElevationGap(double currentElevation) {
-    _startElevation ??= currentElevation;
-    _elevationGap = currentElevation - _startElevation!;
-  }
-
   //when the widget is first built, check if location services are enabled and permissions are granted, then fetch the current location
   Future<void> _centerMapOnTrail() async {
     bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
+    if (!mounted) return;
+
     if (!serviceEnabled) {
       _showLocationServiceDialog();
       return;
     }
 
     geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+    if (!mounted) return;
+
     if (permission == geo.LocationPermission.denied ||
         permission == geo.LocationPermission.deniedForever) {
       _showLocationPermissionDialog();
@@ -194,26 +249,34 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     );
 
     return LatLngBounds(
-      LatLng(bounds.minLat, bounds.minLng), 
+      LatLng(bounds.minLat, bounds.minLng),
       LatLng(bounds.maxLat, bounds.maxLng),
     );
   }
-  
+
   //function which adjust mapZoom to fit the entire trail in the viewport
   Future<void> _fitTrailInViewport() async {
+    if (!mounted) return;
+
     final coordinates = widget.trail['subTrails'];
     if (coordinates.isEmpty) return;
 
     final bounds = _buildTrailBounds(coordinates);
+    final collapsedCardHeight = StatsRecordingCard.collapsedSheetHeight(
+      context,
+      widget.trail['name']?.toString() ?? 'Trail',
+    );
 
     _mapController.fitCamera(
       CameraFit.bounds(
         bounds: bounds,
         padding: EdgeInsets.fromLTRB(
-          _offsetBound, 
-          MediaQuery.of(context).padding.top + _offsetBound, 
-          _offsetBound, 
           _offsetBound,
+          MediaQuery.of(context).padding.top + _offsetBoundTop,
+          _offsetBound,
+          MediaQuery.of(context).padding.bottom +
+              collapsedCardHeight +
+              _offsetBound,
         ),
       ),
     );
@@ -235,7 +298,10 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          title: const Text('Location service required', textAlign: TextAlign.center),
+          title: const Text(
+            'Location service required',
+            textAlign: TextAlign.center,
+          ),
           content: const Text(
             'Enable GPS to obtain the current location.',
             textAlign: TextAlign.center,
@@ -261,7 +327,10 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                   onPressed: () async {
                     Navigator.of(context).pop();
                   },
-                  child: const Text('Ignore', style: TextStyle(color: AppColors.errorText)),
+                  child: const Text(
+                    'Ignore',
+                    style: TextStyle(color: AppColors.errorText),
+                  ),
                 ),
               ],
             ),
@@ -281,7 +350,10 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          title: const Text('Location permission required', textAlign: TextAlign.center),
+          title: const Text(
+            'Location permission required',
+            textAlign: TextAlign.center,
+          ),
           content: const Text(
             'Without enabling the permission, it is not possible to obtain the current location.',
             textAlign: TextAlign.center,
@@ -307,7 +379,10 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                   onPressed: () async {
                     Navigator.of(context).pop();
                   },
-                  child: const Text('Ignore', style: TextStyle(color: AppColors.errorText)),
+                  child: const Text(
+                    'Ignore',
+                    style: TextStyle(color: AppColors.errorText),
+                  ),
                 ),
               ],
             ),
@@ -357,7 +432,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
         Polyline(
           points: subTrailsCoordinates,
           strokeWidth: 6.0,
-          color:AppColors.selectedTrail,
+          color: AppColors.selectedTrail,
         ),
       );
     }
@@ -370,7 +445,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   // returns both distance (meters) and side sign for P relative to segment V->W
   // side > 0 => P is to the left of segment, side < 0 => to the right
   Map<String, double> _distanceAndSideToSegment(LatLng p, LatLng v, LatLng w) {
-
     final double latRef = _degToRad((v.latitude + w.latitude) / 2.0);
     double xFor(LatLng a) => _degToRad(a.longitude) * R * math.cos(latRef);
     double yFor(LatLng a) => _degToRad(a.latitude) * R;
@@ -394,14 +468,16 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     final double tt = t < 0 ? 0 : (t > 1 ? 1 : t);
     final double projx = vx + tt * dx;
     final double projy = vy + tt * dy;
-    final double dist2 = (px - projx) * (px - projx) + (py - projy) * (py - projy);
+    final double dist2 =
+        (px - projx) * (px - projx) + (py - projy) * (py - projy);
     // cross product of segment (dx,dy) and vector from proj->P => sign indicates side
     final double cross = dx * (py - projy) - dy * (px - projx);
     return {'distance': math.sqrt(dist2), 'side': cross};
   }
 
   void checkUserOnTrail(LatLng position) {
-    final List<List<LatLng>> subTrails = widget.trail['subTrails'] as List<List<LatLng>>;
+    final List<List<LatLng>> subTrails =
+        widget.trail['subTrails'] as List<List<LatLng>>;
     if (subTrails.isEmpty) return;
 
     double minDistance = double.infinity;
@@ -425,7 +501,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     final int distanceMeters = minDistance.isFinite ? minDistance.round() : 0;
     final DateTime now = DateTime.now();
 
-    if (distanceMeters > _offTrailThresholdMeters && now.difference(_lastOffTrailNotificationTime).inSeconds >= 60) {
+    if (distanceMeters > _offTrailThresholdMeters &&
+        now.difference(_lastOffTrailNotificationTime).inSeconds >= 60) {
       _lastOffTrailNotificationTime = now;
 
       String direction;
@@ -442,128 +519,162 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     }
   }
 
-  //calculate distance between last 2 recorded positions using Haversine formula
-  double calculateDistanceHaversine(LatLng position, LatLng lkp) {
-    double dLat = _degToRad(position.latitude - lkp.latitude);
-    double dLng = _degToRad(position.longitude - lkp.longitude);
+  Duration _calculateEta(LocationState stats) {
+    final now = DateTime.now();
 
-    double a = math.sin(dLat / 2.0) * math.sin(dLat / 2.0) +
-      math.cos(_degToRad(lkp.latitude)) * math.cos(_degToRad(position.latitude)) *
-      math.sin(dLng / 2.0) * math.sin(dLng / 2.0);
-
-    double c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a));
-    double distance = R * c;
-
-    if(distance < 5.0) {
-      return 0.0;
-    } else {
-      return distance;
+    if (!_isUserMoving(stats)) {
+      _lastEtaUpdateAt = now;
+      return _remainingEta;
     }
+
+    final lastUpdateAt = _lastEtaUpdateAt ?? now;
+    _lastEtaUpdateAt = now;
+
+    final nextRemaining = _remainingEta - now.difference(lastUpdateAt);
+    _remainingEta = nextRemaining.isNegative ? Duration.zero : nextRemaining;
+
+    return _remainingEta;
+  }
+
+  bool _isUserMoving(LocationState stats) {
+    if (stats.points.length < 2) {
+      return false;
+    }
+
+    final latestPoint = stats.points.last;
+    final previousPoint = stats.points[stats.points.length - 2];
+    final sampleAge = DateTime.now().difference(latestPoint.timestamp);
+    if (sampleAge > _movementSampleMaxAge) {
+      return false;
+    }
+
+    final elapsedSeconds = latestPoint.timestamp
+        .difference(previousPoint.timestamp)
+        .inSeconds;
+    if (elapsedSeconds <= 0) {
+      return false;
+    }
+
+    final traveledMeters = Haversine().distance(
+      LatLng(previousPoint.lat, previousPoint.lng),
+      LatLng(latestPoint.lat, latestPoint.lng),
+    );
+
+    return traveledMeters / elapsedSeconds >= _movementSpeedThresholdMps;
   }
 
   @override
   Widget build(BuildContext context) {
     final String trailName = widget.trail['name']?.toString() ?? 'Trail';
 
-    return UserLocationListener(
-      onLocationChanged: (userPosition) async {
-        if (!_stopwatch.isRunning) return;
+    return BlocProvider.value(
+      value: _locationCubit,
+      child: PopScope(
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) _locationCubit.stopTracking();
+        },
+        child: BlocBuilder<LocationCubit, LocationState>(
+          builder: (context, state) {
+            
+            if (state.current != null) {
+              final position = LatLng(state.current!.lat, state.current!.lng);
+              checkUserOnTrail(position);
+            }
 
-        if(userPosition != null) {
-          checkUserOnTrail(userPosition.position);
-          if (mounted) {
-            setState(() {
-              if (userPosition.positionAccuracy <= 20.0) {
-                final newDistance = _lastKnownPosition == null 
-                  ? 0.0 
-                  : calculateDistanceHaversine(
-                      userPosition.position, 
-                      _lastKnownPosition!, 
-                    );
-                _distance += newDistance;
-                _lastKnownPosition = userPosition.position;
-              }
-              if (userPosition.altitudeAccuracy <= 20.0) {
-                _updateElevationGap(userPosition.altitude);
-              }
-            });
-          }
-        }
-      },
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          //main map
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentCenter,
-              initialZoom: mapZoom,
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              ),
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
-                userAgentPackageName: _appName,
-              ),
-              PolylineLayer(
-                polylines: _buildPolylines(),
-              ),
-              CurrentLocationLayer(),
-            ],
-          ),
-          Positioned(
-            top: 60.0,
-            right: 20.0,
-            child: FloatingActionButton(
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              onPressed: _centerMapOnUser,
-              mini: true,
-              child: Icon(
-                Icons.my_location,
-                color: _isLocatingUser ? Colors.lightBlue : null,
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: StatsRecordingCard(
-              trailName: trailName,
-              elapsedTime: _elapsedTime,
-              isRecording: _stopwatch.isRunning,
-              onToggleRecording: _toggleStopwatch,
-              onStopRecording: _stopRecording,
-              distance: _distance,
-              elevationGap: _elevationGap,
-            ),
-          ),
-        ],
+            return Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                //main map
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _currentCenter,
+                    initialZoom: mapZoom,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
+                      userAgentPackageName: _appName,
+                    ),
+                    PolylineLayer(polylines: _buildPolylines()),
+                    CurrentLocationLayer(),
+                  ],
+                ),
+                Positioned(
+                  top: 60.0,
+                  right: 20.0,
+                  child: FloatingActionButton(
+                    backgroundColor: Theme.of(context).colorScheme.secondary,
+                    onPressed: _centerMapOnUser,
+                    mini: true,
+                    child: Icon(
+                      Icons.my_location,
+                      color: _isLocatingUser ? Colors.lightBlue : null,
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: StatsRecordingCard(
+                    trailName: trailName,
+                    eta: _calculateEta(state),
+                    elapsedTime: _elapsedTime,
+                    isRecording: _stopwatch.isRunning,
+                    onToggleRecording: _toggleStopwatch,
+                    onStopRecording: _stopRecording,
+                    stats: state,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 }
 
 class StatsRecordingCard extends StatefulWidget {
-  
   final String trailName;
+  final Duration eta;
   final Duration elapsedTime;
   final bool isRecording;
   final VoidCallback onToggleRecording;
   final VoidCallback onStopRecording;
-  final double distance;
-  final double elevationGap;
-  
+  final LocationState stats;
+
   const StatsRecordingCard({
     super.key,
     required this.trailName,
+    required this.eta,
     required this.elapsedTime,
     required this.isRecording,
     required this.onToggleRecording,
     required this.onStopRecording,
-    required this.distance,
-    required this.elevationGap,
+    required this.stats,
   });
+
+  static double collapsedSheetHeight(
+    BuildContext context,
+    String trailName,
+  ) {
+    final mediaQuery = MediaQuery.of(context);
+    final textStyle = Theme.of(context).textTheme.titleMedium;
+    final availableWidth = mediaQuery.size.width - 36;
+    final textPainter = TextPainter(
+      text: TextSpan(text: trailName, style: textStyle),
+      textDirection: Directionality.of(context),
+      textAlign: TextAlign.center,
+      maxLines: null,
+    )..layout(maxWidth: availableWidth);
+
+    const double collapsedTopPadding = 16;
+    const double collapsedBottomPadding = 16;
+    return collapsedTopPadding + textPainter.height + collapsedBottomPadding;
+  }
 
   @override
   State<StatsRecordingCard> createState() => _StatsRecordingCardState();
@@ -571,18 +682,34 @@ class StatsRecordingCard extends StatefulWidget {
 
 class _StatsRecordingCardState extends State<StatsRecordingCard> {
   static const double _minSheetSize = 0.14;
-  static const double _initialSheetSize = 0.14;
   static const double _maxSheetSize = 0.80;
-  static const double _detailsRevealThreshold = 0.18;
+  static const double _detailsRevealOffset = 0.08;
   static const int _fractionalDigits = 2;
 
-  double _sheetExtent = _initialSheetSize;
+  double _sheetExtent = _minSheetSize;
+  double _collapsedSheetSize = _minSheetSize;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final collapsedSheetSize = _calculateCollapsedSheetSize(
+      context,
+      widget.trailName,
+    );
+    if ((collapsedSheetSize - _collapsedSheetSize).abs() > 0.001) {
+      _collapsedSheetSize = collapsedSheetSize;
+      if (_sheetExtent < _collapsedSheetSize) {
+        _sheetExtent = _collapsedSheetSize;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showDetails = _sheetExtent >= _detailsRevealThreshold;
-    final distanceKm = widget.distance / 1000.0;
+    final showDetails = _sheetExtent >=
+        math.min(_collapsedSheetSize + _detailsRevealOffset, _maxSheetSize);
 
     return NotificationListener<DraggableScrollableNotification>(
       onNotification: (notification) {
@@ -594,8 +721,8 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
         return false;
       },
       child: DraggableScrollableSheet(
-        initialChildSize: _initialSheetSize,
-        minChildSize: _minSheetSize,
+        initialChildSize: _collapsedSheetSize,
+        minChildSize: _collapsedSheetSize,
         maxChildSize: _maxSheetSize,
         expand: true,
         builder: (context, scrollController) {
@@ -622,145 +749,164 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                   controller: scrollController,
                   physics: const ClampingScrollPhysics(),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+                    padding: EdgeInsets.fromLTRB(
+                      18,
+                      showDetails ? 10 : 16,
+                      18,
+                      showDetails ? 14 : 16,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Center(
-                          child: Container(
-                            width: 44,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
                         Text(
                           widget.trailName,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.titleMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                         ),
-                        const SizedBox(height: 12),
-                        const Divider(height: 10,),
-                        Column(
-                          children: [
-                            Text(
-                              'Time',
-                              style: theme.textTheme.bodyMedium,
+                        if (showDetails) ...[
+                          const SizedBox(height: 12),
+                          Center(
+                            child: Container(
+                              width: 44,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
                             ),
-                            //const SizedBox(height: 4),
-                            Text(
-                              _formatDuration(widget.elapsedTime),
-                              style: theme.textTheme.titleLarge,
-                            ),
-                          ],
-                        ),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          switchInCurve: Curves.easeOut,
-                          switchOutCurve: Curves.easeIn,
-                          child: showDetails
-                              ? Column(
-                                  key: const ValueKey('expanded-stats'),
+                          ),
+                          const SizedBox(height: 12),
+                          const Divider(height: 10),
+                          Column(
+                            children: [
+                              Text('Time', style: theme.textTheme.bodyMedium),
+                              Text(
+                                _formatDuration(widget.elapsedTime),
+                                style: theme.textTheme.titleLarge,
+                              ),
+                            ],
+                          ),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeIn,
+                            child: Column(
+                              key: const ValueKey('expanded-stats'),
+                              children: [
+                                const SizedBox(height: 14),
+                                const Divider(height: 1),
+                                const SizedBox(height: 14),
+                                Column(
                                   children: [
-                                    const SizedBox(height: 14),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            children: [
-                                              Text(
-                                                'Distance',
-                                                style: theme.textTheme.bodyMedium,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              Text(
-                                                '${truncateToDecimalPlaces(distanceKm) == 0.0 ? '--' : truncateToDecimalPlaces(distanceKm)} km',
-                                                style: theme.textTheme.titleLarge,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          height: 48,
-                                          child: VerticalDivider(
-                                            color: theme.colorScheme.outline.withValues(alpha: 0.35),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Column(
-                                            children: [
-                                              Text(
-                                                'Elevation Gap',
-                                                style: theme.textTheme.bodyMedium,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                '${truncateToDecimalPlaces(widget.elevationGap) == 0.0 ? '--' : truncateToDecimalPlaces(widget.elevationGap)} m',
-                                                style: theme.textTheme.titleLarge,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        //Pause/Resume button
-                                        Expanded(
-                                          flex: 2,
-                                          child: ElevatedButton.icon(
-                                            onPressed: widget.onToggleRecording,
-                                            label: widget.isRecording 
-                                              ? const Text('Pause')
-                                              : const Text('Resume'),
-                                            icon: widget.isRecording 
-                                              ? Icon(Icons.pause)
-                                              : Icon(Icons.play_arrow),
-                                            style: widget.isRecording
-                                              ? ElevatedButton.styleFrom(
-                                                backgroundColor: AppColors.pauseButtonBackground,
-                                                foregroundColor: AppColors.pauseButtonForeground,
-                                              )
-                                              : ElevatedButton.styleFrom(
-                                                backgroundColor: AppColors.resumeButtonBackground,
-                                                foregroundColor: AppColors.pauseButtonForeground,
-                                              ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        //Stop button 
-                                        Expanded(
-                                          flex: 3,
-                                          child: ElevatedButton.icon(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.stopButtonBackground,
-                                              foregroundColor: AppColors.stopButtonForeground,
-                                            ),
-                                            onPressed: widget.onStopRecording,
-                                            label: Text('Stop'),
-                                            icon: Icon(Icons.stop),
-                                          ),
-                                        ),
-                                      ],
+                                    Text('ETA', style: theme.textTheme.bodyMedium),
+                                    Text(
+                                      _formatDuration(widget.eta),
+                                      style: theme.textTheme.titleLarge,
                                     )
                                   ],
-                                )
-                              : const SizedBox.shrink(key: ValueKey('collapsed-stats')),
-                        ),
+                                ),
+                                const SizedBox(height: 14),
+                                const Divider(height: 1),
+                                const SizedBox(height: 14),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            'Distance',
+                                            style: theme.textTheme.bodyMedium,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          Text(
+                                            widget.stats.getDistanceLabel(),
+                                            style: theme.textTheme.titleLarge,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      height: 48,
+                                      child: VerticalDivider(
+                                        color: theme.colorScheme.outline
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            'Elevation Gap',
+                                            style: theme.textTheme.bodyMedium,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            widget.stats.getElevationGapLabel(),
+                                            style: theme.textTheme.titleLarge,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                const Divider(height: 1),
+                                const SizedBox(height: 14),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: ElevatedButton.icon(
+                                        onPressed: widget.onToggleRecording,
+                                        label: widget.isRecording
+                                            ? const Text('Pause')
+                                            : const Text('Resume'),
+                                        icon: widget.isRecording
+                                            ? const Icon(Icons.pause)
+                                            : const Icon(Icons.play_arrow),
+                                        style: widget.isRecording
+                                            ? ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors
+                                                    .pauseButtonBackground,
+                                                foregroundColor: AppColors
+                                                    .pauseButtonForeground,
+                                              )
+                                            : ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors
+                                                    .resumeButtonBackground,
+                                                foregroundColor: AppColors
+                                                    .pauseButtonForeground,
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      flex: 3,
+                                      child: ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors
+                                              .stopButtonBackground,
+                                          foregroundColor: AppColors
+                                              .stopButtonForeground,
+                                        ),
+                                        onPressed: widget.onStopRecording,
+                                        label: const Text('Stop'),
+                                        icon: const Icon(Icons.stop),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -780,6 +926,26 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
     return '$hours:$minutes:$seconds';
   }
 
-  double truncateToDecimalPlaces(num value) => (value * math.pow(10, 
-   _fractionalDigits)).truncate() / math.pow(10, _fractionalDigits);
+  static double _calculateCollapsedSheetHeight(
+    BuildContext context,
+    String trailName,
+  ) {
+    return StatsRecordingCard.collapsedSheetHeight(context, trailName);
+  }
+
+  double _calculateCollapsedSheetSize(
+    BuildContext context,
+    String trailName,
+  ) {
+    final mediaQuery = MediaQuery.of(context);
+    final collapsedHeight = _calculateCollapsedSheetHeight(context, trailName);
+    final collapsedSize =
+        collapsedHeight / mediaQuery.size.height + mediaQuery.padding.bottom / mediaQuery.size.height;
+
+    return collapsedSize.clamp(_minSheetSize, _maxSheetSize);
+  }
+
+  double truncateToDecimalPlaces(num value) =>
+      (value * math.pow(10, _fractionalDigits)).truncate() /
+      math.pow(10, _fractionalDigits);
 }

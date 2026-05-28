@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationPermissionHelper {
@@ -21,7 +20,6 @@ class NotificationPermissionHelper {
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidPlugin == null) {
-      debugPrint('Android plugin not available');
       return false;
     }
 
@@ -40,7 +38,6 @@ class NotificationPermissionHelper {
       .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
 
     if (iosPlugin == null) {
-      debugPrint('IOS plugin not available');
       return false;
     }
 

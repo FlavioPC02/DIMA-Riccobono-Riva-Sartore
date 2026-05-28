@@ -3,11 +3,23 @@ import 'package:application/services/database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsRepository {
+  final bool Function()? hasCurrentUser;
+  final DatabaseService Function()? databaseServiceFactory;
+
+  SettingsRepository({this.hasCurrentUser, this.databaseServiceFactory});
+
   DatabaseService? _remoteOrNull() {
-    if (FirebaseAuth.instance.currentUser == null) {
+    final hasUser = hasCurrentUser != null
+        ? hasCurrentUser!()
+        : FirebaseAuth.instance.currentUser != null;
+
+    if (!hasUser) {
       return null;
     }
-    return DatabaseService();
+
+    return databaseServiceFactory != null
+        ? databaseServiceFactory!()
+        : DatabaseService();
   }
 
   Future<Settings?> fetchRemote() async {

@@ -1,86 +1,119 @@
-import 'dart:io';
+import 'dart:async';
+import 'dart:ui';
 
+import 'package:application/core/models/location_point.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:geolocator/geolocator.dart';
 
-//class BackgroundServiceHelper {
-//  static final BackgroundServiceHelper _instance = BackgroundServiceHelper._internal();
-//  factory BackgroundServiceHelper() => _instance;
-//  BackgroundServiceHelper._internal();
-//
-//  bool _isInitializated = false;
-//
-//  Future<void> initializeService() async {
-//    final service = FlutterBackgroundService(); 
-//
-//    if(_isInitializated) {
-//      return;
-//    }
-//
-//    await service.configure(
-//      iosConfiguration: IosConfiguration(
-//        autoStart: false,
-//        onForeground: onStart,
-//        onBackground: onIosBackground,
-//      ), 
-//      androidConfiguration: AndroidConfiguration(
-//        onStart: onStart, 
-//        autoStart: false,
-//        isForegroundMode: true,
-//        notificationChannelId: 'foreground',
-//        initialNotificationTitle: 'Location tracking',
-//        initialNotificationContent: 'Tracking is active...',
-//        foregroundServiceNotificationId: 888,
-//      ),
-//    );
-//
-//    _isInitializated = true;
-//  }
-//
-//  Future<void> startService() async {
-//    try {
-//      final service = FlutterBackgroundService();
-//      if (!_isInitializated) {
-//        await initializeService();
-//      }
-//      bool isRunning = await service.isRunning();
-//      if(isRunning) {
-//        //service already running
-//        return;
-//      }
-//      bool hasPermission = await _requestLocationPermission();
-//      if(!hasPermission) {
-//        throw Exception('Location permissions required');
-//      }
-//      bool started = await service.startService();
-//
-//      if (started) {
-//        await Future.delayed(Platform.isIOS
-//          ? const Duration(seconds: 2)
-//          : const Duration(milliseconds: 300)
-//        );
-//      }
-//      else {
-//        throw Exception('Failed to start background service');
-//      }
-//    } catch (e) {
-//      rethrow;
-//    }
-//  }
-//
-//  Future<void> stopService() async {
-//    try {
-//      final service = FlutterBackgroundService();
-//      bool isRunning = await service.isRunning();
-//
-//      if (!isRunning) {
-//        return;
-//      }
-//      service.invoke('stopService');
-//
-//      int waitTime = Platform.isIOS ? 1000 : 500;
-//      await Future.delayed(Duration(milliseconds: waitTime));
-//    } catch (e) {
-//      rethrow;
-//    }
-//  }
-//}
+const _notificationChannelName = 'GPS Tracker';
+const _notificationId = 888;
+
+StreamSubscription<Position>? _positionSub;
+
+Future<void> initializeBackgroundService() async {
+  final service = FlutterBackgroundService();
+
+  await service.configure(
+    iosConfiguration: IosConfiguration(
+      onForeground: onBackgroundServiceStart,
+      onBackground: _onIosBackground,
+      autoStart: false,
+    ), 
+    androidConfiguration: AndroidConfiguration(
+      onStart: onBackgroundServiceStart, 
+      isForegroundMode: true,
+      autoStart: false,
+      initialNotificationTitle: 'GPS tracker',
+      initialNotificationContent: 'Tracking your location...',
+      foregroundServiceNotificationId: _notificationId,
+    ),
+  );
+}
+
+Future<void> startBackgroundTracking() async {
+  final service = FlutterBackgroundService();
+  final isRunning = await service.isRunning();
+  if (!isRunning) await service.startService();
+}
+
+Future<void> stopBackgroundTracking() async {
+  final service = FlutterBackgroundService();
+  service.invoke('stopService');
+}
+
+//stream of LocationPoint forwarded from the background isolate to the main isolate
+Stream<LocationPoint> get backgroundLocationStream {
+  return FlutterBackgroundService()
+    .on('location')
+    .map((data) => LocationPoint(
+      lat: (data?['lat'] as num).toDouble(), 
+      lng: (data?['lng'] as num).toDouble(), 
+      altitude: (data?['altitude'] as num).toDouble(), 
+      positionAccuracy: (data?['positionAccuracy'] as num).toDouble(), 
+      altitudeAccuracy: (data?['altitudeAccuracy'] as num).toDouble(), 
+      timestamp: DateTime.parse(data?['timestamp'] as String),
+    ));
+}
+
+@pragma('vm:entry-point')
+void onBackgroundServiceStart(ServiceInstance service) async {
+
+  //make platform channels work in background isolate
+  DartPluginRegistrant.ensureInitialized();
+
+  //Android foreground notification update
+  if(service is AndroidServiceInstance) {
+    service.on('setAsForeground').listen((_) {
+      service.setAsForegroundService();
+    });
+    service.on('setAsBackground').listen((_) {
+      service.setAsBackgroundService();
+    });
+  }
+
+  service.on('stopService').listen((_) async {
+    await _positionSub?.cancel();
+    await service.stopSelf();
+  });
+
+  final locationSettings = AndroidSettings(
+    accuracy: LocationAccuracy.high,
+    distanceFilter: 5,
+    intervalDuration: Duration(seconds: 5),
+    foregroundNotificationConfig: ForegroundNotificationConfig(
+      notificationTitle: _notificationChannelName, 
+      notificationText: 'GPS tracker is tracking your position',
+      enableWakeLock: true,
+    ),
+  );
+
+  _positionSub = Geolocator.getPositionStream(
+    locationSettings: locationSettings,
+  ).listen((Position pos) async {
+
+    final point = LocationPoint(
+      lat: pos.latitude, 
+      lng: pos.longitude, 
+      altitude: pos.altitude, 
+      positionAccuracy: pos.accuracy, 
+      altitudeAccuracy: pos.altitudeAccuracy, 
+      timestamp: pos.timestamp,
+    );
+
+    service.invoke('location', {
+      'lat': point.lat,
+      'lng': point.lng,
+      'altitude': point.altitude,
+      'positionAccuracy': point.positionAccuracy,
+      'altitudeAccuracy': point.altitudeAccuracy,
+      'timestamp': point.timestamp.toIso8601String(),
+    });
+  });
+}
+
+@pragma('vm:entry-point')
+Future<bool> _onIosBackground(ServiceInstance service) async {
+  DartPluginRegistrant.ensureInitialized();
+  return true;
+}
+

@@ -22,9 +22,9 @@ class _NavigationState extends State<Navigation> {
   }
 
   Future<void> _requestPermissions() async {
-    final granted = await NotificationPermissionHelper.requestNotificationPermissions();
-
-    if (!granted) {
+    // Request notification permissions
+    final notificationGranted = await NotificationPermissionHelper.requestNotificationPermissions();
+    if (!notificationGranted) {
       _showNotificationPermissionDialog();
     }
   }
@@ -35,7 +35,7 @@ class _NavigationState extends State<Navigation> {
     });
   }
 
-  // dialog shown when location permissions are denied
+  // Dialog shown when notification permissions are denied
   void _showNotificationPermissionDialog() {
     showDialog(
       context: context,
