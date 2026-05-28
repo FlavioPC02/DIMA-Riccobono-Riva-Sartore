@@ -137,7 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   // Stats & difficulty card
                   _StatsdifficultySection(
-                    hikeNumber: activities.length,
+                    hikeNumber: activities.where((a) => a.status == ActivityStatus.completed).toList().length,
                     distance: truncateToDecimalPlaces(
                       activities.fold<double>(
                         0.0,

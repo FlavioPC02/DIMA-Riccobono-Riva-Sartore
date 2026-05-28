@@ -2,6 +2,7 @@ import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
+import 'package:application/core/extensions/duration_formatting.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/screens/homepage.dart';
 import 'package:application/services/notification_service.dart';
@@ -148,7 +149,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     } else {
       await activityCubit.updateActivity(activity);
     }
-    
+
     //update profile stats
     final profile = profileCubit.state;
     profileCubit.updateXp(profile.xp + activity.xpEarned);
@@ -158,9 +159,10 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
       return;
     }
 
-    Navigator.of(context, rootNavigator: true).pushReplacement(
-      MaterialPageRoute(builder: (_) => const Navigation()),
-    );
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const Navigation()));
   }
 
   void _showPathDistanceNotification(int distance, {String? direction}) {
@@ -575,7 +577,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
         },
         child: BlocBuilder<LocationCubit, LocationState>(
           builder: (context, state) {
-            
             if (state.current != null) {
               final position = LatLng(state.current!.lat, state.current!.lng);
               checkUserOnTrail(position);
@@ -657,10 +658,7 @@ class StatsRecordingCard extends StatefulWidget {
     required this.stats,
   });
 
-  static double collapsedSheetHeight(
-    BuildContext context,
-    String trailName,
-  ) {
+  static double collapsedSheetHeight(BuildContext context, String trailName) {
     final mediaQuery = MediaQuery.of(context);
     final textStyle = Theme.of(context).textTheme.titleMedium;
     final availableWidth = mediaQuery.size.width - 36;
@@ -708,7 +706,8 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showDetails = _sheetExtent >=
+    final showDetails =
+        _sheetExtent >=
         math.min(_collapsedSheetSize + _detailsRevealOffset, _maxSheetSize);
 
     return NotificationListener<DraggableScrollableNotification>(
@@ -759,6 +758,17 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        Center(
+                          child: Container(
+                            width: 44,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Text(
                           widget.trailName,
                           textAlign: TextAlign.center,
@@ -767,23 +777,12 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                         ),
                         if (showDetails) ...[
                           const SizedBox(height: 12),
-                          Center(
-                            child: Container(
-                              width: 44,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primary,
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
                           const Divider(height: 10),
                           Column(
                             children: [
                               Text('Time', style: theme.textTheme.bodyMedium),
                               Text(
-                                _formatDuration(widget.elapsedTime),
+                                widget.elapsedTime.toCompactLabel(),
                                 style: theme.textTheme.titleLarge,
                               ),
                             ],
@@ -800,11 +799,14 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                                 const SizedBox(height: 14),
                                 Column(
                                   children: [
-                                    Text('ETA', style: theme.textTheme.bodyMedium),
                                     Text(
-                                      _formatDuration(widget.eta),
+                                      'ETA',
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                    Text(
+                                      widget.eta.toCompactLabel(),
                                       style: theme.textTheme.titleLarge,
-                                    )
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 14),
@@ -891,10 +893,10 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                                       flex: 3,
                                       child: ElevatedButton.icon(
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors
-                                              .stopButtonBackground,
-                                          foregroundColor: AppColors
-                                              .stopButtonForeground,
+                                          backgroundColor:
+                                              AppColors.stopButtonBackground,
+                                          foregroundColor:
+                                              AppColors.stopButtonForeground,
                                         ),
                                         onPressed: widget.onStopRecording,
                                         label: const Text('Stop'),
@@ -919,13 +921,6 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
     );
   }
 
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours.toString().padLeft(2, '0');
-    final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
-    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-    return '$hours:$minutes:$seconds';
-  }
-
   static double _calculateCollapsedSheetHeight(
     BuildContext context,
     String trailName,
@@ -933,14 +928,12 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
     return StatsRecordingCard.collapsedSheetHeight(context, trailName);
   }
 
-  double _calculateCollapsedSheetSize(
-    BuildContext context,
-    String trailName,
-  ) {
+  double _calculateCollapsedSheetSize(BuildContext context, String trailName) {
     final mediaQuery = MediaQuery.of(context);
     final collapsedHeight = _calculateCollapsedSheetHeight(context, trailName);
     final collapsedSize =
-        collapsedHeight / mediaQuery.size.height + mediaQuery.padding.bottom / mediaQuery.size.height;
+        collapsedHeight / mediaQuery.size.height +
+        mediaQuery.padding.bottom / mediaQuery.size.height;
 
     return collapsedSize.clamp(_minSheetSize, _maxSheetSize);
   }
