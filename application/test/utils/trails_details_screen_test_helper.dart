@@ -1,129 +1,38 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-
-class MockGeolocatorPlatform extends GeolocatorPlatform with MockPlatformInterfaceMixin {
-  bool locationServiceEnabled = true;
-  LocationPermission permission = LocationPermission.always;
-  bool shouldFailNextRequest = false;
-
-  @override
-  Future<bool> isLocationServiceEnabled() async => locationServiceEnabled;
-
-  @override
-  Future<LocationPermission> checkPermission() async => permission;
-
-  @override
-  Future<LocationPermission> requestPermission() async => permission;
-
-  @override
-  Future<Position> getCurrentPosition({LocationSettings? locationSettings}) async {
-    return Position(
-      longitude: 12.4924,
-      latitude: 41.8902,
-      timestamp: DateTime.now(),
-      accuracy: 10.0,
-      altitude: 0.0,
-      heading: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-      altitudeAccuracy: 0.0,
-      headingAccuracy: 0.0,
-    );
-  }
-
-  @override
-  Stream<ServiceStatus> getServiceStatusStream() {
-    return Stream.value(ServiceStatus.enabled);
-  }
-
-  @override
-  Future<Position?> getLastKnownPosition({
-    bool forceLocationManager = false,
-  }) async {
-    return Position(
-      longitude: 12.4924,
-      latitude: 41.8902,
-      timestamp: DateTime.now(),
-      accuracy: 10.0,
-      altitude: 0.0,
-      heading: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-      altitudeAccuracy: 0.0,
-      headingAccuracy: 0.0,
-    );
-  }
-
-  @override
-  Stream<Position> getPositionStream({LocationSettings? locationSettings}) {
-    return Stream.value(Position(
-      longitude: 12.4924,
-      latitude: 41.8902,
-      timestamp: DateTime.now(),
-      accuracy: 10.0,
-      altitude: 0.0,
-      heading: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-      altitudeAccuracy: 0.0,
-      headingAccuracy: 0.0,
-    ));
-  }
-}
 
 class FakeHttpOverrides extends HttpOverrides {
   static bool shouldFailConnections = false;
-  
+  static bool emptyOverpassRelation = false;
+  static bool emptyElevationData = false;
+  static bool emptyWeatherForecast = false;
+
   @override
   HttpClient createHttpClient(SecurityContext? context) => FakeHttpClient();
 }
 
-class FakeHttpClient implements HttpClient {
+class FakeHttpClient extends Fake implements HttpClient {
   @override
-  bool autoUncompress = true;
-  @override
-  Duration? connectionTimeout;
-  @override
-  Duration idleTimeout = const Duration(seconds: 15);
-  @override
-  int? maxConnectionsPerHost;
-  @override
-  String? userAgent;
+  Future<HttpClientRequest> getUrl(Uri url) async => _handleRequest(url);
 
   @override
-  void close({bool force = false}) {}
+  Future<HttpClientRequest> postUrl(Uri url) async => _handleRequest(url);
 
   @override
-  Future<HttpClientRequest> openUrl(String method, Uri url) async {
+  Future<HttpClientRequest> openUrl(String method, Uri url) async => _handleRequest(url);
+
+  @override
+  void close({bool force = false}) {
+  }
+
+  Future<HttpClientRequest> _handleRequest(Uri url) async {
     if (FakeHttpOverrides.shouldFailConnections) {
       throw const SocketException('Connection failed');
     }
     return FakeHttpClientRequest(url);
   }
-
-  @override
-  Future<HttpClientRequest> getUrl(Uri url) async {
-    if (FakeHttpOverrides.shouldFailConnections) {
-      throw const SocketException('Connection failed');
-    }
-    return FakeHttpClientRequest(url);
-  }
-
-  @override
-  Future<HttpClientRequest> postUrl(Uri url) async {
-    if (FakeHttpOverrides.shouldFailConnections) {
-      throw const SocketException('Connection failed');
-    }
-    return FakeHttpClientRequest(url);
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeHttpHeaders implements HttpHeaders {
@@ -214,25 +123,73 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
     if (urlString.contains('nominatim')) {
       return utf8.encode('[{"lat": "45.4642", "lon": "9.1900", "display_name": "Milano, Italia"}]');
     } else if (urlString.contains('overpass')) {
+      if (FakeHttpOverrides.emptyOverpassRelation) {
+        return utf8.encode('{"elements": []}');
+      }
       return utf8.encode('''{
         "elements": [
           {
             "type": "relation",
             "id": 12345,
-            "tags": {"name": "Sentiero Test Coverage"},
-            "members": [
-              {
-                "type": "way",
-                "geometry": [{"lat": 45.4, "lon": 9.1}, {"lat": 45.5, "lon": 9.2}]
-              }
-            ]
+            "tags": {
+              "name": "Sentiero Test",
+              "distance": "10 km",
+              "ascent": "500",
+              "operator": "Test Operator",
+              "website": "www.example.com"
+            }
+          },
+          {
+            "type": "way",
+            "tags": {"surface": "dirt", "incline": "10%"},
+            "geometry": [{"lat": 45.4, "lon": 9.1}, {"lat": 45.5, "lon": 9.2}]
           }
         ]
+      }''');
+    } else if (urlString.contains('open-elevation.com')) {
+      if (FakeHttpOverrides.emptyElevationData) {
+        return utf8.encode('{"results": []}');
+      }
+      return utf8.encode('{"results": [{"elevation": 100.0}, {"elevation": 200.0}]}');
+    } else if (urlString.contains('open-meteo')) {
+      if (FakeHttpOverrides.emptyWeatherForecast) {
+        return utf8.encode('''{
+          "daily": {
+            "time": [],
+            "weather_code": [],
+            "temperature_2m_max": [],
+            "temperature_2m_min": []
+          }
+        }''');
+      }
+      return utf8.encode('''{
+        "daily": {
+          "time": [
+            "2026-05-27",
+            "2026-05-28",
+            "2026-05-29"
+          ],
+          "weather_code": [
+            0,
+            61,
+            3
+          ],
+          "temperature_2m_max": [
+            24.5,
+            18.0,
+            20.5
+          ],
+          "temperature_2m_min": [
+            15.0,
+            12.0,
+            14.0
+          ]
+        }
       }''');
     } else {
       return transparentImage;
     }
-  }
+  } 
 
   @override
   int get contentLength => _getBody().length;
@@ -262,9 +219,4 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-Future<void> tearDownMap(WidgetTester tester) async {
-  await tester.pumpWidget(const SizedBox());
-  await tester.pumpAndSettle();
 }

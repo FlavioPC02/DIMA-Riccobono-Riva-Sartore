@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart' as geo;
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:application/screens/trail_details_screen.dart';
@@ -603,8 +605,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
               onPositionChanged: (camera, hasGesture) {
-                final currentZoom = camera.zoom;
-                final isEnough = currentZoom >= _minZoomThreshold;
+                final isEnough = camera.zoom >= _minZoomThreshold;
                 if (isEnough != _isZoomedInEnough) {
                   setState(() {
                     _isZoomedInEnough = isEnough;
@@ -642,6 +643,15 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               ),
               PolylineLayer(
                 polylines: _buildPolylines(),
+              ),
+              CurrentLocationLayer(),
+              RichAttributionWidget(
+                attributions: [
+                  TextSourceAttribution(
+                    'OpenStreetMap contributors',
+                    onTap: () => launchUrl(Uri.parse('https://openstreetmap.org/copyright')),
+                  ),
+                ],
               ),
             ],
           ),
@@ -823,7 +833,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             ),
             //button to search for hiking trails in the current map view and show results
             Positioned(
-              bottom: 40.0,
+              bottom: 100.0,
               left: 0,
               right: 0,
               child: _foundTrails.isEmpty
@@ -944,8 +954,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           //close button to clear the drawn trail and reset the search results
           if (_foundTrails.isNotEmpty)
             Positioned(
-              bottom: 170.0,
-              right: 42.0,
+              bottom: 230.0,
+              right: 44.0,
               child: FloatingActionButton(
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 mini: true,
