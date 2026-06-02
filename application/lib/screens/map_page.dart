@@ -76,7 +76,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   final _searchRadius = 10000;
 
   //maximum number of trails to be displayed
-  static const int _trailLimit = 40;
+  static const int _trailLimit = 10;
 
   @override
   void initState() {
@@ -85,7 +85,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     DefaultMapManagementService().checkStartingLocation(context, _mapController);
 
     final profileDifficulty = context.read<SettingsCubit>().state.difficulty;
-    
+
     if (profileDifficulty == 0.0) {
       _filterDifficulty = 'Beginner';
     } else if (profileDifficulty == 1.0) {
@@ -322,10 +322,10 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               }
 
               if (subTrailCoordinates.isNotEmpty) {
-                double km = (rel['tags']?['distance'] != null) 
+                double km = (rel['tags']?['distance'] != null)
                     ? double.tryParse(rel['tags']!['distance'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? (totalMeters / 1000)
                     : (totalMeters / 1000);
-                
+
                 int durationMinutes = ((km / 4.0) * 60).toInt();
                 if (rel['tags']?['duration'] != null || rel['tags']?['time'] != null) {
                   String timeStr = rel['tags']?['duration'] ?? rel['tags']?['time'] ?? "";
@@ -336,7 +336,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 }
 
                 int trailDifficulty = 0;
-                
+
                 final cai = rel['tags']?['cai_scale']?.toString().toUpperCase();
                 final sac = rel['tags']?['sac_scale']?.toString().toLowerCase();
 
@@ -353,9 +353,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 if (trailDifficulty == 0 && sac != null) {
                   if (sac.contains('alpine') || sac.contains('t4') || sac.contains('t5') || sac.contains('t6')) {
                     trailDifficulty = 3;
-                  } else if (sac.contains('mountain_hiking') || sac.contains('t2') || sac.contains('t3')) { 
+                  } else if (sac.contains('mountain_hiking') || sac.contains('t2') || sac.contains('t3')) {
                     trailDifficulty = 2;
-                  } else if (sac.contains('hiking') || sac.contains('t1')) { 
+                  } else if (sac.contains('hiking') || sac.contains('t1')) {
                     trailDifficulty = 1;
                   }
                 }
@@ -364,9 +364,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                   double ascentM = (rel['tags']?['ascent'] != null)
                       ? double.tryParse(rel['tags']!['ascent'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0
                       : 0.0;
-                      
+
                   double effortScore = km + (ascentM / 100);
-                  
+
                   if (effortScore > 0) {
                     if (effortScore < 7.0) { trailDifficulty = 1; }
                     else if (effortScore < 14.0) { trailDifficulty = 2; }
@@ -385,7 +385,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 }
 
                 bool keep = true;
-                
+
                 if (_filterDistance == '<5km' && km >= 5.0) keep = false;
                 if (_filterDistance == '<10km' && km >= 10.0) keep = false;
                 if (_filterDistance == '<20km' && km >= 20.0) keep = false;
@@ -672,7 +672,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded( 
+              const Expanded(
                 child: Text('Ferrata', overflow: TextOverflow.ellipsis),
               ),
               Container(
@@ -733,7 +733,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     super.build(context);
 
     return BlocListener<SettingsCubit, dynamic>(
-      listenWhen: (previous, current) => 
+      listenWhen: (previous, current) =>
         previous.difficulty != current.difficulty ||
         previous.ferrata != current.ferrata,
       listener: (context, state) {
@@ -779,13 +779,13 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                     final now = DateTime.now();
                     if (_lastTileErrorTime == null || now.difference(_lastTileErrorTime!).inSeconds > 5) {
                       _lastTileErrorTime = now;
-                      
+
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (mounted) {
                           setState(() {
                             _hasMapLoadError = true;
                           });
-                          
+
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -889,8 +889,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 return const Padding(
                                   padding: EdgeInsets.all(12.0),
                                   child: SizedBox(
-                                    width: 20, 
-                                    height: 20, 
+                                    width: 20,
+                                    height: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2),
                                   ),
                                 );
@@ -937,7 +937,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                           shrinkWrap: true,
                           itemCount: _locationSuggestions.length,
                           separatorBuilder: (context, index) => Divider(
-                            height: 1, 
+                            height: 1,
                             color: Theme.of(context).colorScheme.primary,
                           ),
                           itemBuilder: (context, index) {
@@ -959,7 +959,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 });
 
                                 final lat = double.parse(suggestion['lat']);
-                                final lon = double.parse(suggestion['lon']);                            
+                                final lon = double.parse(suggestion['lon']);
                                 setState(() {
                                   _currentCenter = DefaultMapManagementService().moveCamera(lat, lon, 13.0, _mapController);
                                 });
@@ -972,8 +972,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                             );
                           },
                         ),
-                      ) 
-                    else 
+                      )
+                    else
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -1020,7 +1020,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                         ]
                       ),
                   ]
-                ) 
+                )
               ),
               //button to search for hiking trails in the current map view
               Positioned(
@@ -1070,8 +1070,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            ), 
-                            
+                            ),
+
                           ),
                         ),
                       )
@@ -1173,12 +1173,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                           ),
                         ),
                       ],
-                    ), 
+                    ),
               ),
             ],
           ],
         ),
       ),
-    ); 
+    );
   }
 }

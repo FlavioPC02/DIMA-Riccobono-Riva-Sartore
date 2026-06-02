@@ -486,11 +486,11 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                   child: FloatingActionButton(
                     heroTag: 'navigator-location-button',
                     backgroundColor: Theme.of(context).colorScheme.secondary,
-                    onPressed: () {
+                    onPressed: () async {
                       setState(() {
                         _isLocatingUser = true;
                       });
-                      DefaultMapManagementService().centerMap(
+                      await DefaultMapManagementService().centerMap(
                         context,
                         _currentCenter,
                         _mapController,
@@ -503,7 +503,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                     mini: true,
                     child: Icon(
                       Icons.my_location,
-                      color: _isLocatingUser ? Colors.lightBlue : null,
+                      color: _isLocatingUser ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
                     ),
                   ),
                 ),
