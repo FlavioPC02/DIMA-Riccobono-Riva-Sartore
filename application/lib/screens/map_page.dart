@@ -603,11 +603,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               child: FloatingActionButton(
                 heroTag: 'map-location-button',
                 backgroundColor: Theme.of(context).colorScheme.secondary,
-                onPressed: () {
+                onPressed: () async {
                   setState(() {
                     _isLocatingUser = true;
                   });
-                  DefaultMapManagementService().centerMap(context, _currentCenter, _mapController, zoom: mapZoom);
+                  await DefaultMapManagementService().centerMap(context, _currentCenter, _mapController, zoom: mapZoom);
                   setState(() {
                     _isLocatingUser = false;
                   });
