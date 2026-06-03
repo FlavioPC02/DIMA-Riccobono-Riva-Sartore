@@ -569,7 +569,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               left: 22.0,
               right: 22.0,
               child: Column(
-                children: [
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children : [
                   Container(
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.secondary,
@@ -632,7 +633,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                       ),
                     ),
                   ),
-                  if (_locationSuggestions.isNotEmpty)
+                  if(_locationSuggestions.isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(top: 8.0),
                       constraints: const BoxConstraints(maxHeight: 250),
@@ -688,13 +689,35 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                           );
                         },
                       ),
-                    ),
-                ],
-              ),
+                    ) 
+                  else 
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      //button to center the map on the user's current location
+                      child: FloatingActionButton(
+                        backgroundColor: Theme.of(context).colorScheme.secondary,
+                        onPressed: () {
+                          setState(() {
+                            _isLocatingUser = true;
+                          });
+                          DefaultMapManagementService().centerMap(context, _currentCenter, _mapController, zoom: mapZoom);
+                          setState(() {
+                            _isLocatingUser = false;
+                          });
+                        },
+                        mini: true,
+                        child: Icon(
+                          Icons.my_location,
+                          color: _isLocatingUser ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
+                        ),
+                      ),
+                    )
+                ]
+              ) 
             ),
-            //button to search for hiking trails in the current map view and show results
+            //button to search for hiking trails in the current map view
             Positioned(
-              bottom: 100.0,
+              bottom: MediaQuery.textScalerOf(context).scale(140.0),
               left: 0,
               right: 0,
               child: _foundTrails.isEmpty
@@ -728,110 +751,123 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                   !_isZoomedInEnough ? Icons.zoom_in : Icons.search,
                                   size: 24,
                                 ),
-                          label: Text(
+                          label: Padding(
+                            padding: EdgeInsets.only(left: MediaQuery.textScalerOf(context).scale(3.0)),
+                            child: Text(
                             _isLoadingTrails
                                 ? 'Searching...'
                                 : (!_isZoomedInEnough
                                       ? 'Zoom in to search for trails'
                                       : 'Search for hiking trails in this area'),
                             style: Theme.of(context).textTheme.bodyMedium,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
+                          ), 
+                          
                         ),
                       ),
                     )
-                  : SizedBox(
-                      height: 130,
-                      child: PageView.builder(
-                        controller: _pageController,
-                        itemCount: _foundTrails.length,
-                        onPageChanged: (int index) {
-                          setState(() {
-                            _selectedTrailIndex = index;
-                          });
-                        },
-                        itemBuilder: (context, index) {
-                          final trail = _foundTrails[index];
-                          final isSelected = index == _selectedTrailIndex;
+                  : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 44.0, bottom: 10.0),
+                        //close button to clear the drawn trail and reset the search results
+                        child: FloatingActionButton(
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                          mini: true,
+                          onPressed: () {
+                            _searchController.clear();
+                            FocusScope.of(context).unfocus();
 
-                          return GestureDetector(
-                            onTap: () {
-                              if (!isSelected) {
-                                _pageController.animateToPage(
-                                  index,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                );
-                              } else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => TrailDetailsScreen(
-                                      trail: trail,
+                            setState(() {
+                              _foundTrails.clear();
+                              _locationSuggestions.clear();
+                            });
+                          },
+                          child: Icon(Icons.close, color: Theme.of(context).colorScheme.primary),
+                        ),
+                      ),
+                      //cards showing fetched trails
+                      SizedBox(
+                        height: MediaQuery.textScalerOf(context).scale(135),
+                        child: PageView.builder(
+                          controller: _pageController,
+                          itemCount: _foundTrails.length,
+                          onPageChanged: (int index) {
+                            setState(() {
+                              _selectedTrailIndex = index;
+                            });
+                          },
+                          itemBuilder: (context, index) {
+                            final trail = _foundTrails[index];
+                            final isSelected = index == _selectedTrailIndex;
+
+                            return GestureDetector(
+                              onTap: () {
+                                if (!isSelected) {
+                                  _pageController.animateToPage(
+                                    index,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                } else {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => TrailDetailsScreen(
+                                        trail: trail,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                margin: EdgeInsets.only(
+                                  right: 8.0,
+                                  left: 8.0,
+                                  top: isSelected ? 4.0 : 16.0,
+                                  bottom: isSelected ? 4.0 : 16.0,
+                                ),
+                                child: Card(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.hiking,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Expanded(
+                                          child: Text(
+                                            trail['name'],
+                                            style: Theme.of(context).textTheme.bodyMedium,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                );
-                              }
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: EdgeInsets.only(
-                                right: 8.0,
-                                left: 8.0,
-                                top: isSelected ? 4.0 : 16.0,
-                                bottom: isSelected ? 4.0 : 16.0,
-                              ),
-                              child: Card(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.hiking,
-                                        color: Theme.of(context).colorScheme.primary,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        trail['name'],
-                                        style: Theme.of(context).textTheme.bodyMedium,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
+                    ],
+                  ), 
             ),
           ],
-          //close button to clear the drawn trail and reset the search results
-          if (_foundTrails.isNotEmpty)
-            Positioned(
-              bottom: 230.0,
-              right: 44.0,
-              child: FloatingActionButton(
-                backgroundColor: Theme.of(context).colorScheme.secondary,
-                mini: true,
-                onPressed: () {
-                  _searchController.clear();
-                  FocusScope.of(context).unfocus();
-
-                  setState(() {
-                    _foundTrails.clear();
-                    _locationSuggestions.clear();
-                  });
-                },
-                child: Icon(Icons.close, color: Theme.of(context).colorScheme.primary),
-              ),
-            ),
         ],
       ),
     );

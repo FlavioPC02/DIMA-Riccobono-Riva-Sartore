@@ -433,11 +433,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     return Column(
       children: [
         _buildHighlightedStats(),
-        const Divider(height: 1, thickness: 1),
+        const Divider(height: 30, thickness: 1),
         
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 100.0),
+            padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, MediaQuery.textScalerOf(context).scale(160)),
             children: [
               _buildWeatherBox(),
               _buildElevationChart(),
@@ -502,7 +502,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 2.2,
+        mainAxisExtent: MediaQuery.textScalerOf(context).scale(120.0),
         children: [
           _buildStatCard(Icons.route, 'Distance', value: distance),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: duration),
@@ -516,6 +516,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   Widget _buildStatCard(IconData icon, String title, {String? value, Widget? valueWidget}) {
     return Card(
       elevation: 0,
+      margin: EdgeInsets.zero,
       color: Theme.of(context).colorScheme.secondary,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -535,7 +536,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                   Text(
                     title, 
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.8)),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (valueWidget != null) 
@@ -589,7 +590,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           ),
         ),
         SizedBox(
-          height: 150,
+          height: MediaQuery.textScalerOf(context).scale(180),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16.0), 
@@ -696,18 +697,21 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     double yInterval = (totalYRange / 4).roundToDouble(); 
     if (yInterval < 10) yInterval = 10;
 
-    double xInterval;
+    double baseInterval;
     if (maxDistKm <= 5.0) {
-      xInterval = 0.5;
+      baseInterval = 0.5;
     } else if (maxDistKm <= 10.0) {
-      xInterval = 1.0;
+      baseInterval = 1.0;
     } else if (maxDistKm <= 100.0) {
-      xInterval = 10.0;
+      baseInterval = 10.0;
     } else if (maxDistKm <= 200.0) {
-      xInterval = 20.0; 
+      baseInterval = 20.0; 
     } else {
-      xInterval = 50.0;
+      baseInterval = 50.0;
     }
+
+    double currentTextScale = MediaQuery.textScalerOf(context).scale(1.0);
+    double xInterval = (baseInterval * currentTextScale).ceilToDouble();
 
     return SizedBox(
       height: 220,
@@ -756,7 +760,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 45,
+                        reservedSize: MediaQuery.textScalerOf(context).scale(55),
                         interval: yInterval,
                         getTitlesWidget: (value, meta) {
                           if (value == meta.max || value == meta.min) {
@@ -775,7 +779,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 25,
+                        reservedSize: MediaQuery.textScalerOf(context).scale(35),
                         interval: xInterval,
                         getTitlesWidget: (value, meta) {
                           if (value == meta.max || value == meta.min || value > maxDistKm) {
