@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:application/core/models/location_point.dart';
 import 'package:application/core/repository/location_repository.dart';
 import 'package:application/services/background_tracking_service.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';

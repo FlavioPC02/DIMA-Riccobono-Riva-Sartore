@@ -57,17 +57,12 @@ class LocationState extends Equatable {
   //UI formatters
   String getDistanceLabel() {
     if (!isTracking) return '--';
-    if (distance == 0) return '0 m';
-    if (distance < 1000) return '${distance.toStringAsFixed(0)} m';
-    return '${(distance / 1000).toStringAsFixed(2)} km';
+    return formatDistanceMeters(distance);
   }
 
   String getElevationGapLabel() {
     if (!isTracking) return '--';
-    if (elevationGap == null) return '--';
-    final sign = elevationGap! >= 0 ? '+' : '-';
-
-    return '$sign${elevationGap!.toStringAsFixed(1)} m';
+    return formatElevationGapMeters(elevationGap);
   }
 
   String get totalAscentLabel => '+${totalAscent.toStringAsFixed(1)} m';
