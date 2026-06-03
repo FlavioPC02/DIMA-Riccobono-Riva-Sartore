@@ -433,11 +433,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     return Column(
       children: [
         _buildHighlightedStats(),
-        const Divider(height: 30, thickness: 1),
+        const Divider(height: 1, thickness: 2),
         
         Expanded(
           child: ListView(
-            padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, MediaQuery.textScalerOf(context).scale(160)),
+            padding: EdgeInsets.fromLTRB(16.0, MediaQuery.textScalerOf(context).scale(20), 16.0, 16.0),
             children: [
               _buildWeatherBox(),
               _buildElevationChart(),
@@ -494,6 +494,14 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
     _difficulty = _calculateDifficultyLevel();
 
+    bool isFerrata = false;
+    final caiScale = _relationTags?['cai_scale']?.toString().toUpperCase() ?? '';
+    final hasViaFerrata = _relationTags?.containsKey('via_ferrata_scale') ?? false;
+
+    if (caiScale.contains('EEA') || hasViaFerrata) {
+      isFerrata = true;
+    }
+
     return Padding(
       padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
       child: GridView.count(
@@ -507,7 +515,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           _buildStatCard(Icons.route, 'Distance', value: distance),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: duration),
           _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(_difficulty)),
-          _buildStatCard(Icons.height, 'Ascent', value: ascentStr),
+          _buildStatCard(Icons.height, 'Ascent', valueWidget: _buildAscentAndFerrata(ascentStr, isFerrata)),
         ],
       ),
     );
@@ -1029,6 +1037,33 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           level == 1 ? '(Beginner)' : level == 2 ? '(Intermediate)' : '(Expert)',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
+      ],
+    );
+  }
+
+  Widget _buildAscentAndFerrata(String ascentStr, bool isFerrata) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          ascentStr, 
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), 
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (isFerrata)
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 3.0),
+              Text(
+                '(Ferrata)',
+                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
       ],
     );
   }
