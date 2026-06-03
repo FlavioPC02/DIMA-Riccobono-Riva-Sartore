@@ -1,0 +1,21 @@
+name: hike_core
+description: Shared hiking tracking primitives and watch-friendly widgets.
+publish_to: 'none'
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  equatable: ^2.0.8
+  latlong2: ^0.9.0
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
