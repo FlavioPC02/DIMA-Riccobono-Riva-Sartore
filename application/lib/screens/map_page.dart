@@ -26,7 +26,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
   final double _minZoomThreshold = 11.0;
   bool _isZoomedInEnough = true;
-  
+
   static const double _centerMapButtonTopOffset = 186.0;
   static const double _closeButtonBottomOffset = 315.0;
 
@@ -98,7 +98,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           Polyline(
             points: subTrailsCoordinates,
             strokeWidth: isSelected ? 6.0 : 3.0,
-            color: isSelected ? AppColors.selectedTrail : AppColors.unselectedTrail,
+            color: isSelected
+                ? AppColors.selectedTrail
+                : AppColors.unselectedTrail,
           ),
         );
       }
@@ -117,13 +119,16 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
     try {
       final camera = _mapController.camera;
-      
+
       final width = MediaQuery.of(context).size.width;
       final height = MediaQuery.of(context).size.height;
 
       final Offset topLeftPixel = Offset(0.0, _centerMapButtonTopOffset);
 
-      final Offset bottomRightPixel = Offset(width, height - _closeButtonBottomOffset);
+      final Offset bottomRightPixel = Offset(
+        width,
+        height - _closeButtonBottomOffset,
+      );
 
       final LatLng topLeft = camera.screenOffsetToLatLng(topLeftPixel);
       final LatLng bottomRight = camera.screenOffsetToLatLng(bottomRightPixel);
@@ -133,27 +138,32 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       final west = topLeft.longitude;
       final east = bottomRight.longitude;
 
-      final query = """
+      final query =
+          """
       [out:json][timeout:15];
       relation["route"="hiking"]($south,$west,$north,$east);
       out $_trailLimit geom;
       """;
 
-      try{
+      try {
         await _fetchOverpassResponse(query, 0, 0, false);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Check your connection and try again.')),
+            const SnackBar(
+              content: Text('Check your connection and try again.'),
+            ),
           );
         }
       } finally {
         if (mounted) setState(() => _isLoadingTrails = false);
       }
     } catch (e) {
-      if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error occurred while searching for hiking trails')),
+          const SnackBar(
+            content: Text('Error occurred while searching for hiking trails'),
+          ),
         );
       }
     } finally {
@@ -219,25 +229,26 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   }
 
   //function to fetch hiking trails from the Overpass API using a given query, with retry logic for multiple servers and error handling
-  Future<void> _fetchOverpassResponse(String query, double lat, double lon, bool shouldMoveCamera) async {
-    
+  Future<void> _fetchOverpassResponse(
+    String query,
+    double lat,
+    double lon,
+    bool shouldMoveCamera,
+  ) async {
     final overpassUrl = Uri.parse('https://overpass-api.de/api/interpreter');
-    final overpassUrl2 = Uri.parse('https://overpass.private.coffee/api/interpreter');
+    final overpassUrl2 = Uri.parse(
+      'https://overpass.private.coffee/api/interpreter',
+    );
 
-    final List<Uri> overpassServers = [
-      overpassUrl,
-      overpassUrl2,
-    ];
-    
+    final List<Uri> overpassServers = [overpassUrl, overpassUrl2];
+
     bool success = false;
 
     for (var url in overpassServers) {
       try {
-        final response = await http.post(
-          url, 
-          body: query,
-          headers: {'User-Agent': _appName} 
-        ).timeout(const Duration(seconds: 15));
+        final response = await http
+            .post(url, body: query, headers: {'User-Agent': _appName})
+            .timeout(const Duration(seconds: 15));
 
         if (response.statusCode == 200) {
           success = true;
@@ -247,7 +258,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           if (elements.isEmpty) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No hiking trails found near the searched location. Try searching in a different area.')),
+                const SnackBar(
+                  content: Text(
+                    'No hiking trails found near the searched location. Try searching in a different area.',
+                  ),
+                ),
               );
             }
             return;
@@ -258,8 +273,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
           for (var rel in elements) {
             if (rel['type'] == 'relation') {
-              String name = rel['tags']?['name'] ?? rel['tags']?['ref'] ?? 'Hiking Trail $counter';
-                            
+              String name =
+                  rel['tags']?['name'] ??
+                  rel['tags']?['ref'] ??
+                  'Hiking Trail $counter';
+
               List<List<LatLng>> subTrailCoordinates = [];
 
               if (rel['members'] != null) {
@@ -267,7 +285,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                   if (member['type'] == 'way' && member['geometry'] != null) {
                     List<LatLng> currentSubTrailCoordinates = [];
                     for (var geo in member['geometry']) {
-                      currentSubTrailCoordinates.add(LatLng(geo['lat'].toDouble(), geo['lon'].toDouble()));
+                      currentSubTrailCoordinates.add(
+                        LatLng(geo['lat'].toDouble(), geo['lon'].toDouble()),
+                      );
                     }
                     if (currentSubTrailCoordinates.isNotEmpty) {
                       subTrailCoordinates.add(currentSubTrailCoordinates);
@@ -280,7 +300,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 tempTrails.add({
                   'id': rel['id'],
                   'name': name,
-                  'subTrails': subTrailCoordinates
+                  'subTrails': subTrailCoordinates,
                 });
               }
               counter++;
@@ -301,27 +321,39 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               _currentCenter = DefaultMapManagementService().moveCamera(lat, lon, zoom, _mapController);
             }
           }
-          
-          return; 
+
+          return;
         } else {
           if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Impossible to fetch trails. Automatically retrying')),
-          );
-        }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Impossible to fetch trails. Automatically retrying',
+                ),
+              ),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Network error. Check your connection and try again.')),
+            const SnackBar(
+              content: Text(
+                'Network error. Check your connection and try again.',
+              ),
+            ),
           );
         }
-      } 
+      }
     }
 
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server error: Impossible to fetch trails. Try again later')),
+        const SnackBar(
+          content: Text(
+            'Server error: Impossible to fetch trails. Try again later',
+          ),
+        ),
       );
     }
   }
@@ -331,18 +363,23 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     setState(() => _isLoadingTrails = true);
 
     //search for hiking trails, around the search location with a given radius and limit the resulted trails
-    final query = """
+    final query =
+        """
     [out:json][timeout:15];
     relation["route"="hiking"](around:$_searchRadius,$lat,$lon);
     out $_trailLimit geom;
     """;
 
-    try{
+    try {
       await _fetchOverpassResponse(query, lat, lon, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error. Check your connection and try again.')),
+          const SnackBar(
+            content: Text(
+              'Network error. Check your connection and try again.',
+            ),
+          ),
         );
       }
     } finally {
@@ -390,7 +427,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error occurred while fetching location suggestions. Check your connection and try again.')),
+          const SnackBar(
+            content: Text(
+              'Error occurred while fetching location suggestions. Check your connection and try again.',
+            ),
+          ),
         );
       }
     } finally {
@@ -408,11 +449,13 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
     try {
       //test if connection is back
-      await http.get(Uri.parse('https://api.mapbox.com/')).timeout(const Duration(seconds: 3));
-      
+      await http
+          .get(Uri.parse('https://api.mapbox.com/'))
+          .timeout(const Duration(seconds: 3));
+
       PaintingBinding.instance.imageCache.clear();
       PaintingBinding.instance.imageCache.clearLiveImages();
-      
+
       if (mounted) {
         setState(() {
           _isRetryingMapLoad = false;
@@ -426,11 +469,13 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
         setState(() {
           _isRetryingMapLoad = false;
         });
-        
+
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Error loading map tiles. Check your connection and try again.'),
+            content: Text(
+              'Error loading map tiles. Check your connection and try again.',
+            ),
             duration: Duration(seconds: 3),
           ),
         );
@@ -467,23 +512,27 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             children: [
               TileLayer(
                 key: _tileLayerKey,
-                urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
+                urlTemplate:
+                    'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
                 userAgentPackageName: _appName,
                 errorTileCallback: (tile, error, stackTrace) {
                   final now = DateTime.now();
-                  if (_lastTileErrorTime == null || now.difference(_lastTileErrorTime!).inSeconds > 5) {
+                  if (_lastTileErrorTime == null ||
+                      now.difference(_lastTileErrorTime!).inSeconds > 5) {
                     _lastTileErrorTime = now;
-                    
+
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) {
                         setState(() {
                           _hasMapLoadError = true;
                         });
-                        
+
                         ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Error loading map tiles. Check your connection and try again.'),
+                            content: Text(
+                              'Error loading map tiles. Check your connection and try again.',
+                            ),
                             duration: Duration(seconds: 3),
                           ),
                         );
@@ -492,15 +541,15 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                   }
                 },
               ),
-              PolylineLayer(
-                polylines: _buildPolylines(),
-              ),
+              PolylineLayer(polylines: _buildPolylines()),
               CurrentLocationLayer(),
               RichAttributionWidget(
                 attributions: [
                   TextSourceAttribution(
                     'OpenStreetMap contributors',
-                    onTap: () => launchUrl(Uri.parse('https://openstreetmap.org/copyright')),
+                    onTap: () => launchUrl(
+                      Uri.parse('https://openstreetmap.org/copyright'),
+                    ),
                   ),
                 ],
               ),
@@ -510,35 +559,41 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           if (_hasMapLoadError)
             Center(
               child: _isRetryingMapLoad
-                ? Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  ),
-                )
-                : SizedBox(
-                  width: 200,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.errorBackground,
-                      foregroundColor: AppColors.errorText,
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                  ? Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondary,
+                        shape: BoxShape.circle,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    )
+                  : SizedBox(
+                      width: 200,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.errorBackground,
+                          foregroundColor: AppColors.errorText,
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                        icon: const Icon(Icons.refresh, size: 20),
+                        label: const Text(
+                          'Reload map',
+                          style: TextStyle(fontSize: 20),
+                        ),
+                        onPressed: _retryMapLoad,
+                      ),
                     ),
-                    icon: const Icon(Icons.refresh, size: 20),
-                    label: const Text('Reload map', style: TextStyle(fontSize: 20)),
-                    onPressed: _retryMapLoad,
-                  ),
-                ),
             ),
           if (!_hasMapLoadError) ...[
             //button to center the map on the user's current location
@@ -546,6 +601,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               top: 130.0,
               right: 20.0,
               child: FloatingActionButton(
+                heroTag: 'map-location-button',
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 onPressed: () {
                   setState(() {
@@ -559,7 +615,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 mini: true,
                 child: Icon(
                   Icons.my_location,
-                  color: _isLocatingUser ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
+                  color: _isLocatingUser
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.shadow,
                 ),
               ),
             ),
@@ -590,7 +648,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                         if (!_isSearchingLocation) _searchLocation(value);
                       },
                       decoration: InputDecoration(
-                        hintText: _isSearchingLocation ? 'Searching...' : 'Search for a location...',
+                        hintText: _isSearchingLocation
+                            ? 'Searching...'
+                            : 'Search for a location...',
                         hintStyle: Theme.of(context).textTheme.bodyMedium,
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
@@ -604,9 +664,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                               return const Padding(
                                 padding: EdgeInsets.all(12.0),
                                 child: SizedBox(
-                                  width: 20, 
-                                  height: 20, 
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               );
                             }
@@ -644,7 +706,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                             color: Theme.of(context).colorScheme.shadow,
                             blurRadius: 10,
                             offset: const Offset(0, 5),
-                          )
+                          ),
                         ],
                       ),
                       child: ListView.separated(
@@ -652,13 +714,14 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                         shrinkWrap: true,
                         itemCount: _locationSuggestions.length,
                         separatorBuilder: (context, index) => Divider(
-                          height: 1, 
+                          height: 1,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         itemBuilder: (context, index) {
                           final suggestion = _locationSuggestions[index];
-                          final name = suggestion['display_name'] ?? 'Unknown location';
-                          
+                          final name =
+                              suggestion['display_name'] ?? 'Unknown location';
+
                           return ListTile(
                             title: Text(
                               name,
@@ -706,10 +769,16 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                               ? null
                               : _fetchTrails,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.secondary,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.secondary,
                             elevation: 6,
-                            disabledBackgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
-                            disabledForegroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                            disabledBackgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.secondary.withValues(alpha: 0.6),
+                            disabledForegroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.5),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(15),
                             ),
@@ -722,10 +791,14 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                  ),
                                 )
                               : Icon(
-                                  !_isZoomedInEnough ? Icons.zoom_in : Icons.search,
+                                  !_isZoomedInEnough
+                                      ? Icons.zoom_in
+                                      : Icons.search,
                                   size: 24,
                                 ),
                           label: Text(
@@ -765,9 +838,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => TrailDetailsScreen(
-                                      trail: trail,
-                                    ),
+                                    builder: (context) =>
+                                        TrailDetailsScreen(trail: trail),
                                   ),
                                 );
                               }
@@ -788,16 +860,21 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                   padding: const EdgeInsets.all(16.0),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Icon(
                                         Icons.hiking,
-                                        color: Theme.of(context).colorScheme.primary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
                                         trail['name'],
-                                        style: Theme.of(context).textTheme.bodyMedium,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -818,6 +895,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               bottom: 230.0,
               right: 44.0,
               child: FloatingActionButton(
+                heroTag: 'map-clear-trails-button',
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 mini: true,
                 onPressed: () {
@@ -829,7 +907,10 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                     _locationSuggestions.clear();
                   });
                 },
-                child: Icon(Icons.close, color: Theme.of(context).colorScheme.primary),
+                child: Icon(
+                  Icons.close,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
         ],

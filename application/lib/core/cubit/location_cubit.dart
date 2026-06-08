@@ -9,40 +9,39 @@ import 'package:latlong2/latlong.dart';
 
 part '../models/location_state.dart';
 
-class LocationCubit extends Cubit<LocationState>{
+class LocationCubit extends Cubit<LocationState> {
   LocationCubit(
     this._repository, {
     BackgroundTrackingService? backgroundTrackingService,
   }) : _backgroundTrackingService =
-          backgroundTrackingService ?? DefaultBackgroundTrackingService(),
-      super(const LocationState.idle());
-  
+           backgroundTrackingService ?? DefaultBackgroundTrackingService(),
+       super(const LocationState.idle());
+
   final ILocationRepository _repository;
   final BackgroundTrackingService _backgroundTrackingService;
   StreamSubscription<LocationPoint>? _locationSub;
 
   Future<void> startTracking() async {
-    if(state.isTracking) return;
-    
+    if (state.isTracking) return;
+
     //Rehydrate persisted points and recompute metrics so the displayed totals survive an app restart
     final saved = _repository.getAll();
     final (dist, gap, asc, desc) = _computeMetrics(saved);
 
-    emit(LocationState.tracking(
-      points: saved,
-      current: saved.isEmpty ? null : saved.last,
-      distance: dist,
-      elevationGap: gap,
-      totalAscent: asc,
-      totalDescent: desc,
-    ));
-    
-    await _backgroundTrackingService.startTracking();
+    emit(
+      LocationState.tracking(
+        points: saved,
+        current: saved.isEmpty ? null : saved.last,
+        distance: dist,
+        elevationGap: gap,
+        totalAscent: asc,
+        totalDescent: desc,
+      ));
 
     //listen for points coming from the background isolate
     _locationSub = _backgroundTrackingService.watchLocation().listen(
       (point) async {
-        if(isClosed) return;
+        if (isClosed) return;
         final newPoints = [...state.points, point];
 
         //Distance: add the leg from previous fix to the new one
@@ -60,34 +59,34 @@ class LocationCubit extends Cubit<LocationState>{
         final firstAlt = newPoints.first.altitude;
         newGap = point.altitude - firstAlt;
 
-        if(state.points.isNotEmpty) {
+        if (state.points.isNotEmpty) {
           final prev = state.points.last;
           final delta = point.altitude - prev.altitude;
           if (delta > 0) {
             newAscent += delta;
-          }
-          else {
+          } else {
             newDescent += delta.abs();
           }
         }
 
-        emit(LocationState.tracking(
-          points: newPoints,
-          current: point,
-          distance: newDistance,
-          elevationGap: newGap,
-          totalAscent: newAscent,
-          totalDescent: newDescent,
-        ));
+        emit(
+          LocationState.tracking(
+            points: newPoints,
+            current: point,
+            distance: newDistance,
+            elevationGap: newGap,
+            totalAscent: newAscent,
+            totalDescent: newDescent,
+          ));
 
-        unawaited(
-          _repository.save(point),
-        );
+        unawaited(_repository.save(point));
       },
       onError: (e) {
         if (!isClosed) emit(LocationState.error(e.toString()));
       }
     );
+
+    await _backgroundTrackingService.startTracking();
   }
 
   Future<void> stopTracking() async {
@@ -99,7 +98,7 @@ class LocationCubit extends Cubit<LocationState>{
 
   Future<void> clearHistory() async {
     await _repository.clear();
-    if(!isClosed) {
+    if (!isClosed) {
       emit(LocationState.tracking(points: const [], current: state.current));
     }
   }
@@ -111,7 +110,9 @@ class LocationCubit extends Cubit<LocationState>{
   }
 
   //Helpers
-  (double dist, double? gap, double asc, double desc) _computeMetrics(List<LocationPoint> pts) {
+  (double dist, double? gap, double asc, double desc) _computeMetrics(
+    List<LocationPoint> pts,
+  ) {
     if (pts.isEmpty) return (0, null, 0, 0);
 
     double dist = 0;
@@ -141,22 +142,22 @@ class LocationCubit extends Cubit<LocationState>{
   }
 
   double _haversine(LocationPoint a, LocationPoint b) {
-//    const double r = 6371000; // Earth radius in meters
-//    double dLat = _degToRad(position.latitude - lkp.latitude);
-//    double dLng = _degToRad(position.longitude - lkp.longitude);
-//
-//    double a = math.sin(dLat / 2.0) * math.sin(dLat / 2.0) +
-//      math.cos(_degToRad(lkp.latitude)) * math.cos(_degToRad(position.latitude)) *
-//      math.sin(dLng / 2.0) * math.sin(dLng / 2.0);
-//
-//    double c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a));
-//    double distance = r * c;
-//
-//    if(distance < 5.0) {
-//      return 0.0;
-//    } else {
-//      return distance;
-//    }
+    //    const double r = 6371000; // Earth radius in meters
+    //    double dLat = _degToRad(position.latitude - lkp.latitude);
+    //    double dLng = _degToRad(position.longitude - lkp.longitude);
+    //
+    //    double a = math.sin(dLat / 2.0) * math.sin(dLat / 2.0) +
+    //      math.cos(_degToRad(lkp.latitude)) * math.cos(_degToRad(position.latitude)) *
+    //      math.sin(dLng / 2.0) * math.sin(dLng / 2.0);
+    //
+    //    double c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a));
+    //    double distance = r * c;
+    //
+    //    if(distance < 5.0) {
+    //      return 0.0;
+    //    } else {
+    //      return distance;
+    //    }
 
     LatLng first = LatLng(a.lat, a.lng);
     LatLng second = LatLng(b.lat, b.lng);

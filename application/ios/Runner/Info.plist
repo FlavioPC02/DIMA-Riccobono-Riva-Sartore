@@ -86,7 +86,7 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-	  <string>dev.flutter.background_service</string>
+	  <string>com.example.application.background</string>
 	</array>
 </dict>
 </plist>

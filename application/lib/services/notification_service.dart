@@ -3,39 +3,50 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
-  static final AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'gps_tracker_channel', 
+  static const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'gps_tracker_channel',
     'High Importance Notifications',
     importance: Importance.high,
     playSound: true,
   );
 
-  static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   //Flag to track initialization status
   static bool _isInitialized = false;
 
   static Future<void> initializeNotificationService() async {
-    if(_isInitialized) {
+    if (_isInitialized) {
       return;
     }
 
     try {
       await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.createNotificationChannel(channel);
 
-      AndroidInitializationSettings initializationSettingsAndroid = 
-        const AndroidInitializationSettings('@mipmap/ic_launcher');
+      AndroidInitializationSettings initializationSettingsAndroid =
+          const AndroidInitializationSettings('@mipmap/ic_launcher');
 
-      IOSInitializationSettings iosInitializationSettings = IOSInitializationSettings();
+      const IOSInitializationSettings iosInitializationSettings =
+          IOSInitializationSettings(
+            defaultPresentAlert: true,
+            defaultPresentBanner: true,
+            defaultPresentList: true,
+            defaultPresentSound: true,
+          );
 
       InitializationSettings initializationSettings = InitializationSettings(
         android: initializationSettingsAndroid,
         iOS: iosInitializationSettings,
       );
 
-      flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
+      await flutterLocalNotificationsPlugin.initialize(
+        settings: initializationSettings,
+      );
 
       _isInitialized = true;
     } catch (e) {
@@ -57,28 +68,42 @@ class NotificationService {
     String? payload,
     String? soundName,
   }) async {
-    final notificationPermissionsEnabled = await NotificationPermissionHelper.areNotificationEnabled(); 
+    final notificationPermissionsEnabled =
+        await NotificationPermissionHelper.areNotificationEnabled();
 
-    if(!notificationPermissionsEnabled) {
+    if (!notificationPermissionsEnabled) {
+      debugPrint('Notification skipped: notifications are not enabled.');
       return;
     }
-    
+
     try {
       const AndroidNotificationDetails androidNotificationDetails =
-        AndroidNotificationDetails(
-          'high_importance_channel',
-          'High Importance Notifications',
-          channelDescription: 'High Importance Notifications from App',
-          icon: 'ic_bg_service_small',
-          importance: Importance.max,
-          priority: Priority.high,
-          showWhen: true,
-          enableVibration: true,
-          playSound: true,
-        );
+          AndroidNotificationDetails(
+            'gps_tracker_channel',
+            'High Importance Notifications',
+            channelDescription: 'High Importance Notifications from App',
+            icon: 'ic_bg_service_small',
+            importance: Importance.max,
+            priority: Priority.high,
+            showWhen: true,
+            enableVibration: true,
+            playSound: true,
+          );
 
-      const NotificationDetails notificationDetails = NotificationDetails(
+      final DarwinNotificationDetails iosNotificationDetails =
+          DarwinNotificationDetails(
+            presentAlert: !silent,
+            presentBanner: !silent,
+            presentList: true,
+            presentBadge: !silent,
+            presentSound: !silent,
+            interruptionLevel: InterruptionLevel.active,
+            sound: soundName,
+          );
+
+      final NotificationDetails notificationDetails = NotificationDetails(
         android: androidNotificationDetails,
+        iOS: iosNotificationDetails,
       );
 
       await flutterLocalNotificationsPlugin.show(
