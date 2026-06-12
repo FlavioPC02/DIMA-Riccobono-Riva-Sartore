@@ -1,5 +1,6 @@
 import 'package:application/core/theme/app_colors.dart';
 import 'package:application/screens/profile_screen.dart';
+import 'package:application/screens/favorites_page.dart';
 import 'package:application/services/helpers/notification_permission_helper.dart';
 import 'package:flutter/material.dart';
 import 'diary_page.dart';
@@ -90,6 +91,7 @@ class _NavigationState extends State<Navigation> {
         children: const <Widget>[
           MapPage(),
           DiaryPage(),
+          FavoritesPage(),
           SettingsPage(),   
         ],
       ),
@@ -108,6 +110,11 @@ class _NavigationState extends State<Navigation> {
             selectedIcon: Icon(Icons.book),
             icon: Icon(Icons.book_outlined),
             label: 'Diary',
+          ),
+          NavigationDestination(
+            selectedIcon: Icon(Icons.star),
+            icon: Icon(Icons.star_border),
+            label: 'Favorites',
           ),
           NavigationDestination(
             selectedIcon: Icon(Icons.person),
