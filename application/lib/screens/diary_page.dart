@@ -6,79 +6,60 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/theme/app_colors.dart';
 import 'package:intl/intl.dart';
 
-class DiaryPage extends StatefulWidget {
+class DiaryPage extends StatelessWidget {
   const DiaryPage({super.key});
 
   @override
-  State<DiaryPage> createState() => _DiaryPageState();
-}
-
-class _DiaryPageState extends State<DiaryPage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        title: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.book, size: 30),
-            SizedBox(width: 12),
-            Text('Diary'),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'Completed'),
-            Tab(text: 'Planned'),
-          ],
-        ),
-      ),
-      body: BlocBuilder<ActivityCubit, List<Activity>>(
-        builder: (context, activities) {
-          final completed = activities
-              .where((a) => a.status == ActivityStatus.completed)
-              .toList();
-          final planned = activities
-              .where((a) => a.status == ActivityStatus.planned)
-              .toList();
-
-          return TabBarView(
-            controller: _tabController,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+          title: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _ActivityList(
-                activities: completed,
-                emptyIcon: Icons.terrain,
-                emptyMessage: 'No completed hikes yet.\nStart exploring!',
-              ),
-              _ActivityList(
-                activities: planned,
-                emptyIcon: Icons.event_note,
-                emptyMessage:
-                    'No planned hikes yet.\nSchedule your next adventure!',
-              ),
+              Icon(Icons.book, size: 30),
+              SizedBox(width: 12),
+              Text('Diary'),
             ],
-          );
-        },
-      ),
+          ),
+          bottom: const TabBar(
+            indicatorWeight: 3,
+            tabs: [
+              Tab(text: 'Completed'),
+              Tab(text: 'Planned'),
+            ],
+          ),
+        ),
+        body: BlocBuilder<ActivityCubit, List<Activity>>(
+          builder: (context, activities) {
+            final completed = activities
+                .where((a) => a.status == ActivityStatus.completed)
+                .toList();
+            final planned = activities
+                .where((a) => a.status == ActivityStatus.planned)
+                .toList();
+
+            return TabBarView(
+              children: [
+                _ActivityList(
+                  activities: completed,
+                  emptyIcon: Icons.terrain,
+                  emptyMessage: 'No completed hikes yet.\nStart exploring!',
+                ),
+                _ActivityList(
+                  activities: planned,
+                  emptyIcon: Icons.event_note,
+                  emptyMessage:
+                      'No planned hikes yet.\nSchedule your next adventure!',
+                ),
+              ],
+            );
+          },
+        ),
+    ),
     );
   }
 }

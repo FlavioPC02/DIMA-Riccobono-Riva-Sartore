@@ -9,7 +9,8 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:application/screens/trail_details_screen.dart';
+import 'package:application/screens/trail_details_screen.dart'
+    show TrailDetailsScreen;
 import '../core/theme/app_colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
@@ -82,10 +83,13 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.85);
-    DefaultMapManagementService().checkStartingLocation(context, _mapController);
+    DefaultMapManagementService().checkStartingLocation(
+      context,
+      _mapController,
+    );
 
     final profileDifficulty = context.read<SettingsCubit>().state.difficulty;
-    
+
     if (profileDifficulty == 0.0) {
       _filterDifficulty = 'Beginner';
     } else if (profileDifficulty == 1.0) {
@@ -313,8 +317,15 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                     }
                     if (currentSubTrailCoordinates.isNotEmpty) {
                       subTrailCoordinates.add(currentSubTrailCoordinates);
-                      for (int i = 0; i < currentSubTrailCoordinates.length - 1; i++) {
-                        totalMeters += distanceCalc.distance(currentSubTrailCoordinates[i], currentSubTrailCoordinates[i+1]);
+                      for (
+                        int i = 0;
+                        i < currentSubTrailCoordinates.length - 1;
+                        i++
+                      ) {
+                        totalMeters += distanceCalc.distance(
+                          currentSubTrailCoordinates[i],
+                          currentSubTrailCoordinates[i + 1],
+                        );
                       }
                     }
                   }
@@ -322,21 +333,31 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               }
 
               if (subTrailCoordinates.isNotEmpty) {
-                double km = (rel['tags']?['distance'] != null) 
-                    ? double.tryParse(rel['tags']!['distance'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? (totalMeters / 1000)
+                double km = (rel['tags']?['distance'] != null)
+                    ? double.tryParse(
+                            rel['tags']!['distance'].replaceAll(
+                              RegExp(r'[^0-9.]'),
+                              '',
+                            ),
+                          ) ??
+                          (totalMeters / 1000)
                     : (totalMeters / 1000);
-                
+
                 int durationMinutes = ((km / 4.0) * 60).toInt();
-                if (rel['tags']?['duration'] != null || rel['tags']?['time'] != null) {
-                  String timeStr = rel['tags']?['duration'] ?? rel['tags']?['time'] ?? "";
+                if (rel['tags']?['duration'] != null ||
+                    rel['tags']?['time'] != null) {
+                  String timeStr =
+                      rel['tags']?['duration'] ?? rel['tags']?['time'] ?? "";
                   final match = RegExp(r'^(\d+):(\d{2})').firstMatch(timeStr);
                   if (match != null) {
-                    durationMinutes = (int.parse(match.group(1)!) * 60) + int.parse(match.group(2)!);
+                    durationMinutes =
+                        (int.parse(match.group(1)!) * 60) +
+                        int.parse(match.group(2)!);
                   }
                 }
 
                 int trailDifficulty = 0;
-                
+
                 final cai = rel['tags']?['cai_scale']?.toString().toUpperCase();
                 final sac = rel['tags']?['sac_scale']?.toString().toLowerCase();
 
@@ -351,54 +372,84 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 }
 
                 if (trailDifficulty == 0 && sac != null) {
-                  if (sac.contains('alpine') || sac.contains('t4') || sac.contains('t5') || sac.contains('t6')) {
+                  if (sac.contains('alpine') ||
+                      sac.contains('t4') ||
+                      sac.contains('t5') ||
+                      sac.contains('t6')) {
                     trailDifficulty = 3;
-                  } else if (sac.contains('mountain_hiking') || sac.contains('t2') || sac.contains('t3')) { 
+                  } else if (sac.contains('mountain_hiking') ||
+                      sac.contains('t2') ||
+                      sac.contains('t3')) {
                     trailDifficulty = 2;
-                  } else if (sac.contains('hiking') || sac.contains('t1')) { 
+                  } else if (sac.contains('hiking') || sac.contains('t1')) {
                     trailDifficulty = 1;
                   }
                 }
 
                 if (trailDifficulty == 0) {
                   double ascentM = (rel['tags']?['ascent'] != null)
-                      ? double.tryParse(rel['tags']!['ascent'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0
+                      ? double.tryParse(
+                              rel['tags']!['ascent'].replaceAll(
+                                RegExp(r'[^0-9.]'),
+                                '',
+                              ),
+                            ) ??
+                            0.0
                       : 0.0;
-                      
+
                   double effortScore = km + (ascentM / 100);
-                  
+
                   if (effortScore > 0) {
-                    if (effortScore < 7.0) { trailDifficulty = 1; }
-                    else if (effortScore < 14.0) { trailDifficulty = 2; }
-                    else { trailDifficulty = 3; }
+                    if (effortScore < 7.0) {
+                      trailDifficulty = 1;
+                    } else if (effortScore < 14.0) {
+                      trailDifficulty = 2;
+                    } else {
+                      trailDifficulty = 3;
+                    }
                   } else {
                     trailDifficulty = 1;
                   }
                 }
 
                 bool requiresEquipment = false;
-                final caiScale = rel['tags']?['cai_scale']?.toString().toUpperCase() ?? '';
-                final hasViaFerrata = rel['tags']?.containsKey('via_ferrata_scale') ?? false;
+                final caiScale =
+                    rel['tags']?['cai_scale']?.toString().toUpperCase() ?? '';
+                final hasViaFerrata =
+                    rel['tags']?.containsKey('via_ferrata_scale') ?? false;
 
                 if (caiScale.contains('EEA') || hasViaFerrata) {
                   requiresEquipment = true;
                 }
 
                 bool keep = true;
-                
+
                 if (_filterDistance == '<5km' && km >= 5.0) keep = false;
                 if (_filterDistance == '<10km' && km >= 10.0) keep = false;
                 if (_filterDistance == '<20km' && km >= 20.0) keep = false;
                 if (_filterDistance == '>20km' && km < 20.0) keep = false;
 
                 if (_filterTime == '<1h' && durationMinutes >= 60) keep = false;
-                if (_filterTime == '<2h' && durationMinutes >= 120) keep = false;
-                if (_filterTime == '<4h' && durationMinutes >= 240) keep = false;
-                if (_filterTime == '>4h' && durationMinutes < 240) keep = false;
+                if (_filterTime == '<2h' && durationMinutes >= 120) {
+                  keep = false;
+                }
+                if (_filterTime == '<4h' && durationMinutes >= 240) {
+                  keep = false;
+                }
+                if (_filterTime == '>4h' && durationMinutes < 240) {
+                  keep = false;
+                }
 
-                if (_filterDifficulty == 'Beginner' && trailDifficulty != 1) keep = false;
-                if (_filterDifficulty == 'Intermediate' && trailDifficulty != 2) keep = false;
-                if (_filterDifficulty == 'Expert' && trailDifficulty != 3) keep = false;
+                if (_filterDifficulty == 'Beginner' && trailDifficulty != 1) {
+                  keep = false;
+                }
+                if (_filterDifficulty == 'Intermediate' &&
+                    trailDifficulty != 2) {
+                  keep = false;
+                }
+                if (_filterDifficulty == 'Expert' && trailDifficulty != 3) {
+                  keep = false;
+                }
 
                 if (!_filterFerrata && requiresEquipment) keep = false;
 
@@ -406,7 +457,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                   tempTrails.add({
                     'id': rel['id'],
                     'name': name,
-                    'subTrails': subTrailCoordinates
+                    'subTrails': subTrailCoordinates,
                   });
                 }
               }
@@ -425,12 +476,21 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             if (mounted && shouldMoveCamera) {
               //zoom map to show the trails in the given radius
               double zoom = 14.5 - (log(_searchRadius / 1000) / log(2));
-              _currentCenter = DefaultMapManagementService().moveCamera(lat, lon, zoom, _mapController);
+              _currentCenter = DefaultMapManagementService().moveCamera(
+                lat,
+                lon,
+                zoom,
+                _mapController,
+              );
             }
           } else {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No hiking trails found. Try refining your filters.')),
+                const SnackBar(
+                  content: Text(
+                    'No hiking trails found. Try refining your filters.',
+                  ),
+                ),
               );
             }
           }
@@ -596,7 +656,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  Widget _buildFilterMenu(String title, List<String> options, String? currentValue, Function(String?) onSelected) {
+  Widget _buildFilterMenu(
+    String title,
+    List<String> options,
+    String? currentValue,
+    Function(String?) onSelected,
+  ) {
     return PopupMenuButton<String>(
       initialValue: currentValue,
       position: PopupMenuPosition.under,
@@ -629,8 +694,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: currentValue != null ? Theme.of(context).colorScheme.primary : null,
-                  fontWeight: currentValue != null ? FontWeight.bold : FontWeight.normal,
+                  color: currentValue != null
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                  fontWeight: currentValue != null
+                      ? FontWeight.bold
+                      : FontWeight.normal,
                 ),
               ),
             ),
@@ -638,7 +707,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             Icon(
               Icons.arrow_drop_down,
               size: 30,
-              color: currentValue != null ? Theme.of(context).colorScheme.primary : null,
+              color: currentValue != null
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
             ),
           ],
         ),
@@ -672,7 +743,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded( 
+              const Expanded(
                 child: Text('Ferrata', overflow: TextOverflow.ellipsis),
               ),
               Container(
@@ -710,8 +781,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: _filterDifficulty != null ? Theme.of(context).colorScheme.primary : null,
-                  fontWeight: _filterDifficulty != null ? FontWeight.bold : FontWeight.normal,
+                  color: _filterDifficulty != null
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                  fontWeight: _filterDifficulty != null
+                      ? FontWeight.bold
+                      : FontWeight.normal,
                 ),
               ),
             ),
@@ -719,7 +794,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             Icon(
               Icons.arrow_drop_down,
               size: 30,
-              color: _filterDifficulty != null ? Theme.of(context).colorScheme.primary : null,
+              color: _filterDifficulty != null
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
             ),
           ],
         ),
@@ -733,9 +810,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     super.build(context);
 
     return BlocListener<SettingsCubit, dynamic>(
-      listenWhen: (previous, current) => 
-        previous.difficulty != current.difficulty ||
-        previous.ferrata != current.ferrata,
+      listenWhen: (previous, current) =>
+          previous.difficulty != current.difficulty ||
+          previous.ferrata != current.ferrata,
       listener: (context, state) {
         setState(() {
           if (state.difficulty == 0.0) {
@@ -773,23 +850,27 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               children: [
                 TileLayer(
                   key: _tileLayerKey,
-                  urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
+                  urlTemplate:
+                      'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
                   userAgentPackageName: _appName,
                   errorTileCallback: (tile, error, stackTrace) {
                     final now = DateTime.now();
-                    if (_lastTileErrorTime == null || now.difference(_lastTileErrorTime!).inSeconds > 5) {
+                    if (_lastTileErrorTime == null ||
+                        now.difference(_lastTileErrorTime!).inSeconds > 5) {
                       _lastTileErrorTime = now;
-                      
+
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (mounted) {
                           setState(() {
                             _hasMapLoadError = true;
                           });
-                          
+
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Error loading map tiles. Check your connection and try again.'),
+                              content: Text(
+                                'Error loading map tiles. Check your connection and try again.',
+                              ),
                               duration: Duration(seconds: 3),
                             ),
                           );
@@ -798,15 +879,15 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                     }
                   },
                 ),
-                PolylineLayer(
-                  polylines: _buildPolylines(),
-                ),
+                PolylineLayer(polylines: _buildPolylines()),
                 CurrentLocationLayer(),
                 RichAttributionWidget(
                   attributions: [
                     TextSourceAttribution(
                       'OpenStreetMap contributors',
-                      onTap: () => launchUrl(Uri.parse('https://openstreetmap.org/copyright')),
+                      onTap: () => launchUrl(
+                        Uri.parse('https://openstreetmap.org/copyright'),
+                      ),
                     ),
                   ],
                 ),
@@ -816,35 +897,41 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
             if (_hasMapLoadError)
               Center(
                 child: _isRetryingMapLoad
-                  ? Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                  )
-                  : SizedBox(
-                    width: 200,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.errorBackground,
-                        foregroundColor: AppColors.errorText,
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                    ? Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.secondary,
+                          shape: BoxShape.circle,
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        child: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        ),
+                      )
+                    : SizedBox(
+                        width: 200,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.errorBackground,
+                            foregroundColor: AppColors.errorText,
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          icon: const Icon(Icons.refresh, size: 20),
+                          label: const Text(
+                            'Reload map',
+                            style: TextStyle(fontSize: 20),
+                          ),
+                          onPressed: _retryMapLoad,
+                        ),
                       ),
-                      icon: const Icon(Icons.refresh, size: 20),
-                      label: const Text('Reload map', style: TextStyle(fontSize: 20)),
-                      onPressed: _retryMapLoad,
-                    ),
-                  ),
               ),
             if (!_hasMapLoadError) ...[
               //search bar and location suggestions
@@ -854,7 +941,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 right: 22.0,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children : [
+                  children: [
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.secondary,
@@ -875,7 +962,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                           if (!_isSearchingLocation) _searchLocation(value);
                         },
                         decoration: InputDecoration(
-                          hintText: _isSearchingLocation ? 'Searching...' : 'Search for a location...',
+                          hintText: _isSearchingLocation
+                              ? 'Searching...'
+                              : 'Search for a location...',
                           hintStyle: Theme.of(context).textTheme.bodyMedium,
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
@@ -889,9 +978,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 return const Padding(
                                   padding: EdgeInsets.all(12.0),
                                   child: SizedBox(
-                                    width: 20, 
-                                    height: 20, 
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                 );
                               }
@@ -917,7 +1008,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                         ),
                       ),
                     ),
-                    if(_locationSuggestions.isNotEmpty)
+                    if (_locationSuggestions.isNotEmpty)
                       Container(
                         margin: const EdgeInsets.only(top: 8.0),
                         constraints: const BoxConstraints(maxHeight: 250),
@@ -929,7 +1020,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                               color: Theme.of(context).colorScheme.shadow,
                               blurRadius: 10,
                               offset: const Offset(0, 5),
-                            )
+                            ),
                           ],
                         ),
                         child: ListView.separated(
@@ -937,12 +1028,14 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                           shrinkWrap: true,
                           itemCount: _locationSuggestions.length,
                           separatorBuilder: (context, index) => Divider(
-                            height: 1, 
+                            height: 1,
                             color: Theme.of(context).colorScheme.primary,
                           ),
                           itemBuilder: (context, index) {
                             final suggestion = _locationSuggestions[index];
-                            final name = suggestion['display_name'] ?? 'Unknown location';
+                            final name =
+                                suggestion['display_name'] ??
+                                'Unknown location';
                             return ListTile(
                               title: Text(
                                 name,
@@ -959,21 +1052,29 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 });
 
                                 final lat = double.parse(suggestion['lat']);
-                                final lon = double.parse(suggestion['lon']);                            
+                                final lon = double.parse(suggestion['lon']);
                                 setState(() {
-                                  _currentCenter = DefaultMapManagementService().moveCamera(lat, lon, 13.0, _mapController);
+                                  _currentCenter = DefaultMapManagementService()
+                                      .moveCamera(
+                                        lat,
+                                        lon,
+                                        13.0,
+                                        _mapController,
+                                      );
                                 });
                                 _fetchTrailsByLocation(lat, lon).then((_) {
                                   if (mounted) {
-                                    setState(() => _isSearchingLocation = false);
+                                    setState(
+                                      () => _isSearchingLocation = false,
+                                    );
                                   }
                                 });
                               },
                             );
                           },
                         ),
-                      ) 
-                    else 
+                      )
+                    else
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -982,16 +1083,25 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                             child: Row(
                               children: [
                                 Expanded(
-                                  child: _buildFilterMenu('Distance', ['<5km', '<10km', '<20km', '>20km'], _filterDistance, (val) => setState(() => _filterDistance = val))
+                                  child: _buildFilterMenu(
+                                    'Distance',
+                                    ['<5km', '<10km', '<20km', '>20km'],
+                                    _filterDistance,
+                                    (val) =>
+                                        setState(() => _filterDistance = val),
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: _buildFilterMenu('Duration', ['<1h', '<2h', '<4h', '>4h'], _filterTime, (val) => setState(() => _filterTime = val))
+                                  child: _buildFilterMenu(
+                                    'Duration',
+                                    ['<1h', '<2h', '<4h', '>4h'],
+                                    _filterTime,
+                                    (val) => setState(() => _filterTime = val),
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildDifficultyFilterMenu(),
-                                ),
+                                Expanded(child: _buildDifficultyFilterMenu()),
                               ],
                             ),
                           ),
@@ -1000,12 +1110,19 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                             //button to center the map on the user's current location
                             child: FloatingActionButton(
                               heroTag: null,
-                              backgroundColor: Theme.of(context).colorScheme.secondary,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondary,
                               onPressed: () {
                                 setState(() {
                                   _isLocatingUser = true;
                                 });
-                                DefaultMapManagementService().centerMap(context, _currentCenter, _mapController, zoom: mapZoom);
+                                DefaultMapManagementService().centerMap(
+                                  context,
+                                  _currentCenter,
+                                  _mapController,
+                                  zoom: mapZoom,
+                                );
                                 setState(() {
                                   _isLocatingUser = false;
                                 });
@@ -1013,14 +1130,16 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                               mini: true,
                               child: Icon(
                                 Icons.my_location,
-                                color: _isLocatingUser ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.shadow,
+                                color: _isLocatingUser
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.shadow,
                               ),
                             ),
-                          )
-                        ]
+                          ),
+                        ],
                       ),
-                  ]
-                ) 
+                  ],
+                ),
               ),
               //button to search for hiking trails in the current map view
               Positioned(
@@ -1036,10 +1155,16 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 ? null
                                 : _fetchTrails,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.secondary,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondary,
                               elevation: 6,
-                              disabledBackgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
-                              disabledForegroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                              disabledBackgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondary.withValues(alpha: 0.6),
+                              disabledForegroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.5),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15),
                               ),
@@ -1052,133 +1177,155 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                    ),
                                   )
                                 : Icon(
-                                    !_isZoomedInEnough ? Icons.zoom_in : Icons.search,
+                                    !_isZoomedInEnough
+                                        ? Icons.zoom_in
+                                        : Icons.search,
                                     size: 24,
                                   ),
                             label: Padding(
-                              padding: EdgeInsets.only(left: MediaQuery.textScalerOf(context).scale(3.0)),
+                              padding: EdgeInsets.only(
+                                left: MediaQuery.textScalerOf(
+                                  context,
+                                ).scale(3.0),
+                              ),
                               child: Text(
-                              _isLoadingTrails
-                                  ? 'Searching...'
-                                  : (!_isZoomedInEnough
-                                        ? 'Zoom in to search for trails'
-                                        : 'Search for hiking trails in this area'),
-                              style: Theme.of(context).textTheme.bodyMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                                _isLoadingTrails
+                                    ? 'Searching...'
+                                    : (!_isZoomedInEnough
+                                          ? 'Zoom in to search for trails'
+                                          : 'Search for hiking trails in this area'),
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            ), 
-                            
                           ),
                         ),
                       )
                     : Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 44.0, bottom: 10.0),
-                          //close button to clear the drawn trail and reset the search results
-                          child: FloatingActionButton(
-                            heroTag: null,
-                            backgroundColor: Theme.of(context).colorScheme.secondary,
-                            mini: true,
-                            onPressed: () {
-                              _searchController.clear();
-                              FocusScope.of(context).unfocus();
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              right: 44.0,
+                              bottom: 10.0,
+                            ),
+                            //close button to clear the drawn trail and reset the search results
+                            child: FloatingActionButton(
+                              heroTag: null,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondary,
+                              mini: true,
+                              onPressed: () {
+                                _searchController.clear();
+                                FocusScope.of(context).unfocus();
 
-                              setState(() {
-                                _foundTrails.clear();
-                                _locationSuggestions.clear();
-                              });
-                            },
-                            child: Icon(Icons.close, color: Theme.of(context).colorScheme.primary),
+                                setState(() {
+                                  _foundTrails.clear();
+                                  _locationSuggestions.clear();
+                                });
+                              },
+                              child: Icon(
+                                Icons.close,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
                           ),
-                        ),
-                        //cards showing fetched trails
-                        SizedBox(
-                          height: MediaQuery.textScalerOf(context).scale(135),
-                          child: PageView.builder(
-                            controller: _pageController,
-                            itemCount: _foundTrails.length,
-                            onPageChanged: (int index) {
-                              setState(() {
-                                _selectedTrailIndex = index;
-                              });
-                            },
-                            itemBuilder: (context, index) {
-                              final trail = _foundTrails[index];
-                              final isSelected = index == _selectedTrailIndex;
+                          //cards showing fetched trails
+                          SizedBox(
+                            height: MediaQuery.textScalerOf(context).scale(135),
+                            child: PageView.builder(
+                              controller: _pageController,
+                              itemCount: _foundTrails.length,
+                              onPageChanged: (int index) {
+                                setState(() {
+                                  _selectedTrailIndex = index;
+                                });
+                              },
+                              itemBuilder: (context, index) {
+                                final trail = _foundTrails[index];
+                                final isSelected = index == _selectedTrailIndex;
 
-                              return GestureDetector(
-                                onTap: () {
-                                  if (!isSelected) {
-                                    _pageController.animateToPage(
-                                      index,
-                                      duration: const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                    );
-                                  } else {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => TrailDetailsScreen(
-                                          trail: trail,
+                                return GestureDetector(
+                                  onTap: () {
+                                    if (!isSelected) {
+                                      _pageController.animateToPage(
+                                        index,
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        curve: Curves.easeInOut,
+                                      );
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              TrailDetailsScreen(trail: trail),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    margin: EdgeInsets.only(
+                                      right: 8.0,
+                                      left: 8.0,
+                                      top: isSelected ? 4.0 : 16.0,
+                                      bottom: isSelected ? 4.0 : 16.0,
+                                    ),
+                                    child: Card(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(15),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(
+                                              Icons.hiking,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Expanded(
+                                              child: Text(
+                                                trail['name'],
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodyMedium,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    );
-                                  }
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  margin: EdgeInsets.only(
-                                    right: 8.0,
-                                    left: 8.0,
-                                    top: isSelected ? 4.0 : 16.0,
-                                    bottom: isSelected ? 4.0 : 16.0,
-                                  ),
-                                  child: Card(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Icon(
-                                            Icons.hiking,
-                                            color: Theme.of(context).colorScheme.primary,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Expanded(
-                                            child: Text(
-                                              trail['name'],
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                      ],
-                    ), 
+                        ],
+                      ),
               ),
             ],
           ],
         ),
       ),
-    ); 
+    );
   }
 }

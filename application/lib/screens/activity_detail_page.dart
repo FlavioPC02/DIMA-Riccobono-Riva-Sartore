@@ -1,6 +1,7 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/extensions/duration_formatting.dart';
 import 'package:application/core/models/weather_data.dart';
+import 'package:application/screens/navigator.dart';
 import 'package:application/services/weather_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,6 +19,25 @@ class ActivityDetailPage extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        floatingActionButton: activity.status == ActivityStatus.planned
+            ? FloatingActionButton.extended(
+                onPressed: activity.hasTrailPath
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NavigatorScreen(
+                              trail: activity.navigatorTrail,
+                              activity: activity,
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Start'),
+              )
+            : null,
         body: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             SliverAppBar(
@@ -520,11 +540,23 @@ class _StatsTab extends StatelessWidget {
       children: [
         _DifficultyRow(difficulty: activity.difficulty),
         _StatRow(label: 'Distance', value: '${activity.distanceKm} km'),
-        _StatRow(label: 'Duration', value: activity.durationMinutes.toMinuteDurationLabel()),
+        _StatRow(
+          label: 'Duration',
+          value: activity.durationMinutes.toMinuteDurationLabel(),
+        ),
         _StatRow(label: 'XP Earned', value: '${activity.xpEarned}'),
-        _StatRow(label: 'Elevation Gain', value: '${activity.trackedElevationGap} m'),
-        _StatRow(label: 'Tracked Distance', value: '${activity.trackedDistance} km'),
-        _StatRow(label: 'Tracked Time', value: activity.trackedTime.toCompactLabel()),
+        _StatRow(
+          label: 'Elevation Gain',
+          value: '${activity.trackedElevationGap} m',
+        ),
+        _StatRow(
+          label: 'Tracked Distance',
+          value: '${activity.trackedDistance} km',
+        ),
+        _StatRow(
+          label: 'Tracked Time',
+          value: activity.trackedTime.toCompactLabel(),
+        ),
       ],
     );
   }

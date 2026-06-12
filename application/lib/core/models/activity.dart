@@ -1,4 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:latlong2/latlong.dart';
+
+import 'trail_point.dart';
 
 enum ActivityStatus { completed, planned }
 
@@ -15,6 +18,8 @@ class Activity {
   final double xpEarned;
   final String notes;
   final ActivityDifficulty difficulty;
+  final String trailId;
+  final List<List<TrailPoint>> trailPath;
   double trackedDistance;
   double trackedElevationGap;
   Duration trackedTime;
@@ -30,6 +35,8 @@ class Activity {
     this.xpEarned = 0,
     this.notes = '',
     this.difficulty = ActivityDifficulty.easy,
+    this.trailId = '',
+    this.trailPath = const [],
     this.trackedDistance = 0,
     this.trackedElevationGap = 0,
     this.trackedTime = Duration.zero,
@@ -46,6 +53,8 @@ class Activity {
     double? xpEarned,
     String? notes,
     ActivityDifficulty? difficulty,
+    String? trailId,
+    List<List<TrailPoint>>? trailPath,
     double? trackedDistance,
     double? trackedElevationGap,
     Duration? trackedTime,
@@ -61,11 +70,32 @@ class Activity {
       xpEarned: xpEarned ?? this.xpEarned,
       notes: notes ?? this.notes,
       difficulty: difficulty ?? this.difficulty,
+      trailId: trailId ?? this.trailId,
+      trailPath: trailPath ?? this.trailPath,
       trackedDistance: trackedDistance ?? this.trackedDistance,
       trackedElevationGap: trackedElevationGap ?? this.trackedElevationGap,
       trackedTime: trackedTime ?? this.trackedTime,
     );
   }
+
+  bool get hasTrailPath => trailPath.any((segment) => segment.isNotEmpty);
+
+  List<List<LatLng>> get trailSubTrails {
+    return trailPath
+        .map(
+          (segment) => segment
+              .map((point) => LatLng(point.lat, point.lng))
+              .toList(growable: false),
+        )
+        .where((segment) => segment.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic> get navigatorTrail => {
+    'id': trailId,
+    'name': trailName.isNotEmpty ? trailName : name,
+    'subTrails': trailSubTrails,
+  };
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -77,6 +107,7 @@ class Activity {
     'xpEarned': xpEarned,
     'notes': notes,
     'difficulty': difficulty.name,
+    'trailId': trailId,
     'trackedDistance': trackedDistance,
     'trackedElevationGap': trackedElevationGap,
     'trackedTime': trackedTime.inSeconds,
@@ -96,6 +127,7 @@ class Activity {
       difficulty: ActivityDifficulty.values.byName(
         json['difficulty'] ?? 'easy',
       ),
+      trailId: json['trailId']?.toString() ?? '',
       trackedDistance: json['trackedDistance'] ?? 0,
       trackedElevationGap: json['trackedElevationGap'] ?? 0,
       trackedTime: Duration(seconds: json['trackedTime'] ?? 0),
