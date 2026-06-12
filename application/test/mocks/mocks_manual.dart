@@ -58,3 +58,9 @@ void registerAllFallbacks() {
 	registerFallbackValue(FakeHttpClientRequest());
 	registerFallbackValue(FakeUri());
 }
+
+// Helper to mock NotificationPermissionHelper static methods
+// This returns false to trigger the notification permission dialog in tests
+Future<bool> mockNotificationPermissionHelperReturnsFalse() async {
+	return false;
+}

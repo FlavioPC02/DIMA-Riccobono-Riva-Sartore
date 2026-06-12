@@ -4,20 +4,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/settings.dart';
 import 'package:application/core/models/profile.dart';
-import '../utils/pump_app.dart';
-
+import 'package:application/services/helpers/notification_permission_helper.dart';
 import 'package:application/screens/homepage.dart';
 import 'package:application/screens/profile_screen.dart';
 import 'package:application/screens/map_page.dart';
-import '../mocks/mocks_manual.dart'; 
-
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
+import '../utils/pump_app.dart';
+import '../mocks/mocks_manual.dart';
 import '../utils/map_test_helper.dart';
+
+class MockFlutterLocalNotificationsPlugin extends Mock implements FlutterLocalNotificationsPlugin {}
+class MockAndroidFlutterLocalNotificationsPlugin extends Mock implements AndroidFlutterLocalNotificationsPlugin {}
 
 void main() {
   late MockSettingsCubit mockSettingsCubit;
   late MockProfileCubit mockProfileCubit;
+  late MockActivityCubit mockActivityCubit;
+  
+  late MockFlutterLocalNotificationsPlugin mockNotificationPlugin;
+  late MockAndroidFlutterLocalNotificationsPlugin mockAndroidNotificationPlugin;
+
+  void mockNotificationPermission(bool granted) {
+    when(() => mockNotificationPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>())
+        .thenReturn(mockAndroidNotificationPlugin);
+    
+    when(() => mockAndroidNotificationPlugin.requestNotificationsPermission())
+        .thenAnswer((_) async => granted);
+        
+    when(() => mockAndroidNotificationPlugin.areNotificationsEnabled())
+        .thenAnswer((_) async => granted);
+  }
 
   setUpAll(() async {
     const envString = '''MAPBOX_ACCESS_TOKEN=test_token_123''';
@@ -28,8 +47,15 @@ void main() {
   setUp(() {
     GeolocatorPlatform.instance = MockGeolocatorPlatform();
 
+    mockNotificationPlugin = MockFlutterLocalNotificationsPlugin();
+    mockAndroidNotificationPlugin = MockAndroidFlutterLocalNotificationsPlugin();
+    NotificationPermissionHelper.plugin = mockNotificationPlugin;
+    NotificationPermissionHelper.mockIsAndroid = true; 
+    NotificationPermissionHelper.mockIsIOS = false;
+
     mockSettingsCubit = MockSettingsCubit();
     mockProfileCubit = MockProfileCubit();
+    mockActivityCubit = MockActivityCubit();
 
     when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
     when(() => mockSettingsCubit.state).thenReturn(
@@ -49,6 +75,16 @@ void main() {
         level: 1,
       ),
     );
+
+    when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+    when(() => mockActivityCubit.state).thenReturn(const <Activity>[]);
+
+    mockNotificationPermission(true);
+  });
+
+  tearDown(() {
+    NotificationPermissionHelper.mockIsAndroid = null;
+    NotificationPermissionHelper.mockIsIOS = null;
   });
 
   group('Navigation Widget Tests', () {
@@ -59,6 +95,7 @@ void main() {
           child: const Navigation(),
           settingsCubit: mockSettingsCubit,
           profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
         ),
       );
       await tester.pump(const Duration(seconds: 1));
@@ -78,14 +115,16 @@ void main() {
           child: const Navigation(),
           settingsCubit: mockSettingsCubit,
           profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
         ),
       );
       await tester.pump(const Duration(seconds: 1));
 
       await tester.tap(find.text('Diary'));
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
 
-      expect(find.text('diary'), findsWidgets); 
+      expect(find.byType(DiaryPage), findsOneWidget);
+      expect(find.text('Diary'), findsWidgets); 
       
       await tearDownMap(tester);
     });
@@ -96,6 +135,7 @@ void main() {
           child: const Navigation(),
           settingsCubit: mockSettingsCubit,
           profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
         ),
       );
       await tester.pump(const Duration(seconds: 1));
@@ -116,10 +156,12 @@ void main() {
           child: const DiaryPage(),
           settingsCubit: mockSettingsCubit,
           profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
         ),
       );
       
-      expect(find.text('diary'), findsOneWidget);
+      expect(find.text('Diary'), findsOneWidget);
+      expect(find.textContaining('No completed hikes yet'), findsOneWidget);
     });
 
     testWidgets('SettingsPage renders ProfilePage', (WidgetTester tester) async {
@@ -128,10 +170,79 @@ void main() {
           child: const SettingsPage(),
           settingsCubit: mockSettingsCubit,
           profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
         ),
       );
       
       expect(find.byType(ProfilePage), findsOneWidget);
+    });
+  });
+
+  group('Notification Permission Dialog Tests', () {
+    testWidgets('Notification permission dialog is shown when permission is denied', (WidgetTester tester) async {
+      mockNotificationPermission(false);
+      
+      await tester.pumpWidget(
+        pumpApp(
+          child: const Navigation(),
+          settingsCubit: mockSettingsCubit,
+          profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
+        ),
+      );
+      
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notification permission required'), findsOneWidget);
+      expect(find.textContaining('Without enabling the permission'), findsOneWidget);
+      
+      await tearDownMap(tester);
+    });
+
+    testWidgets('Dialog "Enable notification permission" button is functional', (WidgetTester tester) async {
+      mockNotificationPermission(false);
+      
+      await tester.pumpWidget(
+        pumpApp(
+          child: const Navigation(),
+          settingsCubit: mockSettingsCubit,
+          profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
+        ),
+      );
+      
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enable notification permission'), findsOneWidget);
+      await tester.tap(find.text('Enable notification permission'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notification permission required'), findsNothing);
+      
+      await tearDownMap(tester);
+    });
+
+    testWidgets('Dialog "Ignore" button closes the dialog', (WidgetTester tester) async {
+      mockNotificationPermission(false);
+      
+      await tester.pumpWidget(
+        pumpApp(
+          child: const Navigation(),
+          settingsCubit: mockSettingsCubit,
+          profileCubit: mockProfileCubit,
+          activityCubit: mockActivityCubit,
+        ),
+      );
+      
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ignore'), findsOneWidget);
+      await tester.tap(find.text('Ignore'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notification permission required'), findsNothing);
+      
+      await tearDownMap(tester);
     });
   });
 }

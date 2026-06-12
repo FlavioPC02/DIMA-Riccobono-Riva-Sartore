@@ -1,14 +1,30 @@
 import 'dart:io';
+import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/screens/add_activity_page.dart';
+import 'package:application/screens/navigator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:application/screens/trail_details_screen.dart';
 import '../utils/trails_details_screen_test_helper.dart';
+import 'package:get_it/get_it.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockLocationCubit extends Mock implements LocationCubit {}
 
 void main() {
-  final trailMap = {'id': 12345, 'name': 'Sentiero Test'};
+  final trailMap = {'id': 12345, 'name': 'Sentiero Test', 'subTrails': []};
+
+  final getIt = GetIt.instance;
 
   setUpAll(() {
+    const envString = '''MAPBOX_ACCESS_TOKEN=test_token_123''';
+    dotenv.loadFromString(envString: envString);
+    
     HttpOverrides.global = FakeHttpOverrides();
+    if (!getIt.isRegistered<LocationCubit>()) {
+      getIt.registerSingleton<LocationCubit>(MockLocationCubit());
+    }
   });
 
   setUp(() {
@@ -16,10 +32,21 @@ void main() {
     FakeHttpOverrides.emptyOverpassRelation = false;
     FakeHttpOverrides.emptyWeatherForecast = false;
     FakeHttpOverrides.emptyElevationData = false;
+    FakeHttpOverrides.customTags = null;
+    FakeHttpOverrides.customWeatherCodes = null;
+
+    final mockLocationCubit = getIt<LocationCubit>();
+
+    when(() => mockLocationCubit.startTracking()).thenAnswer((_) async {});
+    when(() => mockLocationCubit.stopTracking()).thenAnswer((_) async {});
+    when(() => mockLocationCubit.close()).thenAnswer((_) async {});
+    when(() => mockLocationCubit.stream).thenAnswer((_) => const Stream.empty());
+    when(() => mockLocationCubit.state).thenReturn(LocationState.idle());
   });
 
-  tearDownAll(() {
+  tearDownAll(() async {
     HttpOverrides.global = null;
+    await getIt.reset();
   });
 
   group('TrailDetailsScreen Widget Tests', () {
@@ -118,13 +145,63 @@ void main() {
 
       expect(find.text('Elevation profile not available.'), findsOneWidget);
     });
+
+    testWidgets('Tap on "Plan" navigates to AddActivityPage', (WidgetTester tester) async {
+      await tester.pumpWidget(MaterialApp(home: TrailDetailsScreen(trail: trailMap)));
+      
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      final planButton = find.widgetWithText(ElevatedButton, 'Plan');
+      await tester.ensureVisible(planButton);
+      await tester.tap(planButton);
+      
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1)); 
+
+      expect(find.byType(AddActivityPage), findsOneWidget);
+    });
+
+    testWidgets('Tap on "Start" navigates to NavigatorScreen', (WidgetTester tester) async {
+      await tester.pumpWidget(MaterialApp(home: TrailDetailsScreen(trail: trailMap)));
+      
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      final planButton = find.widgetWithText(ElevatedButton, 'Start');
+      await tester.ensureVisible(planButton);
+      await tester.tap(planButton);
+      
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1)); 
+
+      expect(find.byType(NavigatorScreen), findsOneWidget);
+    });
+
+    testWidgets('Tap on a web link shows error SnackBar if launch fails', (WidgetTester tester) async {
+      await tester.pumpWidget(MaterialApp(home: TrailDetailsScreen(trail: trailMap)));
+      
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      final linkFinder = find.textContaining('http'); 
+      
+      if (linkFinder.evaluate().isNotEmpty) {
+        await tester.ensureVisible(linkFinder.first);
+        await tester.tap(linkFinder.first);
+        
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Could not open the link.'), findsOneWidget);
+      }
+    });
   });
 }
 
 extension WidgetTesterExtension on WidgetTester {
   Future<void> pumpUntilVisible(Finder finder, {Duration timeout = const Duration(seconds: 5)}) async {
     final endTime = DateTime.now().add(timeout);
-    while (any(finder) == false) {
+    while (this.any(finder) == false) {
       if (DateTime.now().isAfter(endTime)) throw Exception('Timed out waiting for $finder');
       await pump(const Duration(milliseconds: 100));
     }

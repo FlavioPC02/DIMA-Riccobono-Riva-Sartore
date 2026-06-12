@@ -1,4 +1,5 @@
 import 'package:application/core/theme/app_colors.dart';
+import 'package:application/services/helpers/trail_details_screen_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
@@ -30,8 +31,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   Map<String, dynamic>? _relationTags;
   Set<String> _surfaces = {};
   String? _maxIncline;
-  String? _estimatedDistance;
-  String? _estimatedDuration;
   String? _estimatedAscent;
   ActivityDifficulty difficulty = ActivityDifficulty.easy;
   
@@ -41,24 +40,14 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   List<double>? _distances;
   bool _isLoadingElevations = true;
 
+  double _calculatedMeters = 0.0;
   double _distanceKm = 0.0;
   int _durationMinutes = 0;
   int _difficulty = 0;
 
   List<Map<String, dynamic>>? _weatherForecast;
   bool _isLoadingWeather = true;
-    String _lottieAsset(int code) {
-    if (code == 800) return 'assets/lottie/clear.json';
-    if (code == 801) return 'assets/lottie/few_clouds.json';
-    if (code >= 802) return 'assets/lottie/cloudy.json';
-    if (code >= 700) return 'assets/lottie/fog.json';
-    if (code >= 600) return 'assets/lottie/snow.json';
-    if (code >= 500) return 'assets/lottie/rain.json';
-    if (code >= 300) return 'assets/lottie/drizzle.json';
-    return 'assets/lottie/thunderstorm.json';
-  }
 
-  // TODO: define final app name
   final String _appName = 'FlutterHikingApp/1.0';
 
   @override
@@ -147,69 +136,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           }
         }
 
-        List<LatLng> allPoints = [];
-        if (segments.isNotEmpty) {
-          allPoints = List.from(segments.first);
-          segments.removeAt(0);
+        List<LatLng> allPoints = TrailDetailsScreenHelper.stitchSegments(segments);
 
-          while (segments.isNotEmpty) {
-            double minDistance = double.infinity;
-            int bestIndex = -1;
-            int attachMode = -1;
-
-            LatLng currentEnd = allPoints.last;
-            LatLng currentStart = allPoints.first;
-
-            for (int i = 0; i < segments.length; i++) {
-              var seg = segments[i];
-
-              double dEndFirst = distanceCalc.as(LengthUnit.Meter, currentEnd, seg.first);
-              if (dEndFirst < minDistance) { minDistance = dEndFirst; bestIndex = i; attachMode = 0; }
-
-              double dEndLast = distanceCalc.as(LengthUnit.Meter, currentEnd, seg.last);
-              if (dEndLast < minDistance) { minDistance = dEndLast; bestIndex = i; attachMode = 1; }
-
-              double dStartLast = distanceCalc.as(LengthUnit.Meter, currentStart, seg.last);
-              if (dStartLast < minDistance) { minDistance = dStartLast; bestIndex = i; attachMode = 2; }
-
-              double dStartFirst = distanceCalc.as(LengthUnit.Meter, currentStart, seg.first);
-              if (dStartFirst < minDistance) { minDistance = dStartFirst; bestIndex = i; attachMode = 3; }
-            }
-
-            if (minDistance > 1000) {
-              break;
-            }
-
-            var bestSeg = segments[bestIndex];
-            if (attachMode == 0) {
-              allPoints.addAll(bestSeg.skip(1));
-            } else if (attachMode == 1) {
-              allPoints.addAll(bestSeg.reversed.skip(1));
-            } else if (attachMode == 2) {
-              allPoints.insertAll(0, bestSeg.sublist(0, bestSeg.length - 1));
-            } else if (attachMode == 3) {
-              allPoints.insertAll(0, bestSeg.reversed.skip(1));
-            }
-            
-            segments.removeAt(bestIndex);
-          }
-        }
-
-        if (meters > 0) {
-          if (relTags?['distance'] == null) {
-            _distanceKm = (meters / 1000); 
-            _estimatedDistance = "${_distanceKm.toStringAsFixed(1)} km";
-          }
-
-          if (relTags?['duration'] == null && relTags?['time'] == null) {
-            double km = (relTags?['distance'] != null) 
-                ? double.tryParse(relTags!['distance'].replaceAll(RegExp(r'[^0-9.]'), '')) ?? (meters / 1000)
-                : (meters / 1000);
-            double hours = km / 4.0;
-            _durationMinutes = (hours * 60).toInt();
-            _estimatedDuration = "${_durationMinutes ~/ 60}h ${_durationMinutes % 60}m";
-          }
-        }
+        _calculatedMeters = meters;
+        _distanceKm = TrailDetailsScreenHelper.getDistanceKm(relTags?['distance'], meters);
+        _durationMinutes = TrailDetailsScreenHelper.getDurationMinutes(relTags?['duration'], relTags?['time'], _distanceKm);
         
         if (allPoints.isNotEmpty) {
           _fetchElevations(allPoints);
@@ -258,32 +189,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       return;
     }
 
-    List<double> allDistances = [0.0];
-    double currentDist = 0.0;
-    final distCalc = const Distance();
-    for (int i = 1; i < points.length; i++) {
-      currentDist += distCalc.as(LengthUnit.Meter, points[i - 1], points[i]);
-      allDistances.add(currentDist);
-    }
-
-    // maximum of 50 coordinates points to avoid hitting API limits
     const int maxPoints = 50;
-    List<LatLng> sampledPoints = [];
-    List<double> sampledDistances = [];
+    final sampledData = TrailDetailsScreenHelper.samplePoints(points, maxPoints);
 
-    if (points.length <= maxPoints) {
-      sampledPoints = points;
-      sampledDistances = allDistances;
-    } else {
-      double step = points.length / maxPoints;
-      for (int i = 0; i < maxPoints; i++) {
-        int index = (i * step).toInt();
-        sampledPoints.add(points[index]);
-        sampledDistances.add(allDistances[index]);
-      }
-      sampledPoints.add(points.last);
-      sampledDistances.add(allDistances.last);
-    }
+    List<LatLng> sampledPoints = sampledData['points'];
+    List<double> sampledDistances = sampledData['distances'];
 
     try {
       final url = Uri.parse('https://api.open-elevation.com/api/v1/lookup');
@@ -349,47 +259,20 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     }
   }
 
-  int _calculateDifficultyLevel() {
-    final cai = _relationTags?['cai_scale']?.toString().toUpperCase();
-    final sac = _relationTags?['sac_scale']?.toString().toLowerCase();
-
-    if (cai != null) {
-      if (cai.contains('EE') || cai.contains('EAI')) return 3;
-      if (cai == 'E') return 2;
-      if (cai == 'T') return 1;
+  int _updateDifficulty() {
+    int level = TrailDetailsScreenHelper.calculateDifficultyLevel(
+      _relationTags, _distanceKm, double.tryParse(_estimatedAscent ?? '0') ?? 0.0
+    );
+    if (level == 1) { 
+      difficulty = ActivityDifficulty.easy; 
+    } else if (level == 2) { 
+      difficulty = ActivityDifficulty.moderate; 
+    } else { 
+      difficulty = ActivityDifficulty.hard; 
     }
-
-    if (sac != null) {
-      if (sac.contains('alpine') || sac.contains('t4') || sac.contains('t5') || sac.contains('t6')) return 3;
-      if (sac.contains('mountain_hiking') || sac.contains('t2') || sac.contains('t3')) return 2;
-      if (sac.contains('hiking') || sac.contains('t1')) return 1;
-    }
-
-    String distanceStr = _relationTags?['distance'] ?? _estimatedDistance ?? '0';
-    String ascentStr = _relationTags?['ascent'] ?? _estimatedAscent ?? '0';
-
-    String numDist = distanceStr.replaceAll(RegExp(r'[^0-9.]'), '');
-    String numAscent = ascentStr.replaceAll(RegExp(r'[^0-9.]'), '');
-
-    double distanceKm = double.tryParse(numDist) ?? 0.0;
-    double ascentM = double.tryParse(numAscent) ?? 0.0;
-
-    if (distanceKm == 0 && ascentM == 0) return 0;
-
-    double effortScore = distanceKm + (ascentM / 100);
-    
-    if (effortScore < 7.0) {
-      difficulty = ActivityDifficulty.easy;
-      return 1;
-    }
-    if (effortScore < 14.0) {
-      difficulty = ActivityDifficulty.moderate;
-      return 2;
-    }
-    difficulty = ActivityDifficulty.hard;
-    return 3;
+    return level;
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -457,42 +340,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   }
 
   Widget _buildHighlightedStats() {
-    String distance = _relationTags?['distance'] ?? _estimatedDistance ?? 'N/D';
-    if (distance != 'N/D' && distance != _estimatedDistance) {
-      String numericPart = distance.replaceAll(RegExp(r'[^0-9.]'), '');
-      double? distValue = double.tryParse(numericPart);
-      
-      if (distValue != null) {
-        distance = '${distValue.toStringAsFixed(1)} km';
-      } else if (!distance.toLowerCase().contains('km')) {
-        distance = '$distance km';
-      }
-    }
+    final String distanceStr = TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters);
+    final String durationStr = TrailDetailsScreenHelper.formatDuration(_durationMinutes);
+    final String ascentStr = TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent);
 
-    String duration = _relationTags?['duration'] ?? _relationTags?['time'] ?? _estimatedDuration ?? 'N/D';
-    if (duration != 'N/D' && duration != _estimatedDuration) {
-      if (duration.contains(':')) {
-        List<String> parts = duration.split(':');
-        if (parts.length >= 2) {
-          int? h = int.tryParse(parts[0]);
-          int? m = int.tryParse(parts[1]);
-          if (h != null && m != null) {
-            duration = '${h}h ${m}m';
-          }
-        }
-      } 
-      else if (!duration.toLowerCase().contains('h') && !duration.toLowerCase().contains('m')) {
-        duration = '$duration h';
-      }
-    }
-    
-    final String ascent = _relationTags?['ascent'] ?? _estimatedAscent ?? 'N/D';
-    String ascentStr = 'N/D';
-    if (ascent != 'N/D') {
-      ascentStr = '+$ascent m';
-    }
-
-    _difficulty = _calculateDifficultyLevel();
+    _difficulty = _updateDifficulty();
 
     bool isFerrata = false;
     final caiScale = _relationTags?['cai_scale']?.toString().toUpperCase() ?? '';
@@ -512,8 +364,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         mainAxisSpacing: 12,
         mainAxisExtent: MediaQuery.textScalerOf(context).scale(120.0),
         children: [
-          _buildStatCard(Icons.route, 'Distance', value: distance),
-          _buildStatCard(Icons.timer_outlined, 'Duration', value: duration),
+          _buildStatCard(Icons.route, 'Distance', value: distanceStr),
+          _buildStatCard(Icons.timer_outlined, 'Duration', value: durationStr),
           _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(_difficulty)),
           _buildStatCard(Icons.height, 'Ascent', valueWidget: _buildAscentAndFerrata(ascentStr, isFerrata)),
         ],
@@ -638,7 +490,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                     ),
                     const SizedBox(height: 10),
                     Lottie.asset(
-                      _lottieAsset(day['code']),
+                      TrailDetailsScreenHelper.getLottieAsset(day['code']),
                       width: 44,
                       height: 44,
                       fit: BoxFit.contain,
@@ -865,7 +717,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     );
     final matches = urlRegex.allMatches(text);
 
-    
     final List<TextSpan> spans = [];
     int lastMatchEnd = 0;
     final TextStyle baseStyle = TextStyle(fontSize: 14);
@@ -942,7 +793,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                           distanceKm: _distanceKm,
                           durationMinutes: _durationMinutes,
                           difficulty: difficulty,
-                          xpEarned: _calculateXpFromDifficulty(difficulty)
+                          xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty)
                         ),
                       ),
                     ),
@@ -977,10 +828,10 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                           id: "",
                           name: widget.trail['name'],
                           status: ActivityStatus.planned,
-                          durationMinutes: _fromStringToMinutesInt(_estimatedDuration),
+                          durationMinutes: _durationMinutes,
                           date: DateTime.now(),
                           difficulty: difficulty,
-                          xpEarned: _calculateXpFromDifficulty(difficulty),
+                          xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty),
                         ),
                       ),
                     ),
@@ -1067,29 +918,4 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       ],
     );
   }
-
-  int _fromStringToMinutesInt(String? duration) {
-    if (duration == null) return 0;
-
-    final match = RegExp(r'^(\d+)\s*h\s*(\d+)\s*m(?:\s*\(estimated\))?$')
-      .firstMatch(duration.trim());
-
-    if (match == null) return 0;
-
-    final hours = int.tryParse(match.group(1) ?? '') ?? 0;
-    final minutes = int.tryParse(match.group(2) ?? '') ?? 0;
-    return (hours * 60) + minutes;
-  }
-
-  double _calculateXpFromDifficulty(ActivityDifficulty difficulty) {
-    switch (difficulty) {
-      case ActivityDifficulty.easy:
-        return 50;
-      case ActivityDifficulty.moderate:
-        return 100;
-      case ActivityDifficulty.hard:
-        return 200;
-    }
-  }
-
 }

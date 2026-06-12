@@ -78,6 +78,9 @@ class MockGeolocatorPlatform extends GeolocatorPlatform with MockPlatformInterfa
 
 class FakeHttpOverrides extends HttpOverrides {
   static bool shouldFailConnections = false;
+  static bool returnEmptyNominatim = false;
+  static bool returnEmptyOverpass = false;
+  static bool returnServerError = false;
   
   @override
   HttpClient createHttpClient(SecurityContext? context) => FakeHttpClient();
@@ -189,7 +192,7 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
   FakeHttpClientResponse(this.url);
 
   @override
-  int get statusCode => 200;
+  int get statusCode => FakeHttpOverrides.returnServerError ? 500 : 200;
 
   @override
   String get reasonPhrase => 'OK';
@@ -212,18 +215,49 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
   List<int> _getBody() {
     final urlString = url.toString();
     if (urlString.contains('nominatim')) {
+      if (FakeHttpOverrides.returnEmptyNominatim) {
+        return utf8.encode('[]');
+      }
       return utf8.encode('[{"lat": "45.4642", "lon": "9.1900", "display_name": "Milano, Italia"}]');
     } else if (urlString.contains('overpass')) {
+      if (FakeHttpOverrides.returnEmptyOverpass) {
+        return utf8.encode('{"elements": []}');
+      }
       return utf8.encode('''{
         "elements": [
           {
             "type": "relation",
-            "id": 12345,
-            "tags": {"name": "Sentiero Test Coverage"},
+            "id": 1,
+            "tags": {
+              "name": "Sentiero Facile",
+              "distance": "4.5 km",
+              "duration": "01:30",
+              "cai_scale": "T",
+              "ascent": "150",
+              "website": "https://www.example.com"
+            },
             "members": [
               {
                 "type": "way",
-                "geometry": [{"lat": 45.4, "lon": 9.1}, {"lat": 45.5, "lon": 9.2}]
+                "geometry": [{"lat": 41.9, "lon": 12.5}, {"lat": 41.91, "lon": 12.51}]
+              }
+            ]
+          },
+          {
+            "type": "relation",
+            "id": 2,
+            "tags": {
+              "name": "Sentiero Difficile",
+              "distance": "10.0 km",
+              "sac_scale": "t4",
+              "via_ferrata_scale": "B",
+              "ascent": "1200",
+              "duration": "01:30"
+            },
+            "members": [
+              {
+                "type": "way",
+                "geometry": [{"lat": 45.9, "lon": 9.5}, {"lat": 45.91, "lon": 9.51}]
               }
             ]
           }

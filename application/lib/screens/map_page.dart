@@ -619,7 +619,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Ferrata'),
+              const Expanded( 
+                child: Text('Ferrata', overflow: TextOverflow.ellipsis),
+              ),
               Container(
                 width: 22,
                 height: 22,

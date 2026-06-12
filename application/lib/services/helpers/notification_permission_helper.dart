@@ -1,22 +1,32 @@
 import 'dart:io';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationPermissionHelper {
-  static final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  @visibleForTesting
+  static FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
+
+  @visibleForTesting
+  static bool? mockIsAndroid;
+  @visibleForTesting
+  static bool? mockIsIOS;
+
+  static bool get _isAndroid => mockIsAndroid ?? Platform.isAndroid;
+  static bool get _isIOS => mockIsIOS ?? Platform.isIOS;
 
   static Future<bool> requestNotificationPermissions() async {
-    if (Platform.isAndroid) {
+    if (_isAndroid) {
       return await _requestAndroidPermissions();
     }
-    else if (Platform.isIOS) {
+    else if (_isIOS) {
       return await _requestIOSPermissions();
     }
     return true;
   }
 
   static Future<bool> _requestAndroidPermissions() async {
-    final androidPlugin = _flutterLocalNotificationsPlugin
+    final androidPlugin = plugin
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidPlugin == null) {
@@ -34,7 +44,7 @@ class NotificationPermissionHelper {
   }
 
   static Future<bool> _requestIOSPermissions() async {
-    final iosPlugin = _flutterLocalNotificationsPlugin
+    final iosPlugin = plugin
       .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
 
     if (iosPlugin == null) {
@@ -51,11 +61,11 @@ class NotificationPermissionHelper {
   }
 
   static Future<bool> areNotificationEnabled() async {
-    if (Platform.isAndroid) {
-      final androidPlugin = _flutterLocalNotificationsPlugin
+    if (_isAndroid) {
+      final androidPlugin = plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       return await androidPlugin?.areNotificationsEnabled() ?? false;
-    } else if(Platform.isIOS){
+    } else if(_isIOS){
       return true;
     }
     return false;

@@ -1,6 +1,7 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
+import 'package:application/core/repository/activity_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -16,7 +17,11 @@ Widget pumpApp({
     providers: [
       BlocProvider<SettingsCubit>.value(value: settingsCubit ?? MockSettingsCubit(),),
       BlocProvider<ProfileCubit>.value(value: profileCubit ?? MockProfileCubit(),),
-      BlocProvider<ActivityCubit>.value(value: activityCubit ?? MockActivityCubit(),)
+      BlocProvider<ActivityCubit>.value(
+        value: activityCubit ?? ActivityCubit(
+          ActivityRepository(hasCurrentUser: () => false),
+        ),
+      ),
     ],
     child: MaterialApp(
       theme: ThemeData(

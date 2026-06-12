@@ -10,7 +10,11 @@ class NotificationService {
     playSound: true,
   );
 
-  static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  @visibleForTesting
+  static FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
+
+  @visibleForTesting
+  static Future<bool> Function()? mockPermissionCheck;
 
   //Flag to track initialization status
   static bool _isInitialized = false;
@@ -21,7 +25,7 @@ class NotificationService {
     }
 
     try {
-      await flutterLocalNotificationsPlugin
+      await plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
@@ -35,7 +39,7 @@ class NotificationService {
         iOS: iosInitializationSettings,
       );
 
-      flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
+      await plugin.initialize(settings: initializationSettings);
 
       _isInitialized = true;
     } catch (e) {
@@ -57,7 +61,9 @@ class NotificationService {
     String? payload,
     String? soundName,
   }) async {
-    final notificationPermissionsEnabled = await NotificationPermissionHelper.areNotificationEnabled(); 
+    final notificationPermissionsEnabled = mockPermissionCheck != null 
+        ? await mockPermissionCheck!() 
+        : await NotificationPermissionHelper.areNotificationEnabled(); 
 
     if(!notificationPermissionsEnabled) {
       return;
@@ -81,7 +87,7 @@ class NotificationService {
         android: androidNotificationDetails,
       );
 
-      await flutterLocalNotificationsPlugin.show(
+      await plugin.show(
         id: id,
         title: title,
         body: body,

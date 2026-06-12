@@ -9,6 +9,9 @@ class FakeHttpOverrides extends HttpOverrides {
   static bool emptyElevationData = false;
   static bool emptyWeatherForecast = false;
 
+  static Map<String, dynamic>? customTags;
+  static List<int>? customWeatherCodes;
+
   @override
   HttpClient createHttpClient(SecurityContext? context) => FakeHttpClient();
 }
@@ -126,7 +129,7 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
       if (FakeHttpOverrides.emptyOverpassRelation) {
         return utf8.encode('{"elements": []}');
       }
-      return utf8.encode('''{
+      final String baseJson = '''{
         "elements": [
           {
             "type": "relation",
@@ -145,7 +148,16 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
             "geometry": [{"lat": 45.4, "lon": 9.1}, {"lat": 45.5, "lon": 9.2}]
           }
         ]
-      }''');
+      }''';
+
+      if (FakeHttpOverrides.customTags != null) {
+        final Map<String, dynamic> parsed = jsonDecode(baseJson);
+        final tags = parsed['elements'][0]['tags'] as Map<String, dynamic>;
+        tags.addAll(FakeHttpOverrides.customTags!);
+        return utf8.encode(jsonEncode(parsed));
+      }
+
+      return utf8.encode(baseJson);
     } else if (urlString.contains('open-elevation.com')) {
       if (FakeHttpOverrides.emptyElevationData) {
         return utf8.encode('{"results": []}');
@@ -162,7 +174,7 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
           }
         }''');
       }
-      return utf8.encode('''{
+      final String baseJson = '''{
         "daily": {
           "time": [
             "2026-05-27",
@@ -185,7 +197,15 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
             14.0
           ]
         }
-      }''');
+      }''';
+
+      if (FakeHttpOverrides.customWeatherCodes != null) {
+        final Map<String, dynamic> parsed = jsonDecode(baseJson);
+        parsed['daily']['weather_code'] = FakeHttpOverrides.customWeatherCodes!;
+        return utf8.encode(jsonEncode(parsed));
+      }
+
+      return utf8.encode(baseJson);
     } else {
       return transparentImage;
     }

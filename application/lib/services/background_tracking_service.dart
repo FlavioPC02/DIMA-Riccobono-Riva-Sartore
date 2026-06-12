@@ -11,16 +11,32 @@ abstract class BackgroundTrackingService {
   Stream<LocationPoint> watchLocation();
 }
 
-class DefaultBackgroundTrackingService implements BackgroundTrackingService {
-  @override
+// coverage:ignore-start
+class BackgroundServiceWrapper {
+  const BackgroundServiceWrapper();
+
   Future<void> initialize() => initializeBackgroundService();
+  Future<void> start() => startBackgroundTracking();
+  Future<void> stop() => stopBackgroundTracking();
+  Stream<LocationPoint> get locationStream => backgroundLocationStream;
+}
+// coverage:ignore-end
+
+class DefaultBackgroundTrackingService implements BackgroundTrackingService {
+  final BackgroundServiceWrapper _wrapper;
+
+  DefaultBackgroundTrackingService({BackgroundServiceWrapper? wrapper})
+    : _wrapper = wrapper ?? const BackgroundServiceWrapper();
+    
+  @override
+  Future<void> initialize() => _wrapper.initialize();
 
   @override
-  Future<void> startTracking() => startBackgroundTracking();
+  Future<void> startTracking() => _wrapper.start();
 
   @override
-  Future<void> stopTracking() => stopBackgroundTracking();
+  Future<void> stopTracking() => _wrapper.stop();
 
   @override
-  Stream<LocationPoint> watchLocation() => backgroundLocationStream;
+  Stream<LocationPoint> watchLocation() => _wrapper.locationStream;
 }

@@ -4,19 +4,24 @@ import 'dart:ui';
 import 'package:application/core/models/location_point.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:get_it/get_it.dart';
 
 const _notificationChannelName = 'GPS Tracker';
 const _notificationId = 888;
 
 StreamSubscription<Position>? _positionSub;
 
+final sl = GetIt.instance;
+
 Future<void> initializeBackgroundService() async {
-  final service = FlutterBackgroundService();
+  final service = sl.isRegistered<FlutterBackgroundService>() 
+      ? sl<FlutterBackgroundService>() 
+      : FlutterBackgroundService();
 
   await service.configure(
     iosConfiguration: IosConfiguration(
       onForeground: onBackgroundServiceStart,
-      onBackground: _onIosBackground,
+      onBackground: onIosBackground,
       autoStart: false,
     ), 
     androidConfiguration: AndroidConfiguration(
@@ -31,19 +36,27 @@ Future<void> initializeBackgroundService() async {
 }
 
 Future<void> startBackgroundTracking() async {
-  final service = FlutterBackgroundService();
+  final service = sl.isRegistered<FlutterBackgroundService>() 
+      ? sl<FlutterBackgroundService>() 
+      : FlutterBackgroundService();
   final isRunning = await service.isRunning();
   if (!isRunning) await service.startService();
 }
 
 Future<void> stopBackgroundTracking() async {
-  final service = FlutterBackgroundService();
+  final service = sl.isRegistered<FlutterBackgroundService>() 
+      ? sl<FlutterBackgroundService>() 
+      : FlutterBackgroundService();
   service.invoke('stopService');
 }
 
 //stream of LocationPoint forwarded from the background isolate to the main isolate
 Stream<LocationPoint> get backgroundLocationStream {
-  return FlutterBackgroundService()
+  final service = sl.isRegistered<FlutterBackgroundService>() 
+      ? sl<FlutterBackgroundService>() 
+      : FlutterBackgroundService();
+
+  return service
     .on('location')
     .map((data) => LocationPoint(
       lat: (data?['lat'] as num).toDouble(), 
@@ -112,7 +125,7 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 }
 
 @pragma('vm:entry-point')
-Future<bool> _onIosBackground(ServiceInstance service) async {
+Future<bool> onIosBackground(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
   return true;
 }

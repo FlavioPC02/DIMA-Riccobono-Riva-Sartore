@@ -17,9 +17,9 @@ void main() {
         (tester) async {
           await tester.pumpWidget(createWidgetUnderTest());
 
-          final mainTitleFinder = find.text('Bentornato');
+          final mainTitleFinder = find.text('Welcome Back');
           final subtitleFinder = find.text(
-            'Accedi per continuare a organizzare le tue escursioni.',
+            'Log in to continue organizing your hikes.',
           );
 
           expect(mainTitleFinder, findsOneWidget);
@@ -54,7 +54,7 @@ void main() {
             matching: find.byType(TextFormField),
           );
           final buttonFinder = find.ancestor(
-            of: find.text('Accedi'),
+            of: find.text('Sign In'),
             matching: find.byType(ElevatedButton),
           );
 
@@ -70,7 +70,7 @@ void main() {
           await tester.pumpWidget(createWidgetUnderTest());
 
           final registerButtonFinder = find.ancestor(
-            of: find.text('Registrati'),
+            of: find.text('Sign Up'),
             matching: find.byType(TextButton),
           );
 
@@ -93,12 +93,12 @@ void main() {
             matching: find.byType(TextFormField),
           );
           final submitButtonFinder = find.ancestor(
-            of: find.text('Accedi'),
+            of: find.text('Sign In'),
             matching: find.byType(ElevatedButton),
           );
-          final emptyEmailErrorFinder = find.text('Inserisci la tua email');
+          final emptyEmailErrorFinder = find.text('Please enter your email');
           final invalidEmailErrorFinder = find.text(
-            'Inserisci un indirizzo email valido',
+            'Please enter a valid email address',
           );
 
           // t0: no error shown
@@ -150,16 +150,16 @@ void main() {
             matching: find.byType(EditableText),
           );
           final submitButtonFinder = find.ancestor(
-            of: find.text('Accedi'),
+            of: find.text('Sign In'),
             matching: find.byType(ElevatedButton),
           );
           final obscureButtonFinder = find.descendant(
             of: passwordFormField,
             matching: find.byType(IconButton),
           );
-          final emptyPasswordErrorFinder = find.text('Inserisci la password');
+          final emptyPasswordErrorFinder = find.text('Please enter your password');
           final shortPasswordErrorFinder = find.text(
-            'La password deve contenere almeno 6 caratteri',
+            'The password must contain at least 6 characters',
           );
 
           // t0: text is obscure

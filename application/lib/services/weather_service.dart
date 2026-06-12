@@ -5,6 +5,10 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 class WeatherService {
+  final http.Client _client;
+
+  WeatherService({http.Client? client}) : _client = client ?? http.Client();
+
   Future<WeatherData> fetchWeather(DateTime date) async {
     final position = await _getPosition();
     final dateStr = _fmtDate(date);
@@ -20,7 +24,7 @@ class WeatherService {
       '&forecast_days=14',
     );
 
-    final response = await http.get(uri);
+    final response = await _client.get(uri);
     if (response.statusCode != 200) {
       throw Exception('Weather unavailable (HTTP ${response.statusCode})');
     }
@@ -77,7 +81,7 @@ class WeatherService {
       '&forecast_days=14',
     );
 
-    final response = await http.get(uri);
+    final response = await _client.get(uri);
 
     if (response.statusCode != 200) {
       throw Exception('Weather unavailable (HTTP ${response.statusCode})');
