@@ -113,6 +113,56 @@ void main() {
       await repo.updateActivity(a);
     });
 
+    test(
+      'addActivity keeps completed activities locally without remote',
+      () async {
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        final repo = ActivityRepository(
+          hasCurrentUser: () => false,
+          localStore: localStore,
+        );
+        final a = Activity(
+          id: '',
+          name: 'x',
+          status: ActivityStatus.completed,
+          date: DateTime.now(),
+        );
+
+        final id = await repo.addActivity(a);
+
+        expect(id, equals('local_1'));
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+      },
+    );
+
+    test(
+      'updateActivity keeps completed activities locally without remote',
+      () async {
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        final repo = ActivityRepository(
+          hasCurrentUser: () => false,
+          localStore: localStore,
+        );
+        final planned = Activity(
+          id: 'i',
+          name: 'x',
+          status: ActivityStatus.planned,
+          date: DateTime.now(),
+        );
+
+        await repo.updateActivity(planned);
+        expect(localStore.activities.single.id, equals('i'));
+
+        await repo.updateActivity(
+          planned.copyWith(status: ActivityStatus.completed),
+        );
+
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+      },
+    );
+
     test('deleteActivity does not throw', () async {
       final localStore = FakeActivityLocalStore();
       addTearDown(localStore.close);
@@ -200,5 +250,67 @@ void main() {
       await repo.deleteActivity('i1');
       verify(() => mockDb.deleteActivity('i1')).called(1);
     });
+
+    test(
+      'updateActivity removes completed activities locally after remote save',
+      () async {
+        final mockDb = MockDatabaseService();
+        when(
+          () => mockDb.updateActivity(any(), any()),
+        ).thenAnswer((_) async {});
+
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+        );
+        final planned = Activity(
+          id: 'i1',
+          name: 'X',
+          status: ActivityStatus.planned,
+          date: DateTime.now(),
+        );
+
+        await repo.updateActivity(planned);
+        expect(localStore.activities.single.status, ActivityStatus.planned);
+
+        await repo.updateActivity(
+          planned.copyWith(status: ActivityStatus.completed),
+        );
+
+        expect(localStore.activities, isEmpty);
+        verify(() => mockDb.updateActivity('i1', any())).called(2);
+      },
+    );
+
+    test(
+      'updateActivity keeps completed activities locally when remote fails',
+      () async {
+        final mockDb = MockDatabaseService();
+        when(
+          () => mockDb.updateActivity(any(), any()),
+        ).thenThrow(Exception('offline'));
+
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+        );
+        final completed = Activity(
+          id: 'i1',
+          name: 'X',
+          status: ActivityStatus.completed,
+          date: DateTime.now(),
+        );
+
+        await repo.updateActivity(completed);
+
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+      },
+    );
   });
 }
