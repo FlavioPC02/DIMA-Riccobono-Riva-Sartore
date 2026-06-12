@@ -39,28 +39,21 @@ class ActivityRepository {
           .toList(),
     );
 
-    return _mergeActivityStreams(localStream, remoteStream);
+    return _mergeActivityStreams(localStream, remoteStream, remote);
   }
 
   Future<String?> addActivity(Activity activity) async {
-    final id = await _localStore.upsertActivity(activity);
+    final id = activity.id.isEmpty ? _localStore.createId() : activity.id;
     final localActivity = activity.copyWith(id: id);
-
-    final remote = _remoteOrNull();
-    if (remote != null) {
-      await remote.updateActivity(id, localActivity.toJson());
-    }
+    await _saveActivity(localActivity);
 
     return id;
   }
 
   Future<void> updateActivity(Activity activity) async {
-    final id = await _localStore.upsertActivity(activity);
+    final id = activity.id.isEmpty ? _localStore.createId() : activity.id;
     final localActivity = activity.copyWith(id: id);
-
-    final remote = _remoteOrNull();
-    if (remote == null) return;
-    await remote.updateActivity(localActivity.id, localActivity.toJson());
+    await _saveActivity(localActivity);
   }
 
   Future<void> deleteActivity(String id) async {
@@ -71,9 +64,46 @@ class ActivityRepository {
     await remote.deleteActivity(id);
   }
 
+  Future<void> _saveActivity(Activity activity) async {
+    final remote = _remoteOrNull();
+
+    if (activity.status != ActivityStatus.completed) {
+      await _localStore.upsertActivity(activity);
+      await _trySaveRemote(activity, remote);
+      return;
+    }
+
+    if (remote == null) {
+      await _localStore.upsertActivity(activity);
+      return;
+    }
+
+    final savedRemotely = await _trySaveRemote(activity, remote);
+    if (savedRemotely) {
+      await _localStore.deleteActivity(activity.id);
+    } else {
+      await _localStore.upsertActivity(activity);
+    }
+  }
+
+  Future<bool> _trySaveRemote(
+    Activity activity,
+    DatabaseService? remote,
+  ) async {
+    if (remote == null) return false;
+
+    try {
+      await remote.updateActivity(activity.id, activity.toJson());
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Stream<List<Activity>> _mergeActivityStreams(
     Stream<List<Activity>> localStream,
     Stream<List<Activity>> remoteStream,
+    DatabaseService remote,
   ) {
     late StreamSubscription<List<Activity>> localSubscription;
     late StreamSubscription<List<Activity>> remoteSubscription;
@@ -91,6 +121,7 @@ class ActivityRepository {
     controller.onListen = () {
       localSubscription = localStream.listen((activities) {
         localActivities = activities;
+        _syncPendingCompletedActivities(activities, remote);
         emitMerged();
       }, onError: controller.addError);
 
@@ -106,6 +137,27 @@ class ActivityRepository {
     };
 
     return controller.stream;
+  }
+
+  void _syncPendingCompletedActivities(
+    List<Activity> activities,
+    DatabaseService remote,
+  ) {
+    for (final activity in activities) {
+      if (activity.status == ActivityStatus.completed) {
+        unawaited(_syncCompletedActivity(activity, remote));
+      }
+    }
+  }
+
+  Future<void> _syncCompletedActivity(
+    Activity activity,
+    DatabaseService remote,
+  ) async {
+    final savedRemotely = await _trySaveRemote(activity, remote);
+    if (savedRemotely) {
+      await _localStore.deleteActivity(activity.id);
+    }
   }
 
   List<Activity> _mergeActivities(
