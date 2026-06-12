@@ -26,6 +26,8 @@ class TrailDetailsScreen extends StatefulWidget {
 class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   bool _isLoading = true;
 
+  bool _isFavorite = false;
+
   Map<String, dynamic>? _relationTags;
   Set<String> _surfaces = {};
   String? _maxIncline;
@@ -450,6 +452,18 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        actions: [
+          IconButton(
+            icon: (_isFavorite ? const Icon(Icons.star) : 
+            const Icon(Icons.star_border)),
+            color: Colors.yellow,
+            onPressed: () {
+              setState(() {
+                _isFavorite = !_isFavorite;
+              });
+            },
+          )
+        ],
       ),
       body: Stack(
         children: [_buildBody(), if (!_isLoading) _buildFloatingButtons()],
