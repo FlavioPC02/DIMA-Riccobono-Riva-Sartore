@@ -54,6 +54,8 @@ class _AddActivityPageState extends State<AddActivityPage> {
       status: ActivityStatus.planned,
       date: _selectedDate,
       trailName: widget.activity.trailName,
+      trailId: widget.activity.trailId,
+      trailPath: widget.activity.trailPath,
       distanceKm: widget.activity.distanceKm,
       durationMinutes: widget.activity.durationMinutes,
       xpEarned: 0,
