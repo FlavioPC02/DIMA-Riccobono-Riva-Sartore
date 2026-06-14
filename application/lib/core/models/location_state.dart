@@ -17,6 +17,8 @@ class LocationState extends Equatable {
   final double totalAscent;
   final double totalDescent;
 
+  final DateTime? eta;
+
   const LocationState._({
     required this.kind,
     this.points = const [],
@@ -26,6 +28,7 @@ class LocationState extends Equatable {
     this.elevationGap,
     this.totalAscent = 0,
     this.totalDescent = 0,
+    this.eta,
   });
 
   const LocationState.idle()
@@ -38,6 +41,7 @@ class LocationState extends Equatable {
     double? elevationGap,
     double totalAscent = 0,
     double totalDescent = 0,
+    DateTime? eta,
   }) : this._(
     kind: LocationStateKind.tracking,
     points: points,
@@ -46,6 +50,7 @@ class LocationState extends Equatable {
     elevationGap: elevationGap,
     totalAscent: totalAscent,
     totalDescent: totalDescent,
+    eta: eta,
   );
 
   const LocationState.error(String message)
@@ -57,12 +62,17 @@ class LocationState extends Equatable {
   //UI formatters
   String getDistanceLabel() {
     if (!isTracking) return '--';
-    return formatDistanceMeters(distance);
+    if (distance == 0) return '0 m';
+    if (distance < 1000) return '${distance.toStringAsFixed(0)} m';
+    return '${(distance / 1000).toStringAsFixed(2)} km';
   }
 
   String getElevationGapLabel() {
     if (!isTracking) return '--';
-    return formatElevationGapMeters(elevationGap);
+    if (elevationGap == null) return '--';
+    final sign = elevationGap! >= 0 ? '+' : '-';
+
+    return '$sign${elevationGap!.toStringAsFixed(1)} m';
   }
 
   String get totalAscentLabel => '+${totalAscent.toStringAsFixed(1)} m';
@@ -78,5 +88,6 @@ class LocationState extends Equatable {
     elevationGap,
     totalAscent,
     totalDescent,
+    eta,
   ];
 }

@@ -1,5 +1,5 @@
-import 'package:application/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

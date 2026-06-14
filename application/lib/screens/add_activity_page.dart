@@ -1,6 +1,6 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
-import 'package:application/core/theme/app_colors.dart';
+import 'package:hike_core/src/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';

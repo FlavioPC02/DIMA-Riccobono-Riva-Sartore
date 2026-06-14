@@ -1,29 +1,96 @@
 import 'dart:async';
 
-import 'package:application/core/models/location_point.dart';
-import 'package:application/core/repository/location_repository.dart';
 import 'package:application/services/background_tracking_service.dart';
+import 'package:application/services/phone_wear_sync.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:hike_core/hike_core.dart';
+
+import '../models/location_point.dart';
+import 'package:application/core/repository/location_repository.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';
 
 part '../models/location_state.dart';
 
+//Signature for the callback that save activity on DB and cubit
+typedef OnActivitySaved = Future<void> Function({
+  required double distance,
+  required double elevationGap,
+  required Duration elapsed,
+});
+
+//Callback for screen navigation after stop
+typedef OnNavigateAfterStop = void Function();
+
 class LocationCubit extends Cubit<LocationState> {
   LocationCubit(
     this._repository, {
     BackgroundTrackingService? backgroundTrackingService,
+    PhoneWearSyncService? wearSyncService,
+    OnActivitySaved? onActivitySaved,
+    OnNavigateAfterStop? onNavigateAfterStop,
+    Duration? initialEta,
   }) : _backgroundTrackingService =
            backgroundTrackingService ?? DefaultBackgroundTrackingService(),
-       super(const LocationState.idle());
+       _wearSync = wearSyncService ?? PhoneWearSyncService(),
+       _onActivitySaved = onActivitySaved,
+       _onNavigateAfterStop = onNavigateAfterStop,
+       _remainingEta = initialEta ?? Duration.zero,
+       super(const LocationState.idle()) {
+         _wearSync.initialize();
+         _wearSync.onPauseFromWatch = pauseTracking;
+         _wearSync.onResumeFromWatch = resumeTracking;
+         
+         //Disable screen navigation because stop triggered from watch. The phone may be in their pockets.
+         _wearSync.onStopFromWatch = () => stopAndSave(navigate: false);
+       }
 
   final ILocationRepository _repository;
   final BackgroundTrackingService _backgroundTrackingService;
+  final PhoneWearSyncService _wearSync;
+
+  OnActivitySaved? _onActivitySaved;
+  OnNavigateAfterStop? _onNavigateAfterStop;
+
   StreamSubscription<LocationPoint>? _locationSub;
+
+  final _stopWatch = Stopwatch();
+  Duration get elapsed => _stopWatch.elapsed;
+  bool get isRunning => _stopWatch.isRunning;
+
+  static const double _movementSpeedThresholdMps = 0.4;
+  static const Duration _movementSampleMaxAge = Duration(seconds: 12);
+
+  Duration _remainingEta;
+  DateTime? _lastEtaUpdateAt;
+
+  DateTime get eta => DateTime.now().add(_remainingEta);
+
+  void setInitialEta(Duration duration) {
+    _remainingEta = duration;
+    _lastEtaUpdateAt = DateTime.now();
+  }
+
+  void registerStopCallbacks({
+    required OnActivitySaved onActivitySaved,
+    required OnNavigateAfterStop onNavigateAfterStop,
+  }) {
+    _onActivitySaved = onActivitySaved;
+    _onNavigateAfterStop = onNavigateAfterStop;
+  }
+
+  void unregisterStopCallbacks() {
+    _onActivitySaved = null;
+    _onNavigateAfterStop = null;
+  }
 
   Future<void> startTracking() async {
     if (state.isTracking) return;
+
+    _stopWatch.reset();
+    _stopWatch.start();
+    _lastEtaUpdateAt = DateTime.now();
 
     //Rehydrate persisted points and recompute metrics so the displayed totals survive an app restart
     final saved = _repository.getAll();
@@ -37,7 +104,9 @@ class LocationCubit extends Cubit<LocationState> {
         elevationGap: gap,
         totalAscent: asc,
         totalDescent: desc,
-      ));
+        eta: eta,
+      ),
+    );
 
     //listen for points coming from the background isolate
     _locationSub = _backgroundTrackingService.watchLocation().listen(
@@ -70,6 +139,8 @@ class LocationCubit extends Cubit<LocationState> {
           }
         }
 
+        final newEta = _computeEta(newPoints);
+
         emit(
           LocationState.tracking(
             points: newPoints,
@@ -78,23 +149,64 @@ class LocationCubit extends Cubit<LocationState> {
             elevationGap: newGap,
             totalAscent: newAscent,
             totalDescent: newDescent,
-          ));
+            eta: newEta,
+          ),
+        );
+
+        _wearSync.sendStats(
+          HikeLiveStats(
+            elapsedTime: elapsed, 
+            distanceMeters: newDistance, 
+            elevationGapMeters: newGap, 
+            eta: eta,
+          ),
+        );
 
         unawaited(_repository.save(point));
       },
       onError: (e) {
         if (!isClosed) emit(LocationState.error(e.toString()));
-      }
+      },
     );
 
     await _backgroundTrackingService.startTracking();
+    _wearSync.sendStatus(HikeRecordingStatus.recording);
   }
 
-  Future<void> stopTracking() async {
+  Future<void> pauseTracking() async {
+    if (!state.isTracking) return;
+    _stopWatch.stop();
+    _wearSync.sendStatus(HikeRecordingStatus.paused);
+    //TODO: emit paused variant of LocationState
+  }
+
+  Future<void> resumeTracking() async {
+    _stopWatch.start();
+    _wearSync.sendStatus(HikeRecordingStatus.recording);
+  }
+
+  Future<void> stopAndSave({bool navigate = true}) async {
+    _stopWatch.stop();
+    final elapsed = _stopWatch.elapsed;
+
     await _locationSub?.cancel();
     _locationSub = null;
     await _backgroundTrackingService.stopTracking();
+
+    _wearSync.sendStatus(HikeRecordingStatus.stopped);
+
+    await _onActivitySaved?.call(
+      distance: state.distance,
+      elevationGap: state.elevationGap ?? 0.0,
+      elapsed: elapsed,
+    );
+
     if (!isClosed) emit(const LocationState.idle());
+    await clearHistory();
+
+    if (navigate) {
+      _onNavigateAfterStop?.call();
+    }
   }
 
   Future<void> clearHistory() async {
@@ -106,11 +218,51 @@ class LocationCubit extends Cubit<LocationState> {
 
   @override
   Future<void> close() async {
-    await stopTracking();
+    await _locationSub?.cancel();
+    _locationSub = null;
+    await _backgroundTrackingService.stopTracking();
     return super.close();
   }
 
   //Helpers
+
+  DateTime _computeEta(List<LocationPoint> points) {
+    final now = DateTime.now();
+
+    if(!_isUserMoving(points)) {
+      _lastEtaUpdateAt = now;
+      return now.add(_remainingEta);
+    }
+
+    final lastUpdateAt = _lastEtaUpdateAt ?? now;
+    _lastEtaUpdateAt = now;
+
+    final elapsed = now.difference(lastUpdateAt);
+    final next = _remainingEta - elapsed;
+    _remainingEta = next.isNegative ? Duration.zero : next;
+
+    return now.add(_remainingEta);
+  }
+
+  bool _isUserMoving(List<LocationPoint> points) {
+    if (points.length < 2) return false;
+
+    final latest = points.last;
+    final previous = points[points.length - 2];
+
+    final sampleAge = DateTime.now().difference(latest.timestamp);
+    if (sampleAge > _movementSampleMaxAge) return false;
+
+    final elapsedSeconds = latest.timestamp
+      .difference(previous.timestamp)
+      .inSeconds;
+    if (elapsedSeconds <= 0) return false;
+
+    final traveledMeters = _haversine(previous, latest);
+
+    return traveledMeters / elapsedSeconds >= _movementSpeedThresholdMps;
+  }
+
   (double dist, double? gap, double asc, double desc) _computeMetrics(
     List<LocationPoint> pts,
   ) {
@@ -143,23 +295,6 @@ class LocationCubit extends Cubit<LocationState> {
   }
 
   double _haversine(LocationPoint a, LocationPoint b) {
-    //    const double r = 6371000; // Earth radius in meters
-    //    double dLat = _degToRad(position.latitude - lkp.latitude);
-    //    double dLng = _degToRad(position.longitude - lkp.longitude);
-    //
-    //    double a = math.sin(dLat / 2.0) * math.sin(dLat / 2.0) +
-    //      math.cos(_degToRad(lkp.latitude)) * math.cos(_degToRad(position.latitude)) *
-    //      math.sin(dLng / 2.0) * math.sin(dLng / 2.0);
-    //
-    //    double c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a));
-    //    double distance = r * c;
-    //
-    //    if(distance < 5.0) {
-    //      return 0.0;
-    //    } else {
-    //      return distance;
-    //    }
-
     LatLng first = LatLng(a.lat, a.lng);
     LatLng second = LatLng(b.lat, b.lng);
 

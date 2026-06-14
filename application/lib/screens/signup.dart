@@ -2,7 +2,7 @@ import 'package:application/screens/homepage.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:application/services/database_service.dart';
 import 'package:flutter/material.dart';
-import '../core/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
