@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
-
 import 'package:application/core/models/location_point.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,9 +23,9 @@ Future<void> initializeBackgroundService() async {
       onForeground: onBackgroundServiceStart,
       onBackground: onIosBackground,
       autoStart: false,
-    ), 
+    ),
     androidConfiguration: AndroidConfiguration(
-      onStart: onBackgroundServiceStart, 
+      onStart: onBackgroundServiceStart,
       isForegroundMode: true,
       autoStart: false,
       initialNotificationTitle: 'GPS tracker',
@@ -70,12 +70,11 @@ Stream<LocationPoint> get backgroundLocationStream {
 
 @pragma('vm:entry-point')
 void onBackgroundServiceStart(ServiceInstance service) async {
-
   //make platform channels work in background isolate
   DartPluginRegistrant.ensureInitialized();
 
   //Android foreground notification update
-  if(service is AndroidServiceInstance) {
+  if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((_) {
       service.setAsForegroundService();
     });
@@ -89,39 +88,52 @@ void onBackgroundServiceStart(ServiceInstance service) async {
     await service.stopSelf();
   });
 
-  final locationSettings = AndroidSettings(
-    accuracy: LocationAccuracy.high,
-    distanceFilter: 5,
-    intervalDuration: Duration(seconds: 5),
-    foregroundNotificationConfig: ForegroundNotificationConfig(
-      notificationTitle: _notificationChannelName, 
-      notificationText: 'GPS tracker is tracking your position',
-      enableWakeLock: true,
-    ),
-  );
-
-  _positionSub = Geolocator.getPositionStream(
-    locationSettings: locationSettings,
-  ).listen((Position pos) async {
-
-    final point = LocationPoint(
-      lat: pos.latitude, 
-      lng: pos.longitude, 
-      altitude: pos.altitude, 
-      positionAccuracy: pos.accuracy, 
-      altitudeAccuracy: pos.altitudeAccuracy, 
-      timestamp: pos.timestamp,
+  final LocationSettings locationSettings;
+  if (Platform.isIOS) {
+    locationSettings = AppleSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+      activityType: ActivityType.fitness,
+      pauseLocationUpdatesAutomatically: false,
+      showBackgroundLocationIndicator: true,
+      allowBackgroundLocationUpdates: true,
     );
+  } else {
+    locationSettings = AndroidSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+      intervalDuration: Duration(seconds: 5),
+      foregroundNotificationConfig: ForegroundNotificationConfig(
+        notificationTitle: _notificationChannelName,
+        notificationText: 'GPS tracker is tracking your position',
+        enableWakeLock: true,
+      ),
+    );
+  }
 
-    service.invoke('location', {
-      'lat': point.lat,
-      'lng': point.lng,
-      'altitude': point.altitude,
-      'positionAccuracy': point.positionAccuracy,
-      'altitudeAccuracy': point.altitudeAccuracy,
-      'timestamp': point.timestamp.toIso8601String(),
-    });
-  });
+  _positionSub =
+      Geolocator.getPositionStream(locationSettings: locationSettings).listen((
+        Position pos,
+      ) async {
+
+        final point = LocationPoint(
+          lat: pos.latitude,
+          lng: pos.longitude,
+          altitude: pos.altitude,
+          positionAccuracy: pos.accuracy,
+          altitudeAccuracy: pos.altitudeAccuracy,
+          timestamp: pos.timestamp,
+        );
+
+        service.invoke('location', {
+          'lat': point.lat,
+          'lng': point.lng,
+          'altitude': point.altitude,
+          'positionAccuracy': point.positionAccuracy,
+          'altitudeAccuracy': point.altitudeAccuracy,
+          'timestamp': point.timestamp.toIso8601String(),
+        });
+      });
 }
 
 @pragma('vm:entry-point')
@@ -129,4 +141,3 @@ Future<bool> onIosBackground(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
   return true;
 }
-

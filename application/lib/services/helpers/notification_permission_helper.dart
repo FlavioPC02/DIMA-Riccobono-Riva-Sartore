@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 
@@ -33,7 +32,8 @@ class NotificationPermissionHelper {
       return false;
     }
 
-    final notificationGranted = await androidPlugin.requestNotificationsPermission();
+    final notificationGranted = await androidPlugin
+        .requestNotificationsPermission();
 
     if (notificationGranted != true) {
       return false;

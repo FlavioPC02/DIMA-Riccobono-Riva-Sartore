@@ -222,7 +222,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     double lng = (first.longitude + last.longitude) / 2.0;
 
     return LatLng(lat, lng);
-  }
+    }
 
   //returns the trail extremes points
   LatLngBounds _buildTrailBounds(List<List<LatLng>> coordinates) {
@@ -436,13 +436,17 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) _locationCubit.stopTracking();
         },
-        child: BlocBuilder<LocationCubit, LocationState>(
+        child: BlocConsumer<LocationCubit, LocationState>(
+          listenWhen: (previous, current) =>
+              previous.isTracking &&
+              current.isTracking &&
+              current.current != null &&
+              current.points.length > previous.points.length,
+          listener: (context, state) {
+            final position = LatLng(state.current!.lat, state.current!.lng);
+            checkUserOnTrail(position);
+          },
           builder: (context, state) {
-            if (state.current != null) {
-              final position = LatLng(state.current!.lat, state.current!.lng);
-              checkUserOnTrail(position);
-            }
-
             return Stack(
               alignment: Alignment.bottomCenter,
               children: [
@@ -480,6 +484,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                   top: 60.0,
                   right: 20.0,
                   child: FloatingActionButton(
+                    heroTag: 'navigator-location-button',
                     backgroundColor: Theme.of(context).colorScheme.secondary,
                     onPressed: () {
                       setState(() {

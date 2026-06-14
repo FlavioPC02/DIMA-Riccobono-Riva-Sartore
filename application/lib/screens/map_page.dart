@@ -28,7 +28,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
   final double _minZoomThreshold = 11.0;
   bool _isZoomedInEnough = true;
-  
+
   static const double _centerMapButtonTopOffset = 186.0;
   static const double _closeButtonBottomOffset = 315.0;
 
@@ -118,7 +118,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           Polyline(
             points: subTrailsCoordinates,
             strokeWidth: isSelected ? 6.0 : 3.0,
-            color: isSelected ? AppColors.selectedTrail : AppColors.unselectedTrail,
+            color: isSelected
+                ? AppColors.selectedTrail
+                : AppColors.unselectedTrail,
           ),
         );
       }
@@ -137,13 +139,16 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
     try {
       final camera = _mapController.camera;
-      
+
       final width = MediaQuery.of(context).size.width;
       final height = MediaQuery.of(context).size.height;
 
       final Offset topLeftPixel = Offset(0.0, _centerMapButtonTopOffset);
 
-      final Offset bottomRightPixel = Offset(width, height - _closeButtonBottomOffset);
+      final Offset bottomRightPixel = Offset(
+        width,
+        height - _closeButtonBottomOffset,
+      );
 
       final LatLng topLeft = camera.screenOffsetToLatLng(topLeftPixel);
       final LatLng bottomRight = camera.screenOffsetToLatLng(bottomRightPixel);
@@ -153,27 +158,32 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       final west = topLeft.longitude;
       final east = bottomRight.longitude;
 
-      final query = """
+      final query =
+          """
       [out:json][timeout:15];
       relation["route"="hiking"]($south,$west,$north,$east);
       out $_trailLimit geom;
       """;
 
-      try{
+      try {
         await _fetchOverpassResponse(query, 0, 0, false);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Check your connection and try again.')),
+            const SnackBar(
+              content: Text('Check your connection and try again.'),
+            ),
           );
         }
       } finally {
         if (mounted) setState(() => _isLoadingTrails = false);
       }
     } catch (e) {
-      if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error occurred while searching for hiking trails')),
+          const SnackBar(
+            content: Text('Error occurred while searching for hiking trails'),
+          ),
         );
       }
     } finally {
@@ -239,25 +249,26 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   }
 
   //function to fetch hiking trails from the Overpass API using a given query, with retry logic for multiple servers and error handling
-  Future<void> _fetchOverpassResponse(String query, double lat, double lon, bool shouldMoveCamera) async {
-    
+  Future<void> _fetchOverpassResponse(
+    String query,
+    double lat,
+    double lon,
+    bool shouldMoveCamera,
+  ) async {
     final overpassUrl = Uri.parse('https://overpass-api.de/api/interpreter');
-    final overpassUrl2 = Uri.parse('https://overpass.private.coffee/api/interpreter');
+    final overpassUrl2 = Uri.parse(
+      'https://overpass.private.coffee/api/interpreter',
+    );
 
-    final List<Uri> overpassServers = [
-      overpassUrl,
-      overpassUrl2,
-    ];
-    
+    final List<Uri> overpassServers = [overpassUrl, overpassUrl2];
+
     bool success = false;
 
     for (var url in overpassServers) {
       try {
-        final response = await http.post(
-          url, 
-          body: query,
-          headers: {'User-Agent': _appName} 
-        ).timeout(const Duration(seconds: 15));
+        final response = await http
+            .post(url, body: query, headers: {'User-Agent': _appName})
+            .timeout(const Duration(seconds: 15));
 
         if (response.statusCode == 200) {
           success = true;
@@ -267,7 +278,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
           if (elements.isEmpty) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No hiking trails found near the searched location. Try searching in a different area.')),
+                const SnackBar(
+                  content: Text(
+                    'No hiking trails found near the searched location. Try searching in a different area.',
+                  ),
+                ),
               );
             }
             return;
@@ -279,8 +294,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
           for (var rel in elements) {
             if (rel['type'] == 'relation') {
-              String name = rel['tags']?['name'] ?? rel['tags']?['ref'] ?? 'Hiking Trail $counter';
-                            
+              String name =
+                  rel['tags']?['name'] ??
+                  rel['tags']?['ref'] ??
+                  'Hiking Trail $counter';
+
               List<List<LatLng>> subTrailCoordinates = [];
               double totalMeters = 0.0;
 
@@ -289,7 +307,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                   if (member['type'] == 'way' && member['geometry'] != null) {
                     List<LatLng> currentSubTrailCoordinates = [];
                     for (var geo in member['geometry']) {
-                      currentSubTrailCoordinates.add(LatLng(geo['lat'].toDouble(), geo['lon'].toDouble()));
+                      currentSubTrailCoordinates.add(
+                        LatLng(geo['lat'].toDouble(), geo['lon'].toDouble()),
+                      );
                     }
                     if (currentSubTrailCoordinates.isNotEmpty) {
                       subTrailCoordinates.add(currentSubTrailCoordinates);
@@ -406,27 +426,39 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               );
             }
           }
-          
-          return; 
+
+          return;
         } else {
           if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Impossible to fetch trails. Automatically retrying')),
-          );
-        }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Impossible to fetch trails. Automatically retrying',
+                ),
+              ),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Network error. Check your connection and try again.')),
+            const SnackBar(
+              content: Text(
+                'Network error. Check your connection and try again.',
+              ),
+            ),
           );
         }
-      } 
+      }
     }
 
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server error: Impossible to fetch trails. Try again later')),
+        const SnackBar(
+          content: Text(
+            'Server error: Impossible to fetch trails. Try again later',
+          ),
+        ),
       );
     }
   }
@@ -436,18 +468,23 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     setState(() => _isLoadingTrails = true);
 
     //search for hiking trails, around the search location with a given radius and limit the resulted trails
-    final query = """
+    final query =
+        """
     [out:json][timeout:15];
     relation["route"="hiking"](around:$_searchRadius,$lat,$lon);
     out $_trailLimit geom;
     """;
 
-    try{
+    try {
       await _fetchOverpassResponse(query, lat, lon, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error. Check your connection and try again.')),
+          const SnackBar(
+            content: Text(
+              'Network error. Check your connection and try again.',
+            ),
+          ),
         );
       }
     } finally {
@@ -495,7 +532,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error occurred while fetching location suggestions. Check your connection and try again.')),
+          const SnackBar(
+            content: Text(
+              'Error occurred while fetching location suggestions. Check your connection and try again.',
+            ),
+          ),
         );
       }
     } finally {
@@ -513,11 +554,13 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
 
     try {
       //test if connection is back
-      await http.get(Uri.parse('https://api.mapbox.com/')).timeout(const Duration(seconds: 3));
-      
+      await http
+          .get(Uri.parse('https://api.mapbox.com/'))
+          .timeout(const Duration(seconds: 3));
+
       PaintingBinding.instance.imageCache.clear();
       PaintingBinding.instance.imageCache.clearLiveImages();
-      
+
       if (mounted) {
         setState(() {
           _isRetryingMapLoad = false;
@@ -531,11 +574,13 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
         setState(() {
           _isRetryingMapLoad = false;
         });
-        
+
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Error loading map tiles. Check your connection and try again.'),
+            content: Text(
+              'Error loading map tiles. Check your connection and try again.',
+            ),
             duration: Duration(seconds: 3),
           ),
         );
