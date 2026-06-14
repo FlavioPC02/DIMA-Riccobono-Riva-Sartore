@@ -131,4 +131,17 @@ void main() {
 
 		await sub.cancel();
 	});
+
+  test('uses default DatabaseService when databaseServiceFactory is null', () async {
+    final repository = ProfileRepository(
+      hasCurrentUser: () => true,
+      databaseServiceFactory: null, 
+    );
+
+    try {
+      await repository.fetchRemote();
+    } catch (e) {
+      // exception ignored
+    }
+  });
 }

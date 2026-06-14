@@ -1,0 +1,155 @@
+import 'package:application/core/models/activity.dart';
+import 'package:application/screens/add_activity_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:intl/intl.dart';
+
+import '../mocks/mocks_manual.dart';
+import '../utils/pump_app.dart';
+
+void main() {
+  late MockActivityCubit mockActivityCubit;
+
+  final dummyActivity = Activity(
+    id: 'test_id',
+    name: 'Monte Baldo Hike',
+    status: ActivityStatus.planned,
+    date: DateTime(2026, 6, 15),
+    trailName: 'Sentiero 65',
+    distanceKm: 12.5,
+    durationMinutes: 180,
+    xpEarned: 0,
+    notes: '',
+    difficulty: ActivityDifficulty.moderate,
+    trackedDistance: 0,
+    trackedElevationGap: 0,
+    trackedTime: Duration.zero,
+  );
+
+  setUpAll(() {
+    registerFallbackValue(FakeActivity());
+  });
+
+  setUp(() {
+    mockActivityCubit = MockActivityCubit();
+    
+    when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+    when(() => mockActivityCubit.state).thenReturn([]);
+
+    when(() => mockActivityCubit.addActivity(any())).thenAnswer((_) async => '');
+  });
+
+  Widget createWidgetUnderTest() {
+    return pumpApp(
+      activityCubit: mockActivityCubit,
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddActivityPage(activity: dummyActivity),
+                    ),
+                  );
+                },
+                child: const Text('Open Page'),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  group('AddActivityPage Widget Tests', () {
+    testWidgets('renders correctly with initial data', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.tap(find.text('Open Page'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Planned Hike'), findsOneWidget);
+      expect(find.text('Save'), findsOneWidget);
+
+      expect(find.text('ACTIVITY'), findsOneWidget);
+      expect(find.text('DATE'), findsOneWidget);
+      expect(find.text('DETAILS'), findsOneWidget);
+
+      expect(find.text('Monte Baldo Hike'), findsOneWidget);
+      expect(find.text('Sentiero 65'), findsOneWidget);
+      expect(find.text('12.5'), findsOneWidget);
+      expect(find.text('180'), findsOneWidget);
+      expect(find.text('moderate'), findsOneWidget);
+
+      final expectedDate = DateFormat('dd/MM/yyyy').format(dummyActivity.date);
+      expect(find.text(expectedDate), findsOneWidget);
+    });
+
+    testWidgets('shows validation error if name is empty', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.tap(find.text('Open Page'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      expect(find.text('Required'), findsOneWidget);
+
+      verifyNever(() => mockActivityCubit.addActivity(any()));
+    });
+
+    testWidgets('opens DatePicker and updates date on selection', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.tap(find.text('Open Page'));
+      await tester.pumpAndSettle();
+
+      final initialDateStr = DateFormat('dd/MM/yyyy').format(dummyActivity.date);
+      expect(find.text(initialDateStr), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.calendar_today));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+
+      await tester.tap(find.text('20'));
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      final updatedDateStr = DateFormat('dd/MM/yyyy').format(DateTime(2026, 6, 20));
+      expect(find.text(updatedDateStr), findsOneWidget);
+    });
+
+    testWidgets('saves valid form and pops navigation', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.tap(find.text('Open Page'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.ancestor(
+          of: find.text('Name'),
+          matching: find.byType(TextFormField),
+        ),
+        'My Planned Hike',
+      );
+
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      verify(() => mockActivityCubit.addActivity(any(
+            that: isA<Activity>()
+                .having((a) => a.name, 'name', 'My Planned Hike')
+                .having((a) => a.status, 'status', ActivityStatus.planned)
+                .having((a) => a.trailName, 'trailName', 'Sentiero 65')
+                .having((a) => a.distanceKm, 'distanceKm', 12.5),
+          ))).called(1);
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AddActivityPage), findsNothing);
+      expect(find.text('Open Page'), findsOneWidget);
+    });
+  });
+}

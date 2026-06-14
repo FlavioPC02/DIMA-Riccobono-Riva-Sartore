@@ -264,17 +264,59 @@ void main() {
       await tearDownMap(tester);
     });
 
-    testWidgets('Reload map button is available when map has loading error', (WidgetTester tester) async {
-      // Create a test scenario where the reload button would be shown
-      tester.view.physicalSize = const Size(800, 600);
-      addTearDown(tester.view.resetPhysicalSize);
-
+    testWidgets('Shows Reload map button on tile error and successfully retries', (WidgetTester tester) async {
       await pumpMapPage(tester);
       await tester.pumpAndSettle();
 
-      // The reload button should be available in the widget tree when map errors occur
-      // In production, it's shown via _hasMapLoadError flag
-      expect(find.byIcon(Icons.refresh), findsNothing); // Initially not shown
+      await tester.pump(const Duration(seconds: 6));
+
+      final tileLayerFinder = find.byType(TileLayer);
+      final tileLayer = tester.widget<TileLayer>(tileLayerFinder);
+      tileLayer.errorTileCallback?.call(MockTileImage(), Exception('Test'), StackTrace.empty);
+      
+      tester.binding.scheduleFrame(); 
+      
+      await tester.pump(); 
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reload map'), findsOneWidget);
+      expect(find.byIcon(Icons.refresh), findsOneWidget);
+
+      FakeHttpOverrides.shouldFailConnections = false;
+      await tester.tap(find.text('Reload map'));
+      
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.refresh), findsNothing);
+      await tearDownMap(tester);
+    });
+
+    testWidgets('Shows error snackbar if map retry fails again', (WidgetTester tester) async {
+      await pumpMapPage(tester);
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(seconds: 6));
+
+      final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer));
+      tileLayer.errorTileCallback?.call(MockTileImage(), Exception('Test'), StackTrace.empty);
+      
+      tester.binding.scheduleFrame(); 
+      
+      await tester.pump(); 
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reload map'), findsOneWidget);
+
+      FakeHttpOverrides.shouldFailConnections = true;
+      
+      await tester.tap(find.text('Reload map'));
+      
+      await tester.pump(); 
+      await tester.pump(const Duration(seconds: 4)); 
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.refresh), findsOneWidget);
       
       await tearDownMap(tester);
     });
@@ -282,22 +324,18 @@ void main() {
     testWidgets('Trail card is interactive and selectable', (WidgetTester tester) async {
       await pumpMapPage(tester);
 
-      // Fetch trails
       final searchButton = find.text('Search for hiking trails in this area');
       expect(searchButton, findsOneWidget);
       await tester.tap(searchButton);
       
       await tester.pumpAndSettle(const Duration(seconds: 3));
 
-      // Verify PageView with trails exists
       expect(find.byType(PageView), findsOneWidget);
       expect(find.text('Sentiero Facile'), findsOneWidget);
 
-      // Verify the trail card can be found and is a GestureDetector
       final trailCard = find.text('Sentiero Facile');
       expect(trailCard, findsOneWidget);
 
-      // Verify the card is contained in a Card widget
       expect(find.byType(Card), findsWidgets);
 
       await tearDownMap(tester);

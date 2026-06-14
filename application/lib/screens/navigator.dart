@@ -230,7 +230,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
       throw ArgumentError('coordinates cannot be empty');
     }
 
-    final coordinateList = coordinates.expand((e) => [e[1]]).toList();
+    final coordinateList = coordinates.expand((e) => e).toList();
     final first = coordinateList.first;
 
     final bounds = coordinateList.skip(1).fold(

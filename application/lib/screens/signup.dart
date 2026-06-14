@@ -149,6 +149,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
           TextFormField(
             controller: _nicknameController,
+            focusNode: _nicknameFocusNode,
             keyboardType: TextInputType.name,
             textInputAction: TextInputAction.next,
             onFieldSubmitted: (_) =>
@@ -169,6 +170,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
           TextFormField(
             controller: _passwordController,
+            focusNode: _passwordFocusNode,
             obscureText: _obscurePassword,
             textInputAction: TextInputAction.next,
             onFieldSubmitted: (_) =>
@@ -213,6 +215,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
           TextFormField(
             controller: _confirmController,
+            focusNode: _confirmPasswordFocusNode,
             obscureText: _obscureConfirm,
             enabled: _isPasswordValid,
             textInputAction: TextInputAction.done,
