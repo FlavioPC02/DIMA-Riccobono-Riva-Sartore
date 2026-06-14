@@ -158,13 +158,18 @@ class TrailDetailsScreenHelper {
         if (dStartFirst < minDistance) { minDistance = dStartFirst; bestIndex = i; attachMode = 3; }
       }
 
-      if (minDistance > 1000) break; // Interrompe se i segmenti sono troppo distanti
+      if (minDistance > 1000) break;
 
       var bestSeg = segments[bestIndex];
-      if (attachMode == 0) allPoints.addAll(bestSeg.skip(1));
-      else if (attachMode == 1) allPoints.addAll(bestSeg.reversed.skip(1));
-      else if (attachMode == 2) allPoints.insertAll(0, bestSeg.sublist(0, bestSeg.length - 1));
-      else if (attachMode == 3) allPoints.insertAll(0, bestSeg.reversed.skip(1));
+      if (attachMode == 0) {
+        allPoints.addAll(bestSeg.skip(1));
+      } else if (attachMode == 1) {
+        allPoints.addAll(bestSeg.reversed.skip(1));
+      } else if (attachMode == 2) {
+        allPoints.insertAll(0, bestSeg.sublist(0, bestSeg.length - 1));
+      } else if (attachMode == 3) {
+        allPoints.insertAll(0, bestSeg.reversed.skip(1));
+      }
       
       segments.removeAt(bestIndex);
     }

@@ -341,15 +341,23 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 final sac = rel['tags']?['sac_scale']?.toString().toLowerCase();
 
                 if (cai != null) {
-                  if (cai.contains('EE') || cai.contains('EAI')) trailDifficulty = 3;
-                  else if (cai == 'E') trailDifficulty = 2;
-                  else if (cai == 'T') trailDifficulty = 1;
+                  if (cai.contains('EE') || cai.contains('EAI')) {
+                    trailDifficulty = 3;
+                  } else if (cai == 'E') {
+                    trailDifficulty = 2;
+                  } else if (cai == 'T') {
+                    trailDifficulty = 1;
+                  }
                 }
 
                 if (trailDifficulty == 0 && sac != null) {
-                  if (sac.contains('alpine') || sac.contains('t4') || sac.contains('t5') || sac.contains('t6')) trailDifficulty = 3;
-                  else if (sac.contains('mountain_hiking') || sac.contains('t2') || sac.contains('t3')) trailDifficulty = 2;
-                  else if (sac.contains('hiking') || sac.contains('t1')) trailDifficulty = 1;
+                  if (sac.contains('alpine') || sac.contains('t4') || sac.contains('t5') || sac.contains('t6')) {
+                    trailDifficulty = 3;
+                  } else if (sac.contains('mountain_hiking') || sac.contains('t2') || sac.contains('t3')) { 
+                    trailDifficulty = 2;
+                  } else if (sac.contains('hiking') || sac.contains('t1')) { 
+                    trailDifficulty = 1;
+                  }
                 }
 
                 if (trailDifficulty == 0) {
