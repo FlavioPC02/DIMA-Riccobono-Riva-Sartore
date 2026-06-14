@@ -55,4 +55,6 @@ dependencies {
     // coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.2.3")
     // For AGP 4.0 to 7.2
     // coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.9")
+    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 }

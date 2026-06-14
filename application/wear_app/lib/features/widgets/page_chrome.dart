@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:wear_app/features/hike_dashboard/models/page_descriptor.dart';
+import 'package:wear_app/features/models/page_descriptor.dart';
 
 class PageChrome extends StatelessWidget {
   const PageChrome({

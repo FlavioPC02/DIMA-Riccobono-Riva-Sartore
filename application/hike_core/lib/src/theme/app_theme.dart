@@ -9,7 +9,7 @@ class AppTheme {
     tertiary: Color(0xFFE1E1E1),
     shadow: Color(0xFF000000),
     onSecondary: Color(0xFF21211F),
-    surface: Color(0xFF111C18),
+    //surface: Color(0xFF111C18),
   );
 
   static ColorScheme get darkColorScheme => ColorScheme.fromSeed(

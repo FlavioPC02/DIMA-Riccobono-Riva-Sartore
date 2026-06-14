@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:application/screens/trail_details_screen.dart';
-import '../core/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 

@@ -3,7 +3,7 @@ import 'package:application/core/models/activity.dart';
 import 'package:application/screens/activity_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../core/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:intl/intl.dart';
 
 class DiaryPage extends StatefulWidget {
