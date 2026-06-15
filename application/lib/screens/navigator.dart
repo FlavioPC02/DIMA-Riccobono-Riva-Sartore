@@ -67,6 +67,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
   //default zoom level for the map
   double mapZoom = 12.0;
+  late Timer _elapsedTimer;
+  Duration _elapsedTime = Duration.zero;
 
   @override
   void initState() {
@@ -75,8 +77,21 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     _locationCubit = sl<LocationCubit>();
 
     _locationCubit.setInitialEta(Duration(minutes: widget.activity.durationMinutes));
+    _locationCubit.setTotalDistance(widget.activity.distanceKm * 1000);
 
     sl<PhoneWearSyncService>().sendNavigationPrompt();
+
+    _elapsedTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) return;
+      final newElapsed = _locationCubit.elapsed;
+      // Only rebuild when the second boundary crosses — 10 checks per second
+      // but only ~1 rebuild per second for the timer display.
+      if (newElapsed.inSeconds != _elapsedTime.inSeconds) {
+        setState(() {
+          _elapsedTime = newElapsed;
+        });
+      }
+    });
 
     _buildMap();
     _registerLocationCubitCallbacks();
@@ -127,8 +142,12 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     );
   }
 
-  Future<void> _pauseRecording() async {
-    await _locationCubit.pauseTracking();
+  Future<void> _pauseOrResumeRecording() async {
+    if (_locationCubit.isRunning) {
+      await _locationCubit.pauseTracking();
+    } else {
+      await _locationCubit.resumeTracking();
+    }
   }
 
   Future<void> _stopRecording() async {
@@ -441,9 +460,9 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                 Positioned.fill(
                   child: StatsRecordingCard(
                     trailName: trailName,
-                    elapsedTime: _locationCubit.elapsed,
+                    elapsedTime: _elapsedTime,
                     isRecording: _locationCubit.isRunning,
-                    onToggleRecording: _pauseRecording,
+                    onToggleRecording: _pauseOrResumeRecording,
                     onStopRecording: _stopRecording,
                     stats: state,
                   ),

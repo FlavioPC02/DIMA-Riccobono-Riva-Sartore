@@ -4,38 +4,34 @@ import 'package:latlong2/latlong.dart';
 class HikeLiveStats extends Equatable {
   final Duration elapsedTime;
   final double distanceMeters;
+  final double totalDistanceMeters;
   final double? elevationGapMeters;
   final DateTime eta;
-  final LatLng? currentLocation;
-  final LatLng? nextWaypoint;
 
   const HikeLiveStats({
     required this.elapsedTime,
     required this.distanceMeters,
+    required this.totalDistanceMeters,
     required this.elevationGapMeters,
     required this.eta,
-    this.currentLocation,
-    this.nextWaypoint,
   });
 
   factory HikeLiveStats.fromMap(Map<String, dynamic> map) {
-    final currentLocationMap = map['currentLocation'] as Map<String, dynamic>?;
-    final nextWaypointMap = map['nextWaypoint'] as Map<String, dynamic>?;
 
     return HikeLiveStats(
       elapsedTime: Duration(seconds: (map['elapsedSeconds'] as num).round()),
       distanceMeters: (map['distanceMeters'] as num).toDouble(),
+      totalDistanceMeters: (map['totalDistanceMeters'] as num).toDouble(),
       elevationGapMeters: (map['elevationGapMeters'] as num?)?.toDouble(),
       eta: DateTime.parse(map['eta'] as String),
-      currentLocation: _locationFromMap(currentLocationMap),
-      nextWaypoint: _locationFromMap(nextWaypointMap),
     );
   }
 
   static HikeLiveStats empty() {
     return HikeLiveStats(
       elapsedTime: Duration.zero, 
-      distanceMeters: 0, 
+      distanceMeters: 0,
+      totalDistanceMeters: 0,
       elevationGapMeters: 0, 
       eta: DateTime.now(),
     );
@@ -44,10 +40,9 @@ class HikeLiveStats extends Equatable {
   Map<String, dynamic> toMap() => {
     'elapsedSeconds': elapsedTime.inSeconds,
     'distanceMeters': distanceMeters,
+    'totalDistanceMeters': totalDistanceMeters,
     'elevationGapMeters': elevationGapMeters,
     'eta': eta.toIso8601String(),
-    'currentLocation': _locationToMap(currentLocation),
-    'nextWaypoint': _locationToMap(nextWaypoint),
   };
 
 //  String get elapsedLabel => elapsedTime.toCompactLabel();
@@ -61,18 +56,16 @@ class HikeLiveStats extends Equatable {
   HikeLiveStats copyWith({
     Duration? elapsedTime,
     double? distanceMeters,
+    double? totalDistanceMeters,
     double? elevationGapMeters,
     DateTime? eta,
-    LatLng? currentLocation,
-    LatLng? nextWaypoint,
   }) {
     return HikeLiveStats(
       elapsedTime: elapsedTime ?? this.elapsedTime,
       distanceMeters: distanceMeters ?? this.distanceMeters,
+      totalDistanceMeters: totalDistanceMeters ?? this.totalDistanceMeters,
       elevationGapMeters: elevationGapMeters ?? this.elevationGapMeters,
       eta: eta ?? this.eta,
-      currentLocation: currentLocation ?? this.currentLocation,
-      nextWaypoint: nextWaypoint ?? this.nextWaypoint,
     );
   }
 
@@ -80,10 +73,9 @@ class HikeLiveStats extends Equatable {
   List<Object?> get props => [
     elapsedTime,
     distanceMeters,
+    totalDistanceMeters,
     elevationGapMeters,
     eta,
-    currentLocation,
-    nextWaypoint,
   ];
 
   static LatLng? _locationFromMap(Map<String, dynamic>? map) {

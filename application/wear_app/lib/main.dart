@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:wear_app/features/cubit/watch_location_cubit.dart';
-import 'package:wear_app/features/pages/time_eta_screen.dart';
+import 'package:wear_app/features/pages/trail_dashboard_page.dart';
 import 'package:wear_app/features/services/watch_wear_sync.dart';
+import 'features/pages/watch_app_homepage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,29 +54,19 @@ class _HikeWearAppState extends State<HikeWearApp> {
   void _openTimeEtaScreen() {
     if(!mounted) return;
     _navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const TimeEtaScreen()),
+        MaterialPageRoute(builder: (_) => const TrailDashboardPage()),
             (route) => route.isFirst
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final lightColorScheme = AppTheme.lightColorScheme;
     final darkColorScheme = AppTheme.darkColorScheme;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       navigatorKey: _navigatorKey,
       theme: ThemeData(
-        colorScheme: lightColorScheme,
-        useMaterial3: true,
-        scaffoldBackgroundColor: AppColors.scaffoldBackgroundColor,
-        switchTheme: AppTheme.buildSwitchTheme(lightColorScheme),
-        elevatedButtonTheme: AppTheme.buildElevatedButtonTheme(),
-        textTheme: AppTheme.buildTextTheme(),
-        inputDecorationTheme: AppTheme.buildInputDecorationTheme(),
-      ),
-      darkTheme: ThemeData(
         colorScheme: darkColorScheme,
         useMaterial3: true,
         scaffoldBackgroundColor: AppColors.scaffoldBackgroundColor,
@@ -86,14 +77,5 @@ class _HikeWearAppState extends State<HikeWearApp> {
       ),
       home: const WatchAppHomepage(),
     );
-  }
-}
-
-class WatchAppHomepage extends StatelessWidget {
-  const WatchAppHomepage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text('Waiting for phone to connect...'); //TODO: implementa il vero screen
   }
 }
