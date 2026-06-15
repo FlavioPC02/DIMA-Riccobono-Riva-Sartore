@@ -1,4 +1,4 @@
-import 'package:application/core/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:application/screens/signup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -38,7 +38,7 @@ void main() {
     final mockLocationCubit = getIt<LocationCubit>();
 
     when(() => mockLocationCubit.startTracking()).thenAnswer((_) async {});
-    when(() => mockLocationCubit.stopTracking()).thenAnswer((_) async {});
+    when(() => mockLocationCubit.stopAndSave()).thenAnswer((_) async {});
     when(() => mockLocationCubit.close()).thenAnswer((_) async {});
     when(() => mockLocationCubit.stream).thenAnswer((_) => const Stream.empty());
     when(() => mockLocationCubit.state).thenReturn(LocationState.idle());

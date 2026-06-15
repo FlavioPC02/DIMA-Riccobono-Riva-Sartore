@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:application/core/extensions/duration_formatting.dart';
+import 'package:hike_core/hike_core.dart';
 
 void main() {
   group('DurationFormatting', () {

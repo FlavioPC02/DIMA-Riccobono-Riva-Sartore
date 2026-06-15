@@ -146,7 +146,7 @@ void main() {
       )
     );
     when(() => mockLocationCubit.startTracking()).thenAnswer((_) async {});
-    when(() => mockLocationCubit.stopTracking()).thenAnswer((_) async {});
+    when(() => mockLocationCubit.stopAndSave()).thenAnswer((_) async {});
     when(() => mockLocationCubit.clearHistory()).thenAnswer((_) async {});
     when(() => mockLocationCubit.close()).thenAnswer((_) async {});
 
@@ -236,7 +236,7 @@ void main() {
 
       expect(find.widgetWithText(ElevatedButton, 'Resume'), findsOneWidget);
       expect(find.widgetWithText(ElevatedButton, 'Pause'), findsNothing);
-      verify(() => mockLocationCubit.stopTracking()).called(1);
+      verify(() => mockLocationCubit.stopAndSave()).called(1);
 
       final resumeButton = find.widgetWithText(ElevatedButton, 'Resume');
       await tester.tap(resumeButton);
@@ -263,7 +263,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      verify(() => mockLocationCubit.stopTracking()).called(2);
+      verify(() => mockLocationCubit.stopAndSave()).called(2);
       verify(() => mockLocationCubit.clearHistory()).called(1);
 
       verify(() => mockActivityCubit.addActivity(any())).called(1);
