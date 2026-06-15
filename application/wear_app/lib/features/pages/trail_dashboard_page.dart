@@ -42,19 +42,27 @@ class _TrailDashboardPageState extends State<TrailDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WatchShape(
-        builder: (context, shape, child) {
-          _isRound = shape == WearShape.round;
-
-          return AmbientMode(
-              builder: (context, mode, child) {
-                if (mode == WearMode.ambient) {
-                  return _buildAmbientView();
-                }
-                return _buildActiveView();
-              }
-          );
+    return BlocListener<WatchLocationCubit, WatchLocationState>(
+      listenWhen: (p, c) => p.status != c.status,
+      listener: (context, state) {
+        if (state.status == HikeRecordingStatus.stopped) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
+      },
+      child: WatchShape(
+          builder: (context, shape, child) {
+            _isRound = shape == WearShape.round;
+
+            return AmbientMode(
+                builder: (context, mode, child) {
+                  if (mode == WearMode.ambient) {
+                    return _buildAmbientView();
+                  }
+                  return _buildActiveView();
+                }
+            );
+          }
+      ),
     );
   }
 

@@ -49,14 +49,26 @@ class _TimeEtaScreenState extends State<TimeEtaScreen> {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
 
-    return BlocListener<WatchLocationCubit, WatchLocationState>(
-        listenWhen: (p, c) => p.stats.elapsedTime != c.stats.elapsedTime,
-        listener: (context, state) {
-          _lastSync = DateTime.now();
-          setState(() {
-            _localElapsed = state.stats.elapsedTime;
-          });
-        },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<WatchLocationCubit, WatchLocationState>(
+          listenWhen: (p, c) => p.stats.elapsedTime != c.stats.elapsedTime,
+          listener: (context, state) {
+            _lastSync = DateTime.now();
+            setState(() {
+              _localElapsed = state.stats.elapsedTime;
+            });
+          },
+        ),
+        BlocListener<WatchLocationCubit, WatchLocationState>(
+          listenWhen: (p, c) => p.status != c.status,
+          listener: (context, state) {
+            if (state.isRecording) {
+              _lastSync = DateTime.now();
+            }
+          },
+        ),
+      ],
       child: BlocBuilder<WatchLocationCubit, WatchLocationState>(
           buildWhen: (p, c) => p.stats.eta != c.stats.eta,
           builder: (context, state) {

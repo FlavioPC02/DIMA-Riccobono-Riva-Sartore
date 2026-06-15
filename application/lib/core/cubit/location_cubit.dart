@@ -92,7 +92,7 @@ class LocationCubit extends Cubit<LocationState> {
   }
 
   Future<void> startTracking() async {
-    if (state.isTracking) return;
+    if (state.isActive) return;
 
     _stopWatch.reset();
     _stopWatch.start();
@@ -120,6 +120,22 @@ class LocationCubit extends Cubit<LocationState> {
         debugPrint('[LocationCubit] GPS point received: '
             'lat=${point.lat} lng=${point.lng} alt=${point.altitude}');
         if (isClosed) return;
+
+        if (state.isPaused) {
+          emit(
+            LocationState.paused(
+              points: state.points,
+              current: point,
+              distance: state.distance,
+              elevationGap: state.elevationGap,
+              totalAscent: state.totalAscent,
+              totalDescent: state.totalDescent,
+              eta: eta,
+            ),
+          );
+          return;
+        }
+
         final newPoints = [...state.points, point];
 
         //Distance: add the leg from previous fix to the new one
@@ -188,12 +204,37 @@ class LocationCubit extends Cubit<LocationState> {
     if (!state.isTracking) return;
     _stopWatch.stop();
     _wearSync.sendStatus(HikeRecordingStatus.paused);
-    //TODO: emit paused variant of LocationState
+    
+    emit(
+      LocationState.paused(
+        points: state.points,
+        current: state.current,
+        distance: state.distance,
+        elevationGap: state.elevationGap,
+        totalAscent: state.totalAscent,
+        totalDescent: state.totalDescent,
+        eta: state.eta,
+      ),
+    );
   }
 
   Future<void> resumeTracking() async {
+    if (!state.isPaused) return;
     _stopWatch.start();
+    _lastEtaUpdateAt = DateTime.now();
     _wearSync.sendStatus(HikeRecordingStatus.recording);
+
+    emit(
+      LocationState.tracking(
+        points: state.points,
+        current: state.current,
+        distance: state.distance,
+        elevationGap: state.elevationGap,
+        totalAscent: state.totalAscent,
+        totalDescent: state.totalDescent,
+        eta: state.eta,
+      ),
+    );
   }
 
   Future<void> stopAndSave({bool navigate = true}) async {

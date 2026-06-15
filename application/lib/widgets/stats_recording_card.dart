@@ -131,15 +131,21 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          widget.trailName,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.titleMedium!
-                            .copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                widget.trailName,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleMedium!.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                softWrap: true,
+                              ),
                             ),
-                          softWrap: true,
+                          ],
                         ),
                         if (showDetails) ...[
                           const SizedBox(height: 12),

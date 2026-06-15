@@ -68,12 +68,19 @@ class CommandOverlay extends StatelessWidget{
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: const Color(0xFF1A2E24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(screenSize.width * 0.05)),
+          surfaceTintColor: Colors.transparent,
+          insetPadding: EdgeInsets.all(screenSize.width * 0.05),
+          titlePadding: EdgeInsets.only(
+              top: screenSize.height * 0.1,
+              bottom: screenSize.height * 0.05,
+          ),
+          actionsPadding: EdgeInsets.only(bottom: screenSize.height * 0.05),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(screenSize.width * 0.1)),
           title: Text(
             'Stop hike?',
             style: TextStyle(
                 color: Colors.white,
-                fontSize: (screenSize.width * 0.07).clamp(12.0, 16.0),
+                fontSize: (screenSize.width * 0.08).clamp(14.0, 18.0),
             ),
             textAlign: TextAlign.center,
           ),
@@ -85,7 +92,7 @@ class CommandOverlay extends StatelessWidget{
                   'Cancel',
                   style: TextStyle(
                       color: Colors.white54,
-                      fontSize: (screenSize.width * 0.06).clamp(10.0, 14.0),
+                      fontSize: (screenSize.width * 0.06).clamp(11.0, 14.0),
                   ),
                 ),
             ),
@@ -100,7 +107,7 @@ class CommandOverlay extends StatelessWidget{
                     style: TextStyle(
                         color: const Color(0xFFE57373),
                         fontWeight: FontWeight.bold,
-                        fontSize: (screenSize.width * 0.06).clamp(10.0, 14.0),
+                        fontSize: (screenSize.width * 0.06).clamp(11.0, 14.0),
                     )
                 ),
             ),

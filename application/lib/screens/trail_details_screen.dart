@@ -356,13 +356,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
-      child: GridView.count(
+      child: GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        mainAxisExtent: MediaQuery.textScalerOf(context).scale(120.0),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          mainAxisExtent: MediaQuery.textScalerOf(context).scale(120.0),
+        ),
         children: [
           _buildStatCard(Icons.route, 'Distance', value: distanceStr),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: durationStr),
@@ -829,6 +831,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                           name: widget.trail['name'],
                           status: ActivityStatus.planned,
                           durationMinutes: _durationMinutes,
+                          distanceKm: _distanceKm,
                           date: DateTime.now(),
                           difficulty: difficulty,
                           xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty),
