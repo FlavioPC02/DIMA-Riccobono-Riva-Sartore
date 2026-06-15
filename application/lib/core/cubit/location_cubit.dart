@@ -65,11 +65,17 @@ class LocationCubit extends Cubit<LocationState> {
   Duration _remainingEta;
   DateTime? _lastEtaUpdateAt;
 
+  double _totalDistance = 0;
+
   DateTime get eta => DateTime.now().add(_remainingEta);
 
   void setInitialEta(Duration duration) {
     _remainingEta = duration;
     _lastEtaUpdateAt = DateTime.now();
+  }
+
+  void setTotalDistance(double distance) {
+    _totalDistance = distance;
   }
 
   void registerStopCallbacks({
@@ -111,6 +117,8 @@ class LocationCubit extends Cubit<LocationState> {
     //listen for points coming from the background isolate
     _locationSub = _backgroundTrackingService.watchLocation().listen(
       (point) async {
+        debugPrint('[LocationCubit] GPS point received: '
+            'lat=${point.lat} lng=${point.lng} alt=${point.altitude}');
         if (isClosed) return;
         final newPoints = [...state.points, point];
 
@@ -156,7 +164,8 @@ class LocationCubit extends Cubit<LocationState> {
         _wearSync.sendStats(
           HikeLiveStats(
             elapsedTime: elapsed, 
-            distanceMeters: newDistance, 
+            distanceMeters: newDistance,
+            totalDistanceMeters: _totalDistance,
             elevationGapMeters: newGap, 
             eta: eta,
           ),
@@ -165,11 +174,13 @@ class LocationCubit extends Cubit<LocationState> {
         unawaited(_repository.save(point));
       },
       onError: (e) {
+        debugPrint('[LocationCubit] GPS stream error: $e');
         if (!isClosed) emit(LocationState.error(e.toString()));
       },
     );
 
     await _backgroundTrackingService.startTracking();
+    debugPrint('[LocationCubit] startTracking() completed, isTracking=${state.isTracking}');
     _wearSync.sendStatus(HikeRecordingStatus.recording);
   }
 

@@ -7,6 +7,9 @@ class WatchLocationState {
   //True while we are waiting for connection with phone
   final bool isConnecting;
 
+  bool get isPaused => status == HikeRecordingStatus.paused;
+  bool get isRecording => status == HikeRecordingStatus.recording;
+
   const WatchLocationState({
     required this.stats,
     required this.status,
