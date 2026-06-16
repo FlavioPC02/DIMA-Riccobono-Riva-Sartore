@@ -51,6 +51,14 @@ class PhoneWearSyncService {
     }
   }
 
+  Future<void> sendOffTrailNotification(String notification) async {
+    try {
+      await _channel.invokeMethod('sendOffTrailNotification', notification);
+    } on PlatformException catch (e) {
+      debugPrint('[PhoneWearsync] sendOffTrailNotification failed: ${e.message}');
+    }
+  }
+
   Future<void> sendNavigationPrompt() async {
     debugPrint('[PhoneWearSync] SENDING navigation prompt');
     try {

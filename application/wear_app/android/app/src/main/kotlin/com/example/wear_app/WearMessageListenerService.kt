@@ -52,7 +52,7 @@ class WearMessageListenerService : WearableListenerService() {
                         }
                     }
 
-                    payload.startsWith("S:") || payload.startsWith("T:") -> {
+                    payload.startsWith("S:") || payload.startsWith("T:") || payload.startsWith("O:") -> {
                         val activity = MainActivity.instance
                         if (activity != null) {
                             activity.onMessageFromPhone(payload)

@@ -16,7 +16,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -41,16 +40,8 @@ class NavigatorScreen extends StatefulWidget {
 class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingObserver {
   static const double _offsetBound = 32;
   static const double _offsetBoundTop = 37;
-  static const double _offTrailThresholdMeters = 50.0;
-  static const double R = 6371000; // Earth radius in meters
-
-  double _degToRad(double deg) => deg * (math.pi / 180.0);
 
   final MapController _mapController = MapController();
-
-  DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(
-    0,
-  );
 
   late final LocationCubit _locationCubit;
 
@@ -86,6 +77,10 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
 
     _locationCubit.setInitialEta(Duration(minutes: widget.activity.durationMinutes));
     _locationCubit.setTotalDistance(widget.activity.distanceKm * 1000);
+    _locationCubit.setTrailData(
+      segments: (widget.trail['subTrails'] as List).cast<List<LatLng>>(),
+      onOffTrail: _showPathDistanceNotification,
+    );
 
     sl<PhoneWearSyncService>().sendNavigationPrompt();
 
@@ -170,7 +165,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
     await _locationCubit.stopAndSave(navigate: true);
   }
 
-  void _showPathDistanceNotification(int distance, {String? direction}) {
+  void _showPathDistanceNotification(int distance, String direction) {
     final notificationsEnabled = context
         .read<SettingsCubit>()
         .state
@@ -178,7 +173,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
 
     if (!notificationsEnabled) return;
 
-    final String dirText = direction ?? '';
+    final String dirText = direction;
     final String body = 'You are $distance m from the trail. \n$dirText.';
 
     NotificationService.showNotification(title: 'Out of trail', body: body);
@@ -308,82 +303,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
     return allLines;
   }
 
-  // returns both distance (meters) and side sign for P relative to segment V->W
-  // side > 0 => P is to the left of segment, side < 0 => to the right
-  Map<String, double> _distanceAndSideToSegment(LatLng p, LatLng v, LatLng w) {
-    final double latRef = _degToRad((v.latitude + w.latitude) / 2.0);
-    double xFor(LatLng a) => _degToRad(a.longitude) * R * math.cos(latRef);
-    double yFor(LatLng a) => _degToRad(a.latitude) * R;
-
-    final double px = xFor(p);
-    final double py = yFor(p);
-    final double vx = xFor(v);
-    final double vy = yFor(v);
-    final double wx = xFor(w);
-    final double wy = yFor(w);
-
-    final double dx = wx - vx;
-    final double dy = wy - vy;
-
-    if (dx == 0 && dy == 0) {
-      final double dist = ((px - vx) * (px - vx) + (py - vy) * (py - vy));
-      return {'distance': math.sqrt(dist), 'side': 0.0};
-    }
-
-    final double t = ((px - vx) * dx + (py - vy) * dy) / (dx * dx + dy * dy);
-    final double tt = t < 0 ? 0 : (t > 1 ? 1 : t);
-    final double projx = vx + tt * dx;
-    final double projy = vy + tt * dy;
-    final double dist2 =
-        (px - projx) * (px - projx) + (py - projy) * (py - projy);
-    // cross product of segment (dx,dy) and vector from proj->P => sign indicates side
-    final double cross = dx * (py - projy) - dy * (px - projx);
-    return {'distance': math.sqrt(dist2), 'side': cross};
-  }
-
-  void checkUserOnTrail(LatLng position) {
-    final List<List<LatLng>> subTrails =
-        widget.trail['subTrails'] as List<List<LatLng>>;
-    if (subTrails.isEmpty) return;
-
-    double minDistance = double.infinity;
-    double sideForMin = 0.0;
-
-    for (final segment in subTrails) {
-      if (segment.length < 2) continue;
-      for (int i = 0; i < segment.length - 1; i++) {
-        final LatLng a = segment[i];
-        final LatLng b = segment[i + 1];
-        final result = _distanceAndSideToSegment(position, a, b);
-        final double d = result['distance']!;
-        final double side = result['side']!;
-        if (d < minDistance) {
-          minDistance = d;
-          sideForMin = side;
-        }
-      }
-    }
-
-    final int distanceMeters = minDistance.isFinite ? minDistance.round() : 0;
-    final DateTime now = DateTime.now();
-
-    if (distanceMeters > _offTrailThresholdMeters &&
-        now.difference(_lastOffTrailNotificationTime).inSeconds >= 60) {
-      _lastOffTrailNotificationTime = now;
-
-      String direction;
-      if (sideForMin > 0.0) {
-        // P is left of segment -> suggest moving right
-        direction = 'Move to the right to get back on the trail';
-      } else if (sideForMin < 0.0) {
-        direction = 'Move to the left to get back on the trail';
-      } else {
-        direction = 'Get closer to the trail';
-      }
-
-      _showPathDistanceNotification(distanceMeters, direction: direction);
-    }
-  }
+  // function to build polyline layers declaratively
 
   @override
   Widget build(BuildContext context) {
@@ -395,22 +315,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) _locationCubit.stopAndSave(navigate: true);
         },
-        child: BlocConsumer<LocationCubit, LocationState>(
-          listenWhen: (previous, current) =>
-              current.current != null &&
-              previous.isTracking &&
-              current.isTracking &&
-              current.points.length > previous.points.length,
-          listener: (context, state) {
-            final position = LatLng(state.current!.lat, state.current!.lng);
-            checkUserOnTrail(position);
-          },
+        child: BlocBuilder<LocationCubit, LocationState>(
           builder: (context, state) {
-            if (state.current != null) {
-              final position = LatLng(state.current!.lat, state.current!.lng);
-              checkUserOnTrail(position);
-            }
-
             return Stack(
               alignment: Alignment.bottomCenter,
               children: [

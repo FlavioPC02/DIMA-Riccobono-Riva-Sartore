@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:hike_core/hike_core.dart';
 import 'package:wear_app/features/models/watch_location_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:wear_app/features/services/watch_notification_service.dart';
 import 'package:wear_app/features/services/watch_wear_sync.dart';
 
 class WatchLocationCubit extends Cubit<WatchLocationState> {
@@ -27,7 +28,13 @@ class WatchLocationCubit extends Cubit<WatchLocationState> {
       }
     };
 
+    _sync.onOffTrailNotification = (notification) => onOffTrailNotification(notification);
+
     _statsSubscription = _sync.statsStream.listen((stats) {
+      if (stats.isOffTrail && !state.stats.isOffTrail) {
+        onOffTrailNotification(stats.offTrailDirection ?? 'Unknown direction');
+      }
+
       emit(state.copyWith(
         stats: stats,
         isConnecting: false,
@@ -74,6 +81,13 @@ class WatchLocationCubit extends Cubit<WatchLocationState> {
       lastUpdate: DateTime.now(),
     ));
     await _sync.sendStop();
+  }
+
+  void onOffTrailNotification(String notification) {
+    WatchNotificationService.showNotification(
+      title: 'Off Trail Alert!',
+      body: notification,
+    );
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:hike_core/hike_core.dart';
 
@@ -8,6 +9,7 @@ class WatchWearSyncService {
   static const _channel = MethodChannel("hike/wear_sync"); //channel name in MainActivity, to enable data sharing between devices
 
   VoidCallback? onOpenNavigation;
+  void Function(String notification)? onOffTrailNotification;
 
   //Stream controllers
   final _statsController = StreamController<HikeLiveStats>.broadcast();
@@ -47,6 +49,10 @@ class WatchWearSyncService {
 
       case 'openNavigationScreen':
         onOpenNavigation?.call();
+        break;
+
+      case 'onOffTrailNotification':
+        onOffTrailNotification?.call(call.arguments as String);
         break;
 
       default:

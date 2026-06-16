@@ -121,6 +121,11 @@ class MainActivity : FlutterActivity() {
                     methodChannel.invokeMethod("onStatusChange", status)
                 }
 
+                payload.startsWith("O:") -> {
+                    val notification = payload.removePrefix("O:")
+                    methodChannel.invokeMethod("onOffTrailNotification", notification)
+                }
+
                 else -> android.util.Log.w("WatchMainActivity", "Unknown payload: $payload")
             }
         }

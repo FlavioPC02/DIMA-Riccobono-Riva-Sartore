@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:application/services/background_tracking_service.dart';
 import 'package:application/services/phone_wear_sync.dart';
@@ -22,6 +23,9 @@ typedef OnActivitySaved = Future<void> Function({
 
 //Callback for screen navigation after stop
 typedef OnNavigateAfterStop = void Function();
+
+//Callback for off trail notification
+typedef OnOffTrail = void Function(int distanceMeters, String direction);
 
 class LocationCubit extends Cubit<LocationState> {
   LocationCubit(
@@ -69,6 +73,23 @@ class LocationCubit extends Cubit<LocationState> {
       _pendingNavigation = false;
       _onNavigateAfterStop?.call();
     }
+  }
+
+  //Trail geometry
+  List<List<LatLng>> _trailSegments = [];
+  OnOffTrail? _onOffTrail;
+  DateTime _lastOffTrailNotificationTime =
+      DateTime.fromMillisecondsSinceEpoch(0);
+
+  static const double _offTrailThresholdMeters = 50.0;
+  static const double _earthRadiusMeters = 6371000;
+
+  void setTrailData({
+    required List<List<LatLng>> segments,
+    required OnOffTrail onOffTrail,
+  }) {
+    _trailSegments = segments;
+    _onOffTrail = onOffTrail;
   }
 
   final _stopWatch = Stopwatch();
@@ -187,6 +208,12 @@ class LocationCubit extends Cubit<LocationState> {
 
         final newEta = _computeEta(newPoints);
 
+        final position = LatLng(point.lat, point.lng);
+        final offTrail = _checkOffTrail(position);
+        // offTrail is null when the user is on-trail
+        final isOffTrail = offTrail != null;
+        final offTrailDirection = offTrail?.direction;
+
         emit(
           LocationState.tracking(
             points: newPoints,
@@ -196,6 +223,8 @@ class LocationCubit extends Cubit<LocationState> {
             totalAscent: newAscent,
             totalDescent: newDescent,
             eta: newEta,
+            isOffTrail: isOffTrail,
+            offTrailDirection: offTrailDirection,
           ),
         );
 
@@ -206,8 +235,19 @@ class LocationCubit extends Cubit<LocationState> {
             totalDistanceMeters: _totalDistance,
             elevationGapMeters: newGap, 
             eta: eta,
+            isOffTrail: isOffTrail,
+            offTrailDirection: offTrailDirection,
           ),
         );
+
+        // Trigger phone notification via callback (rate-limited to 60s)
+        if (offTrail != null) {
+          final now = DateTime.now();
+          if (now.difference(_lastOffTrailNotificationTime).inSeconds >= 60) {
+            _lastOffTrailNotificationTime = now;
+            _onOffTrail?.call(offTrail.distance, offTrail.direction);
+          }
+        }
 
         unawaited(_repository.save(point));
       },
@@ -232,6 +272,8 @@ class LocationCubit extends Cubit<LocationState> {
         totalDistanceMeters: _totalDistance,
         elevationGapMeters: state.elevationGap ?? 0.0,
         eta: eta,
+        isOffTrail: state.isOffTrail,
+        offTrailDirection: state.offTrailDirection,
       ),
     );
     _wearSync.sendStatus(HikeRecordingStatus.paused);
@@ -245,6 +287,8 @@ class LocationCubit extends Cubit<LocationState> {
         totalAscent: state.totalAscent,
         totalDescent: state.totalDescent,
         eta: state.eta,
+        isOffTrail: state.isOffTrail,
+        offTrailDirection: state.offTrailDirection,
       ),
     );
   }
@@ -264,6 +308,8 @@ class LocationCubit extends Cubit<LocationState> {
         totalAscent: state.totalAscent,
         totalDescent: state.totalDescent,
         eta: state.eta,
+        isOffTrail: state.isOffTrail,
+        offTrailDirection: state.offTrailDirection,
       ),
     );
   }
@@ -292,6 +338,10 @@ class LocationCubit extends Cubit<LocationState> {
     }
   }
 
+  Future<void> onOffTrail(String notification) async {
+    await _wearSync.sendOffTrailNotification(notification);
+  }
+
   Future<void> clearHistory() async {
     await _repository.clear();
     if (!isClosed) {
@@ -307,7 +357,74 @@ class LocationCubit extends Cubit<LocationState> {
     return super.close();
   }
 
-  //Helpers
+
+  ({int distance, String direction})? _checkOffTrail(LatLng position) {
+    if (_trailSegments.isEmpty) return null;
+
+    double minDistance = double.infinity;
+    double sideForMin = 0.0;
+
+    for (final segment in _trailSegments) {
+      if (segment.length < 2) continue;
+      for (int i = 0; i < segment.length - 1; i++) {
+        final result =
+            _distanceAndSideToSegment(position, segment[i], segment[i + 1]);
+        if (result.distance < minDistance) {
+          minDistance = result.distance;
+          sideForMin = result.side;
+        }
+      }
+    }
+
+    if (!minDistance.isFinite || minDistance <= _offTrailThresholdMeters) {
+      return null; // on-trail
+    }
+
+    final String direction;
+    if (sideForMin > 0.0) {
+      direction = 'Move to the right to get back on the trail';
+    } else if (sideForMin < 0.0) {
+      direction = 'Move to the left to get back on the trail';
+    } else {
+      direction = 'Get closer to the trail';
+    }
+
+    return (distance: minDistance.round(), direction: direction);
+  }
+
+  // Flat-Earth approximation for short distances.
+  ({double distance, double side}) _distanceAndSideToSegment(
+      LatLng p, LatLng v, LatLng w) {
+    final double latRef =
+        _degToRad((v.latitude + w.latitude) / 2.0);
+    double xFor(LatLng a) =>
+        _degToRad(a.longitude) * _earthRadiusMeters * math.cos(latRef);
+    double yFor(LatLng a) => _degToRad(a.latitude) * _earthRadiusMeters;
+
+    final px = xFor(p), py = yFor(p);
+    final vx = xFor(v), vy = yFor(v);
+    final wx = xFor(w), wy = yFor(w);
+    final dx = wx - vx, dy = wy - vy;
+
+    if (dx == 0 && dy == 0) {
+      return (
+        distance: math.sqrt((px - vx) * (px - vx) + (py - vy) * (py - vy)),
+        side: 0.0
+      );
+    }
+
+    final t = ((px - vx) * dx + (py - vy) * dy) / (dx * dx + dy * dy);
+    final tt = t.clamp(0.0, 1.0);
+    final projx = vx + tt * dx;
+    final projy = vy + tt * dy;
+    return (
+      distance: math.sqrt(
+          (px - projx) * (px - projx) + (py - projy) * (py - projy)),
+      side: dx * (py - projy) - dy * (px - projx),
+    );
+  }
+
+  double _degToRad(double deg) => deg * (math.pi / 180.0);
 
   DateTime _computeEta(List<LocationPoint> points) {
     final now = DateTime.now();

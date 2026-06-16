@@ -5,11 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:wear_app/features/cubit/watch_location_cubit.dart';
 import 'package:wear_app/features/pages/trail_dashboard_page.dart';
+import 'package:wear_app/features/services/watch_notification_service.dart';
 import 'package:wear_app/features/services/watch_wear_sync.dart';
 import 'features/pages/watch_app_homepage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await WatchNotificationService.initialize();
   //await NotificationService.initializeNotificationService();
 
   runApp(const RootApp());

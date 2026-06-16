@@ -6,22 +6,28 @@ class HikeLiveStats extends Equatable {
   final double totalDistanceMeters;
   final double? elevationGapMeters;
   final DateTime eta;
+  final bool isOffTrail;
+  final String? offTrailDirection;
 
   const HikeLiveStats({
     required this.elapsedTime,
     required this.distanceMeters,
-    required this.totalDistanceMeters,
+    this.totalDistanceMeters = 0.0,
     required this.elevationGapMeters,
     required this.eta,
+    this.isOffTrail = false,
+    this.offTrailDirection,
   });
 
   factory HikeLiveStats.fromMap(Map<String, dynamic> map) {
     return HikeLiveStats(
       elapsedTime: Duration(milliseconds: (map['elapsedMs'] as num).round()),
       distanceMeters: (map['distanceMeters'] as num).toDouble(),
-      totalDistanceMeters: (map['totalDistanceMeters'] as num).toDouble(),
+      totalDistanceMeters: (map['totalDistanceMeters'] as num ?? 0.0).toDouble(),
       elevationGapMeters: (map['elevationGapMeters'] as num?)?.toDouble(),
       eta: DateTime.parse(map['eta'] as String),
+      isOffTrail: map['isOffTrail'] as bool? ?? false,
+      offTrailDirection: map['offTrailDirection'] as String?,
     );
   }
 
@@ -32,6 +38,7 @@ class HikeLiveStats extends Equatable {
       totalDistanceMeters: 0,
       elevationGapMeters: 0,
       eta: DateTime.now(),
+      isOffTrail: false,
     );
   }
 
@@ -42,6 +49,8 @@ class HikeLiveStats extends Equatable {
         'totalDistanceMeters': totalDistanceMeters,
         'elevationGapMeters': elevationGapMeters,
         'eta': eta.toIso8601String(),
+        'isOffTrail': isOffTrail,
+        'offTrailDirection': offTrailDirection,
       };
 
   HikeLiveStats copyWith({
@@ -50,6 +59,8 @@ class HikeLiveStats extends Equatable {
     double? totalDistanceMeters,
     double? elevationGapMeters,
     DateTime? eta,
+    bool? isOffTrail,
+    String? offTrailDirection,
   }) {
     return HikeLiveStats(
       elapsedTime: elapsedTime ?? this.elapsedTime,
@@ -57,6 +68,8 @@ class HikeLiveStats extends Equatable {
       totalDistanceMeters: totalDistanceMeters ?? this.totalDistanceMeters,
       elevationGapMeters: elevationGapMeters ?? this.elevationGapMeters,
       eta: eta ?? this.eta,
+      isOffTrail: isOffTrail ?? this.isOffTrail,
+      offTrailDirection: offTrailDirection ?? this.offTrailDirection,
     );
   }
 
@@ -68,6 +81,8 @@ class HikeLiveStats extends Equatable {
         totalDistanceMeters,
         elevationGapMeters,
         eta,
+        isOffTrail,
+        offTrailDirection,
       ];
 }
 

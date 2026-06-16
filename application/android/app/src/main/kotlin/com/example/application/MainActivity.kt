@@ -80,6 +80,16 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
 
+                "sendOffTrailNotification" -> {
+                    val notification = call.arguments as? String
+                    if (notification != null) {
+                        sendMessageToWatch("O:$notification")
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARGS", "Expected a notification string", null)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }

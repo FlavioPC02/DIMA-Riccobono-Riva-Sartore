@@ -19,6 +19,9 @@ class LocationState extends Equatable {
 
   final DateTime? eta;
 
+  final bool isOffTrail;
+  final String? offTrailDirection;
+
   const LocationState._({
     required this.kind,
     this.points = const [],
@@ -29,6 +32,8 @@ class LocationState extends Equatable {
     this.totalAscent = 0,
     this.totalDescent = 0,
     this.eta,
+    this.isOffTrail = false,
+    this.offTrailDirection,
   });
 
   const LocationState.idle()
@@ -42,6 +47,8 @@ class LocationState extends Equatable {
     double totalAscent = 0,
     double totalDescent = 0,
     DateTime? eta,
+    bool isOffTrail = false,
+    String? offTrailDirection,
   }) : this._(
     kind: LocationStateKind.tracking,
     points: points,
@@ -51,6 +58,8 @@ class LocationState extends Equatable {
     totalAscent: totalAscent,
     totalDescent: totalDescent,
     eta: eta,
+    isOffTrail: isOffTrail,
+    offTrailDirection: offTrailDirection,
   );
 
   const LocationState.paused({
@@ -61,6 +70,8 @@ class LocationState extends Equatable {
     double totalAscent = 0,
     double totalDescent = 0,
     DateTime? eta,
+    bool isOffTrail = false,
+    String? offTrailDirection,
   }) : this._(
     kind: LocationStateKind.paused,
     points: points,
@@ -70,6 +81,8 @@ class LocationState extends Equatable {
     totalAscent: totalAscent,
     totalDescent: totalDescent,
     eta: eta,
+    isOffTrail: isOffTrail,
+    offTrailDirection: offTrailDirection,
   );
 
   const LocationState.error(String message)
@@ -110,5 +123,7 @@ class LocationState extends Equatable {
     totalAscent,
     totalDescent,
     eta,
+    isOffTrail,
+    offTrailDirection,
   ];
 }
