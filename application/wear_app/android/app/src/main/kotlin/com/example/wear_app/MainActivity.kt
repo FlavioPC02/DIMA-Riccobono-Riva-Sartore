@@ -127,7 +127,6 @@ class MainActivity : FlutterActivity() {
     }
 
     fun openNavigationScreen() {
-        android.util.Log.d("WatchSync", "Voglio aprire il navigator")
         runOnUiThread {
             methodChannel.invokeMethod("openNavigationScreen", null)
         }

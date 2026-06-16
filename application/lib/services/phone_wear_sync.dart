@@ -17,6 +17,7 @@ class PhoneWearSyncService {
   }
 
   Future<void> _handleMethodCallFromWatch(MethodCall call) async {
+    debugPrint("[PhoneWearSync] Received method call: ${call.method}");
     switch (call.method) {
       case 'pauseRecording':
         onPauseFromWatch?.call();

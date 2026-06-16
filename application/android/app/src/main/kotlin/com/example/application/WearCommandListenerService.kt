@@ -10,6 +10,7 @@ class WearCommandListenerService : WearableListenerService() {
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
+        android.util.Log.d("PhoneSync", "Path=${messageEvent.path}")
         if (messageEvent.path != WEAR_COMMAND_PATH) return
 
         val command = String(messageEvent.data)
