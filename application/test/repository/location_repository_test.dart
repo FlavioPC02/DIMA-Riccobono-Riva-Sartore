@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import '../../lib/core/models/location_point.dart';
-import '../../lib/core/repository/location_repository.dart';
+import 'package:application/core/models/location_point.dart';
+import 'package:application/core/repository/location_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 

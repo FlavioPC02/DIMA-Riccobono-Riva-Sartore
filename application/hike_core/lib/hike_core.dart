@@ -1,6 +1,5 @@
 library;
 
-//TODO: inserire gli export delle cose in comune
 export 'src/theme/app_colors.dart';
 export 'src/theme/app_theme.dart';
 export 'src/extensions/duration_formatting.dart';

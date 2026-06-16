@@ -43,7 +43,13 @@ class LocationCubit extends Cubit<LocationState> {
          _wearSync.onResumeFromWatch = resumeTracking;
          
          //Disable screen navigation because stop triggered from watch. The phone may be in their pockets.
-         _wearSync.onStopFromWatch = () => stopAndSave(navigate: false);
+         _wearSync.onStopFromWatch = () {
+           _pendingNavigation = true;
+           stopAndSave(navigate: false);
+           // If we're already in foreground, consume it immediately. 
+           // If background, WidgetsBindingObserver in NavigatorScreen will catch it.
+           consumeNavigation();
+         };
        }
 
   final ILocationRepository _repository;
@@ -54,6 +60,16 @@ class LocationCubit extends Cubit<LocationState> {
   OnNavigateAfterStop? _onNavigateAfterStop;
 
   StreamSubscription<LocationPoint>? _locationSub;
+
+  bool _pendingNavigation = false;
+  bool get pendingNavigation => _pendingNavigation;
+
+  void consumeNavigation() {
+    if (_pendingNavigation) {
+      _pendingNavigation = false;
+      _onNavigateAfterStop?.call();
+    }
+  }
 
   final _stopWatch = Stopwatch();
   Duration get elapsed => _stopWatch.elapsed;
@@ -98,6 +114,11 @@ class LocationCubit extends Cubit<LocationState> {
     _stopWatch.start();
     _lastEtaUpdateAt = DateTime.now();
 
+    //Send totalDistance to watch
+    _wearSync.sendStats(
+      HikeLiveStats.empty().copyWith(totalDistanceMeters: _totalDistance),
+    );
+
     //Rehydrate persisted points and recompute metrics so the displayed totals survive an app restart
     final saved = _repository.getAll();
     final (dist, gap, asc, desc) = _computeMetrics(saved);
@@ -120,6 +141,7 @@ class LocationCubit extends Cubit<LocationState> {
         debugPrint('[LocationCubit] GPS point received: '
             'lat=${point.lat} lng=${point.lng} alt=${point.altitude}');
         if (isClosed) return;
+        if (point.positionAccuracy > 50 || point.altitudeAccuracy > 50) return;
 
         if (state.isPaused) {
           emit(
@@ -203,6 +225,15 @@ class LocationCubit extends Cubit<LocationState> {
   Future<void> pauseTracking() async {
     if (!state.isTracking) return;
     _stopWatch.stop();
+    _wearSync.sendStats(
+      HikeLiveStats(
+        elapsedTime: elapsed,
+        distanceMeters: state.distance,
+        totalDistanceMeters: _totalDistance,
+        elevationGapMeters: state.elevationGap ?? 0.0,
+        eta: eta,
+      ),
+    );
     _wearSync.sendStatus(HikeRecordingStatus.paused);
     
     emit(

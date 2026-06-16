@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/cupertino.dart';
 
 import '../../core/models/location_point.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';

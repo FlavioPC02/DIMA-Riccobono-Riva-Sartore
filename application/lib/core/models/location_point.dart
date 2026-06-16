@@ -5,7 +5,6 @@ class LocationPoint {
   final double lat;
   final double lng;
   final double altitude;
-  //TODO: necessario salvare accuracy o posso evitare?
   final double positionAccuracy;
   final double altitudeAccuracy;
   final DateTime timestamp;

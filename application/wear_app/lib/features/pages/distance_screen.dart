@@ -74,18 +74,20 @@ class DistanceScreen extends StatelessWidget{
                       ),
                     ),
                   ),
-                  const DimLabel('covered'),
-                  SizedBox(height: screenSize.height * 0.005),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      'of $totalLabel',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: (screenSize.width * 0.045).clamp(8.0, 11.0),
+                  const DimLabel(text: 'covered'),
+                  if (totalM > 0) ...[
+                    SizedBox(height: screenSize.height * 0.005),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'of $totalLabel',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            fontSize: (screenSize.width * 0.045).clamp(8.0, 11.0),
+                        ),
                       ),
                     ),
-                  )
+                  ],
                 ],
               )
           );

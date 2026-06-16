@@ -11,14 +11,19 @@ class WearCommandListenerService : WearableListenerService() {
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         android.util.Log.d("PhoneSync", "Path=${messageEvent.path}")
-        if (messageEvent.path != WEAR_COMMAND_PATH) return
+        when(messageEvent.path) {
+            WEAR_COMMAND_PATH -> {
+                val command = String(messageEvent.data)
+                android.util.Log.d("PhoneSync", "Received command: $command")
 
-        val command = String(messageEvent.data)
-
-        // Find the running MainActivity and forward the command to it.
-        // In a real app you'd use a local broadcast or a shared service
-        // instead of casting — this is simplified for clarity.
-        val activity = applicationContext as? MainActivity
-        activity?.onCommandFromWatch(command)
+                val activity = MainActivity.instance
+                if (activity != null) {
+                    activity.onCommandFromWatch(command)
+                } else {
+                    android.util.Log.d("PhoneSync", "MainActivity not running, dropping command")
+                }
+            }
+            else -> android.util.Log.w("PhoneSync", "Ignored message on unexpected path: ${messageEvent.path}")
+        }
     }
 }

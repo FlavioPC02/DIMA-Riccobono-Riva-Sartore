@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class CommandButton extends StatelessWidget {
   const CommandButton({
+    super.key,
     required this.label,
     required this.icon,
     required this.color,

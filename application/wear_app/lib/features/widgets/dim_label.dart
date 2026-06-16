@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 class DimLabel extends StatelessWidget {
-  const DimLabel(this.text);
+  const DimLabel({
+    super.key,
+    required this.text,
+  });
 
   final String text;
 

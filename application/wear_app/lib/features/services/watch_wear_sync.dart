@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:hike_core/hike_core.dart';
 
@@ -26,7 +25,7 @@ class WatchWearSyncService {
     try{
       final result = await _channel.invokeMethod<bool>('shouldOpenNavigation');
       return result ?? false;
-    } on PlatformException catch (e) {
+    } on PlatformException catch (_) {
       return false;
     }
   }
@@ -51,7 +50,7 @@ class WatchWearSyncService {
         break;
 
       default:
-        //TODO: error unknown method
+        throw UnimplementedError('Method ${call.method} not implemented');
     }
   }
 

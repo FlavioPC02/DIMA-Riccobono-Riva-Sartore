@@ -1,5 +1,5 @@
 // dialog shown when location permissions are denied
-import 'package:hike_core/src/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart' as geo;

@@ -1,5 +1,5 @@
 import 'package:application/core/cubit/activity_cubit.dart';
-import 'package:hike_core/src/extensions/duration_formatting.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:application/core/models/weather_data.dart';
 import 'package:application/services/weather_service.dart';
 import 'package:flutter/material.dart';

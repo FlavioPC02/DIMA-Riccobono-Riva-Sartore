@@ -22,6 +22,9 @@ class MainActivity : FlutterActivity() {
         // Path used by the Wearable Message API to route messages to the watch.
         // The watch MainActivity listens for messages on this same path.
         private const val WEAR_MESSAGE_PATH = "/hike_sync"
+
+        @Volatile //reads the last value not cached ones
+        var instance: MainActivity? = null
     }
 
     private lateinit var methodChannel: MethodChannel
@@ -29,6 +32,11 @@ class MainActivity : FlutterActivity() {
     // CoroutineScope for all Wearable API calls.
     // Uses SupervisorJob so a failed send doesn't cancel other coroutines.
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        instance = this
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -139,6 +147,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        instance = null
         super.onDestroy()
         // Cancel all pending Wearable API coroutines to prevent leaks.
         scope.cancel()

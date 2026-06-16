@@ -17,7 +17,6 @@ class PhoneWearSyncService {
   }
 
   Future<void> _handleMethodCallFromWatch(MethodCall call) async {
-    debugPrint("[PhoneWearSync] Received method call: ${call.method}");
     switch (call.method) {
       case 'pauseRecording':
         onPauseFromWatch?.call();
@@ -32,7 +31,7 @@ class PhoneWearSyncService {
         break;
       
       default:
-        //TODO: unknown method
+        throw UnimplementedError('Method ${call.method} not implemented');
     }
   }
 

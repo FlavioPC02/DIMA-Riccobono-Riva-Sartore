@@ -38,7 +38,7 @@ class NavigatorScreen extends StatefulWidget {
   }
 }
 
-class _NavigatorScreenState extends State<NavigatorScreen> {
+class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingObserver {
   static const double _offsetBound = 32;
   static const double _offsetBoundTop = 37;
   static const double _offTrailThresholdMeters = 50.0;
@@ -58,7 +58,6 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
   //CONFIGURABLE VARIABLES
 
-  //TODO: define final app name
   //app name used in API requests (user agent)
   final String _appName = 'FlutterHikingApp/1.0';
 
@@ -73,8 +72,17 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _locationCubit = sl<LocationCubit>();
+
+    // If the hike was already stopped (e.g. from watch while app was in background)
+    // navigate away as soon as the first frame is rendered.
+    if (_locationCubit.pendingNavigation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _locationCubit.consumeNavigation();
+      });
+    }
 
     _locationCubit.setInitialEta(Duration(minutes: widget.activity.durationMinutes));
     _locationCubit.setTotalDistance(widget.activity.distanceKm * 1000);
@@ -100,9 +108,17 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _locationCubit.unregisterStopCallbacks();
     _locationCubit.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _locationCubit.consumeNavigation();
+    }
   }
 
   void _registerLocationCubitCallbacks() {

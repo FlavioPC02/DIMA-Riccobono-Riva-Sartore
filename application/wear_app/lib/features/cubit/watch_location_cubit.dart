@@ -31,11 +31,16 @@ class WatchLocationCubit extends Cubit<WatchLocationState> {
       emit(state.copyWith(
         stats: stats,
         isConnecting: false,
+        lastUpdate: DateTime.now(),
       ));
     });
 
     _statusSubscription = _sync.statusStream.listen((status) {
-      emit(state.copyWith(status: status));
+      emit(state.copyWith(
+          status: status,
+          stats: status == HikeRecordingStatus.stopped ? HikeLiveStats.empty() : null,
+          lastUpdate: DateTime.now(),
+      ));
     });
   }
 
@@ -47,17 +52,27 @@ class WatchLocationCubit extends Cubit<WatchLocationState> {
   }
 
   Future<void> pause() async {
-    emit(state.copyWith(status: HikeRecordingStatus.paused));
+    emit(state.copyWith(
+      status: HikeRecordingStatus.paused,
+      lastUpdate: DateTime.now(),
+    ));
     await _sync.sendPause();
   }
 
   Future<void> resume() async {
-    emit(state.copyWith(status: HikeRecordingStatus.recording));
+    emit(state.copyWith(
+      status: HikeRecordingStatus.recording,
+      lastUpdate: DateTime.now(),
+    ));
     await _sync.sendResume();
   }
 
   Future<void> stop() async {
-    emit(state.copyWith(status: HikeRecordingStatus.stopped));
+    emit(state.copyWith(
+      stats: HikeLiveStats.empty(),
+      status: HikeRecordingStatus.stopped,
+      lastUpdate: DateTime.now(),
+    ));
     await _sync.sendStop();
   }
 

@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:latlong2/latlong.dart';
 
 class HikeLiveStats extends Equatable {
   final Duration elapsedTime;
@@ -17,9 +16,8 @@ class HikeLiveStats extends Equatable {
   });
 
   factory HikeLiveStats.fromMap(Map<String, dynamic> map) {
-
     return HikeLiveStats(
-      elapsedTime: Duration(seconds: (map['elapsedSeconds'] as num).round()),
+      elapsedTime: Duration(milliseconds: (map['elapsedMs'] as num).round()),
       distanceMeters: (map['distanceMeters'] as num).toDouble(),
       totalDistanceMeters: (map['totalDistanceMeters'] as num).toDouble(),
       elevationGapMeters: (map['elevationGapMeters'] as num?)?.toDouble(),
@@ -29,29 +27,22 @@ class HikeLiveStats extends Equatable {
 
   static HikeLiveStats empty() {
     return HikeLiveStats(
-      elapsedTime: Duration.zero, 
+      elapsedTime: Duration.zero,
       distanceMeters: 0,
       totalDistanceMeters: 0,
-      elevationGapMeters: 0, 
+      elevationGapMeters: 0,
       eta: DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toMap() => {
-    'elapsedSeconds': elapsedTime.inSeconds,
-    'distanceMeters': distanceMeters,
-    'totalDistanceMeters': totalDistanceMeters,
-    'elevationGapMeters': elevationGapMeters,
-    'eta': eta.toIso8601String(),
-  };
-
-//  String get elapsedLabel => elapsedTime.toCompactLabel();
-//
-//  String get distanceLabel => formatDistanceMeters(distanceMeters);
-//
-//  String get elevationGapLabel => formatElevationGapMeters(elevationGapMeters);
-//
-//  String get etaLabel => eta.toCompactLabel();
+  Map<String, dynamic> toMap() =>
+      {
+        'elapsedMs': elapsedTime.inMilliseconds,
+        'distanceMeters': distanceMeters,
+        'totalDistanceMeters': totalDistanceMeters,
+        'elevationGapMeters': elevationGapMeters,
+        'eta': eta.toIso8601String(),
+      };
 
   HikeLiveStats copyWith({
     Duration? elapsedTime,
@@ -70,29 +61,14 @@ class HikeLiveStats extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-    elapsedTime,
-    distanceMeters,
-    totalDistanceMeters,
-    elevationGapMeters,
-    eta,
-  ];
-
-  static LatLng? _locationFromMap(Map<String, dynamic>? map) {
-    if (map == null) return null;
-    return LatLng(
-      (map['lat'] as num).toDouble(),
-      (map['lng'] as num).toDouble(),
-    );
-  }
-
-  static Map<String, dynamic>? _locationToMap(LatLng? location) {
-    if (location == null) return null;
-    return {
-      'lat': location.latitude,
-      'lng': location.longitude,
-    };
-  }
+  List<Object?> get props =>
+      [
+        elapsedTime,
+        distanceMeters,
+        totalDistanceMeters,
+        elevationGapMeters,
+        eta,
+      ];
 }
 
 extension MapNullableLookup on Map<String, dynamic>? {

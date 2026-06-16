@@ -46,7 +46,7 @@ class ElevationScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const DimLabel('elevation gap'),
+                  const DimLabel(text: 'elevation gap'),
                 ],
               ),
           );
