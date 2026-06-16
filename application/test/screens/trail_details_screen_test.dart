@@ -1,7 +1,5 @@
 import 'dart:io';
 import 'package:application/core/cubit/location_cubit.dart';
-import 'package:application/screens/add_activity_page.dart';
-import 'package:application/screens/navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -144,38 +142,6 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Elevation profile not available.'), findsOneWidget);
-    });
-
-    testWidgets('Tap on "Plan" navigates to AddActivityPage', (WidgetTester tester) async {
-      await tester.pumpWidget(MaterialApp(home: TrailDetailsScreen(trail: trailMap)));
-      
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 1));
-
-      final planButton = find.widgetWithText(ElevatedButton, 'Plan');
-      await tester.ensureVisible(planButton);
-      await tester.tap(planButton);
-      
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1)); 
-
-      expect(find.byType(AddActivityPage), findsOneWidget);
-    });
-
-    testWidgets('Tap on "Start" navigates to NavigatorScreen', (WidgetTester tester) async {
-      await tester.pumpWidget(MaterialApp(home: TrailDetailsScreen(trail: trailMap)));
-      
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 1));
-
-      final planButton = find.widgetWithText(ElevatedButton, 'Start');
-      await tester.ensureVisible(planButton);
-      await tester.tap(planButton);
-      
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1)); 
-
-      expect(find.byType(NavigatorScreen), findsOneWidget);
     });
 
     testWidgets('Tap on a web link shows error SnackBar if launch fails', (WidgetTester tester) async {

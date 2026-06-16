@@ -23,7 +23,7 @@ class HikeLiveStats extends Equatable {
     return HikeLiveStats(
       elapsedTime: Duration(milliseconds: (map['elapsedMs'] as num).round()),
       distanceMeters: (map['distanceMeters'] as num).toDouble(),
-      totalDistanceMeters: (map['totalDistanceMeters'] as num ?? 0.0).toDouble(),
+      totalDistanceMeters: (map['totalDistanceMeters'] as num).toDouble(),
       elevationGapMeters: (map['elevationGapMeters'] as num?)?.toDouble(),
       eta: DateTime.parse(map['eta'] as String),
       isOffTrail: map['isOffTrail'] as bool? ?? false,
