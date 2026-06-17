@@ -13,10 +13,11 @@ class PhoneWearSyncService {
   VoidCallback? onStopFromWatch;
 
   void initialize() {
-    _channel.setMethodCallHandler(_handleMethodCallFromWatch);
+    _channel.setMethodCallHandler(handleMethodCallFromWatch);
   }
 
-  Future<void> _handleMethodCallFromWatch(MethodCall call) async {
+  @visibleForTesting
+  Future<void> handleMethodCallFromWatch(MethodCall call) async {
     switch (call.method) {
       case 'pauseRecording':
         onPauseFromWatch?.call();

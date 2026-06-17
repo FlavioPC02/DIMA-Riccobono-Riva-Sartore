@@ -330,8 +330,8 @@ class LocationCubit extends Cubit<LocationState> {
       elapsed: elapsed,
     );
 
-    if (!isClosed) emit(const LocationState.idle());
     await clearHistory();
+    if (!isClosed) emit(const LocationState.idle());
 
     if (navigate) {
       _onNavigateAfterStop?.call();

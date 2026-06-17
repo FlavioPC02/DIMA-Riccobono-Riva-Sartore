@@ -16,8 +16,7 @@ import '../utils/pump_app.dart';
 import '../mocks/mocks_manual.dart';
 import '../utils/map_test_helper.dart';
 
-class MockFlutterLocalNotificationsPlugin extends Mock implements FlutterLocalNotificationsPlugin {}
-class MockAndroidFlutterLocalNotificationsPlugin extends Mock implements AndroidFlutterLocalNotificationsPlugin {}
+
 
 void main() {
   late MockSettingsCubit mockSettingsCubit;
