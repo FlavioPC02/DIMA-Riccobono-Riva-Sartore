@@ -26,8 +26,6 @@ class TrailDetailsScreen extends StatefulWidget {
 class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   bool _isLoading = true;
 
-  bool _isFavorite = false;
-
   Map<String, dynamic>? _relationTags;
   Set<String> _surfaces = {};
   String? _maxIncline;
@@ -47,19 +45,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
   List<Map<String, dynamic>>? _weatherForecast;
   bool _isLoadingWeather = true;
-<<<<<<< HEAD
-=======
-  String _lottieAsset(int code) {
-    if (code == 800) return 'assets/lottie/clear.json';
-    if (code == 801) return 'assets/lottie/few_clouds.json';
-    if (code >= 802) return 'assets/lottie/cloudy.json';
-    if (code >= 700) return 'assets/lottie/fog.json';
-    if (code >= 600) return 'assets/lottie/snow.json';
-    if (code >= 500) return 'assets/lottie/rain.json';
-    if (code >= 300) return 'assets/lottie/drizzle.json';
-    return 'assets/lottie/thunderstorm.json';
-  }
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
 
   final String _appName = 'FlutterHikingApp/1.0';
 
@@ -161,108 +146,10 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
         List<LatLng> allPoints = TrailDetailsScreenHelper.stitchSegments(segments);
 
-<<<<<<< HEAD
         _calculatedMeters = meters;
         _distanceKm = TrailDetailsScreenHelper.getDistanceKm(relTags?['distance'], meters);
         _durationMinutes = TrailDetailsScreenHelper.getDurationMinutes(relTags?['duration'], relTags?['time'], _distanceKm);
         
-=======
-          while (segments.isNotEmpty) {
-            double minDistance = double.infinity;
-            int bestIndex = -1;
-            int attachMode = -1;
-
-            LatLng currentEnd = allPoints.last;
-            LatLng currentStart = allPoints.first;
-
-            for (int i = 0; i < segments.length; i++) {
-              var seg = segments[i];
-
-              double dEndFirst = distanceCalc.as(
-                LengthUnit.Meter,
-                currentEnd,
-                seg.first,
-              );
-              if (dEndFirst < minDistance) {
-                minDistance = dEndFirst;
-                bestIndex = i;
-                attachMode = 0;
-              }
-
-              double dEndLast = distanceCalc.as(
-                LengthUnit.Meter,
-                currentEnd,
-                seg.last,
-              );
-              if (dEndLast < minDistance) {
-                minDistance = dEndLast;
-                bestIndex = i;
-                attachMode = 1;
-              }
-
-              double dStartLast = distanceCalc.as(
-                LengthUnit.Meter,
-                currentStart,
-                seg.last,
-              );
-              if (dStartLast < minDistance) {
-                minDistance = dStartLast;
-                bestIndex = i;
-                attachMode = 2;
-              }
-
-              double dStartFirst = distanceCalc.as(
-                LengthUnit.Meter,
-                currentStart,
-                seg.first,
-              );
-              if (dStartFirst < minDistance) {
-                minDistance = dStartFirst;
-                bestIndex = i;
-                attachMode = 3;
-              }
-            }
-
-            if (minDistance > 1000) {
-              break;
-            }
-
-            var bestSeg = segments[bestIndex];
-            if (attachMode == 0) {
-              allPoints.addAll(bestSeg.skip(1));
-            } else if (attachMode == 1) {
-              allPoints.addAll(bestSeg.reversed.skip(1));
-            } else if (attachMode == 2) {
-              allPoints.insertAll(0, bestSeg.sublist(0, bestSeg.length - 1));
-            } else if (attachMode == 3) {
-              allPoints.insertAll(0, bestSeg.reversed.skip(1));
-            }
-
-            segments.removeAt(bestIndex);
-          }
-        }
-
-        if (meters > 0) {
-          if (relTags?['distance'] == null) {
-            _distanceKm = (meters / 1000);
-            _estimatedDistance = "${_distanceKm.toStringAsFixed(1)} km";
-          }
-
-          if (relTags?['duration'] == null && relTags?['time'] == null) {
-            double km = (relTags?['distance'] != null)
-                ? double.tryParse(
-                        relTags!['distance'].replaceAll(RegExp(r'[^0-9.]'), ''),
-                      ) ??
-                      (meters / 1000)
-                : (meters / 1000);
-            double hours = km / 4.0;
-            _durationMinutes = (hours * 60).toInt();
-            _estimatedDuration =
-                "${_durationMinutes ~/ 60}h ${_durationMinutes % 60}m";
-          }
-        }
-
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
         if (allPoints.isNotEmpty) {
           _fetchElevations(allPoints);
           _fetchWeather(allPoints.first);
@@ -395,50 +282,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     } else { 
       difficulty = ActivityDifficulty.hard; 
     }
-<<<<<<< HEAD
     return level;
-=======
-
-    if (sac != null) {
-      if (sac.contains('alpine') ||
-          sac.contains('t4') ||
-          sac.contains('t5') ||
-          sac.contains('t6')) {
-        return 3;
-      }
-      if (sac.contains('mountain_hiking') ||
-          sac.contains('t2') ||
-          sac.contains('t3')) {
-        return 2;
-      }
-      if (sac.contains('hiking') || sac.contains('t1')) return 1;
-    }
-
-    String distanceStr =
-        _relationTags?['distance'] ?? _estimatedDistance ?? '0';
-    String ascentStr = _relationTags?['ascent'] ?? _estimatedAscent ?? '0';
-
-    String numDist = distanceStr.replaceAll(RegExp(r'[^0-9.]'), '');
-    String numAscent = ascentStr.replaceAll(RegExp(r'[^0-9.]'), '');
-
-    double distanceKm = double.tryParse(numDist) ?? 0.0;
-    double ascentM = double.tryParse(numAscent) ?? 0.0;
-
-    if (distanceKm == 0 && ascentM == 0) return 0;
-
-    double effortScore = distanceKm + (ascentM / 100);
-
-    if (effortScore < 7.0) {
-      difficulty = ActivityDifficulty.easy;
-      return 1;
-    }
-    if (effortScore < 14.0) {
-      difficulty = ActivityDifficulty.moderate;
-      return 2;
-    }
-    difficulty = ActivityDifficulty.hard;
-    return 3;
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
   }
   
   @override
@@ -452,18 +296,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        actions: [
-          IconButton(
-            icon: (_isFavorite ? const Icon(Icons.star) : 
-            const Icon(Icons.star_border)),
-            color: Colors.yellow,
-            onPressed: () {
-              setState(() {
-                _isFavorite = !_isFavorite;
-              });
-            },
-          )
-        ],
       ),
       body: Stack(
         children: [_buildBody(), if (!_isLoading) _buildFloatingButtons()],
@@ -498,13 +330,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     return Column(
       children: [
         _buildHighlightedStats(),
-<<<<<<< HEAD
         const Divider(height: 1, thickness: 2),
         
-=======
-        const Divider(height: 1, thickness: 1),
-
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
         Expanded(
           child: ListView(
             padding: EdgeInsets.fromLTRB(16.0, MediaQuery.textScalerOf(context).scale(20), 16.0, 16.0),
@@ -530,52 +357,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   }
 
   Widget _buildHighlightedStats() {
-<<<<<<< HEAD
     final String distanceStr = TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters);
     final String durationStr = TrailDetailsScreenHelper.formatDuration(_durationMinutes);
     final String ascentStr = TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent);
 
     _difficulty = _updateDifficulty();
-=======
-    String distance = _relationTags?['distance'] ?? _estimatedDistance ?? 'N/D';
-    if (distance != 'N/D' && distance != _estimatedDistance) {
-      String numericPart = distance.replaceAll(RegExp(r'[^0-9.]'), '');
-      double? distValue = double.tryParse(numericPart);
-
-      if (distValue != null) {
-        distance = '${distValue.toStringAsFixed(1)} km';
-      } else if (!distance.toLowerCase().contains('km')) {
-        distance = '$distance km';
-      }
-    }
-
-    String duration =
-        _relationTags?['duration'] ??
-        _relationTags?['time'] ??
-        _estimatedDuration ??
-        'N/D';
-    if (duration != 'N/D' && duration != _estimatedDuration) {
-      if (duration.contains(':')) {
-        List<String> parts = duration.split(':');
-        if (parts.length >= 2) {
-          int? h = int.tryParse(parts[0]);
-          int? m = int.tryParse(parts[1]);
-          if (h != null && m != null) {
-            duration = '${h}h ${m}m';
-          }
-        }
-      } else if (!duration.toLowerCase().contains('h') &&
-          !duration.toLowerCase().contains('m')) {
-        duration = '$duration h';
-      }
-    }
-
-    final String ascent = _relationTags?['ascent'] ?? _estimatedAscent ?? 'N/D';
-    String ascentStr = 'N/D';
-    if (ascent != 'N/D') {
-      ascentStr = '+$ascent m';
-    }
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
 
     bool isFerrata = false;
     final caiScale = _relationTags?['cai_scale']?.toString().toUpperCase() ?? '';
@@ -595,21 +381,10 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         mainAxisSpacing: 12,
         mainAxisExtent: MediaQuery.textScalerOf(context).scale(120.0),
         children: [
-<<<<<<< HEAD
           _buildStatCard(Icons.route, 'Distance', value: distanceStr),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: durationStr),
           _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(_difficulty)),
           _buildStatCard(Icons.height, 'Ascent', valueWidget: _buildAscentAndFerrata(ascentStr, isFerrata)),
-=======
-          _buildStatCard(Icons.route, 'Distance', value: distance),
-          _buildStatCard(Icons.timer_outlined, 'Duration', value: duration),
-          _buildStatCard(
-            Icons.hiking,
-            'Difficulty',
-            valueWidget: _buildDifficultyIcons(_difficulty),
-          ),
-          _buildStatCard(Icons.height, 'Ascent', value: ascentStr),
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
         ],
       ),
     );
@@ -644,11 +419,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-<<<<<<< HEAD
-                    title, 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.8)),
-                    maxLines: 1,
-=======
                     title,
                     style: TextStyle(
                       fontSize: 16,
@@ -657,8 +427,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                         context,
                       ).colorScheme.shadow.withValues(alpha: 0.8),
                     ),
-                    maxLines: 2,
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (valueWidget != null)
@@ -839,11 +608,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     } else if (maxDistKm <= 100.0) {
       baseInterval = 10.0;
     } else if (maxDistKm <= 200.0) {
-<<<<<<< HEAD
       baseInterval = 20.0; 
-=======
-      xInterval = 20.0;
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
     } else {
       baseInterval = 50.0;
     }
@@ -1092,13 +857,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                           trailId: widget.trail['id']?.toString() ?? '',
                           trailPath: _trailPath,
                           distanceKm: _distanceKm,
-                          durationMinutes: _activityDurationMinutes,
+                          durationMinutes: _durationMinutes,
                           difficulty: difficulty,
-<<<<<<< HEAD
                           xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty)
-=======
-                          xpEarned: _calculateXpFromDifficulty(difficulty),
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
                         ),
                       ),
                     ),
@@ -1133,15 +894,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                           id: "",
                           name: widget.trail['name'],
                           status: ActivityStatus.planned,
-<<<<<<< HEAD
-                          durationMinutes: _durationMinutes,
-=======
                           trailName: widget.trail['name'],
                           trailId: widget.trail['id']?.toString() ?? '',
                           trailPath: _trailPath,
                           distanceKm: _distanceKm,
-                          durationMinutes: _activityDurationMinutes,
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
+                          durationMinutes: _durationMinutes,
                           date: DateTime.now(),
                           difficulty: difficulty,
                           xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty),
@@ -1210,7 +967,6 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     );
   }
 
-<<<<<<< HEAD
   Widget _buildAscentAndFerrata(String ascentStr, bool isFerrata) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1237,61 +993,27 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       ],
     );
   }
-}
-=======
-  int _fromStringToMinutesInt(String? duration) {
-    if (duration == null) return 0;
 
-    final match = RegExp(
-      r'^(\d+)\s*h\s*(\d+)\s*m(?:\s*\(estimated\))?$',
-    ).firstMatch(duration.trim());
-
-    if (match == null) return 0;
-
-    final hours = int.tryParse(match.group(1) ?? '') ?? 0;
-    final minutes = int.tryParse(match.group(2) ?? '') ?? 0;
-    return (hours * 60) + minutes;
-  }
-
-  int get _activityDurationMinutes {
-    if (_durationMinutes > 0) return _durationMinutes;
-
-    final duration =
-        _relationTags?['duration'] ??
-        _relationTags?['time'] ??
-        _estimatedDuration;
-    return _fromStringToMinutesInt(duration?.toString());
-  }
 
   List<List<TrailPoint>> get _trailPath {
-    final subTrails = widget.trail['subTrails'];
-    if (subTrails is! List) return const [];
+  final subTrails = widget.trail['subTrails'];
+  if (subTrails is! List) return const [];
 
-    return subTrails
-        .map<List<TrailPoint>>((segment) {
-          if (segment is! List) return const [];
+  return subTrails
+      .map<List<TrailPoint>>((segment) {
+        if (segment is! List) return const [];
 
-          return segment
-              .whereType<LatLng>()
-              .map(
-                (point) =>
-                    TrailPoint(lat: point.latitude, lng: point.longitude),
-              )
-              .toList(growable: false);
-        })
-        .where((segment) => segment.isNotEmpty)
-        .toList(growable: false);
-  }
-
-  double _calculateXpFromDifficulty(ActivityDifficulty difficulty) {
-    switch (difficulty) {
-      case ActivityDifficulty.easy:
-        return 50;
-      case ActivityDifficulty.moderate:
-        return 100;
-      case ActivityDifficulty.hard:
-        return 200;
-    }
-  }
+        return segment
+            .whereType<LatLng>()
+            .map(
+              (point) => TrailPoint(
+                lat: point.latitude,
+                lng: point.longitude,
+              ),
+            )
+            .toList(growable: false);
+      })
+      .where((segment) => segment.isNotEmpty)
+      .toList(growable: false);
 }
->>>>>>> 52ad0c6 (Added start button and implemented local trail)
+}

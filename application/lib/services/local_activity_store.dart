@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/trail_point.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:hive_ce_flutter/adapters.dart';
 
 abstract class ActivityLocalDataSource {
   Stream<List<Activity>> streamActivities();
@@ -12,48 +12,18 @@ abstract class ActivityLocalDataSource {
   String createId();
 }
 
-class SqliteActivityStore implements ActivityLocalDataSource {
-  static const _databaseName = 'offline_activities.db';
-  static const _databaseVersion = 1;
-  static const _tableName = 'activities';
+class HiveActivityStore implements ActivityLocalDataSource {
+  static const _boxName = 'offline_activities';
 
-  Database? _database;
+  Box<Map>? _box;
   final _updates = StreamController<List<Activity>>.broadcast();
 
-  Future<Database> get _db async {
-    final existing = _database;
+  Future<Box<Map>> get _activityBox async {
+    final existing = _box;
     if (existing != null) return existing;
 
-    final databasesPath = await getDatabasesPath();
-    final path = '$databasesPath/$_databaseName';
-
-    _database = await openDatabase(
-      path,
-      version: _databaseVersion,
-      onCreate: (db, version) async {
-        await db.execute('''
-CREATE TABLE $_tableName (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  status TEXT NOT NULL,
-  date_millis INTEGER NOT NULL,
-  trail_name TEXT NOT NULL,
-  trail_id TEXT NOT NULL,
-  distance_km REAL NOT NULL,
-  duration_minutes INTEGER NOT NULL,
-  xp_earned REAL NOT NULL,
-  notes TEXT NOT NULL,
-  difficulty TEXT NOT NULL,
-  tracked_distance REAL NOT NULL,
-  tracked_elevation_gap REAL NOT NULL,
-  tracked_time_seconds INTEGER NOT NULL,
-  trail_path_json TEXT NOT NULL
-)
-''');
-      },
-    );
-
-    return _database!;
+    _box = await Hive.openBox<Map>(_boxName);
+    return _box!;
   }
 
   @override
@@ -66,28 +36,27 @@ CREATE TABLE $_tableName (
   }
 
   Future<List<Activity>> fetchActivities() async {
-    final db = await _db;
-    final rows = await db.query(_tableName, orderBy: 'date_millis DESC');
-    return rows.map(_activityFromRow).toList(growable: false);
+    final box = await _activityBox;
+    final activities = box.values
+        .map((entry) => _activityFromEntry(_normalizeEntry(entry)))
+        .toList(growable: false);
+    activities.sort((a, b) => b.date.compareTo(a.date));
+    return activities;
   }
 
   @override
   Future<String> upsertActivity(Activity activity) async {
     final id = activity.id.isEmpty ? createId() : activity.id;
-    final db = await _db;
-    await db.insert(
-      _tableName,
-      _activityToRow(activity.copyWith(id: id)),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    final box = await _activityBox;
+    await box.put(id, _activityToEntry(activity.copyWith(id: id)));
     await _emitUpdates();
     return id;
   }
 
   @override
   Future<void> deleteActivity(String id) async {
-    final db = await _db;
-    await db.delete(_tableName, where: 'id = ?', whereArgs: [id]);
+    final box = await _activityBox;
+    await box.delete(id);
     await _emitUpdates();
   }
 
@@ -96,7 +65,7 @@ CREATE TABLE $_tableName (
     _updates.add(await fetchActivities());
   }
 
-  Map<String, Object?> _activityToRow(Activity activity) {
+  Map<String, Object?> _activityToEntry(Activity activity) {
     return {
       'id': activity.id,
       'name': activity.name,
@@ -116,33 +85,37 @@ CREATE TABLE $_tableName (
     };
   }
 
-  Activity _activityFromRow(Map<String, Object?> row) {
+  Activity _activityFromEntry(Map<String, Object?> entry) {
     return Activity(
-      id: row['id']?.toString() ?? '',
-      name: row['name']?.toString() ?? '',
+      id: entry['id']?.toString() ?? '',
+      name: entry['name']?.toString() ?? '',
       status: ActivityStatus.values.byName(
-        row['status']?.toString() ?? ActivityStatus.planned.name,
+        entry['status']?.toString() ?? ActivityStatus.planned.name,
       ),
       date: DateTime.fromMillisecondsSinceEpoch(
-        (row['date_millis'] as num?)?.toInt() ?? 0,
+        (entry['date_millis'] as num?)?.toInt() ?? 0,
       ),
-      trailName: row['trail_name']?.toString() ?? '',
-      trailId: row['trail_id']?.toString() ?? '',
-      distanceKm: (row['distance_km'] as num?)?.toDouble() ?? 0,
-      durationMinutes: (row['duration_minutes'] as num?)?.toInt() ?? 0,
-      xpEarned: (row['xp_earned'] as num?)?.toDouble() ?? 0,
-      notes: row['notes']?.toString() ?? '',
+      trailName: entry['trail_name']?.toString() ?? '',
+      trailId: entry['trail_id']?.toString() ?? '',
+      distanceKm: (entry['distance_km'] as num?)?.toDouble() ?? 0,
+      durationMinutes: (entry['duration_minutes'] as num?)?.toInt() ?? 0,
+      xpEarned: (entry['xp_earned'] as num?)?.toDouble() ?? 0,
+      notes: entry['notes']?.toString() ?? '',
       difficulty: ActivityDifficulty.values.byName(
-        row['difficulty']?.toString() ?? ActivityDifficulty.easy.name,
+        entry['difficulty']?.toString() ?? ActivityDifficulty.easy.name,
       ),
-      trackedDistance: (row['tracked_distance'] as num?)?.toDouble() ?? 0,
+      trackedDistance: (entry['tracked_distance'] as num?)?.toDouble() ?? 0,
       trackedElevationGap:
-          (row['tracked_elevation_gap'] as num?)?.toDouble() ?? 0,
+          (entry['tracked_elevation_gap'] as num?)?.toDouble() ?? 0,
       trackedTime: Duration(
-        seconds: (row['tracked_time_seconds'] as num?)?.toInt() ?? 0,
+        seconds: (entry['tracked_time_seconds'] as num?)?.toInt() ?? 0,
       ),
-      trailPath: _decodeTrailPath(row['trail_path_json']?.toString()),
+      trailPath: _decodeTrailPath(entry['trail_path_json']?.toString()),
     );
+  }
+
+  Map<String, Object?> _normalizeEntry(Map entry) {
+    return entry.map((key, value) => MapEntry(key.toString(), value));
   }
 
   String _encodeTrailPath(List<List<TrailPoint>> trailPath) {
