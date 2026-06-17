@@ -14,7 +14,7 @@ class ActivityRepository {
     this.hasCurrentUser,
     this.databaseServiceFactory,
     ActivityLocalDataSource? localStore,
-  }) : _localStore = localStore ?? SqliteActivityStore();
+  }) : _localStore = localStore ?? HiveActivityStore();
 
   DatabaseService? _remoteOrNull() {
     final hasUser = hasCurrentUser != null

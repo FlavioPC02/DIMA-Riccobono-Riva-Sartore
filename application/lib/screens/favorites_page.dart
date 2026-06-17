@@ -1,11 +1,25 @@
-import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/models/favorite_trail.dart';
+import 'package:application/screens/trail_details_screen.dart';
+import 'package:application/services/favorite_trail_store.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
-import 'package:application/core/models/activity.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-class FavoritesPage extends StatelessWidget {
+class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
+
+  @override
+  State<FavoritesPage> createState() => _FavoritesPageState();
+}
+
+class _FavoritesPageState extends State<FavoritesPage> {
+  final FavoriteTrailStore _favoriteTrailStore = FavoriteTrailStore();
+  late final Stream<List<FavoriteTrail>> _favoriteTrailsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _favoriteTrailsStream = _favoriteTrailStore.streamFavoriteTrails();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,35 +36,22 @@ class FavoritesPage extends StatelessWidget {
           ],
         ),
       ),
-      body: BlocBuilder<ActivityCubit, List<Activity>>(
-        builder: (context, activities) {
-          final favorites = activities.where((a) => a.isFavorite).toList();
-
-          if (favorites.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.star, size: 64, color: AppColors.textSecondary),
-                  SizedBox(height: 16),
-                  Text(
-                    'No favorite hikes yet.\nStart exploring and add some to your favorites!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
+      body: StreamBuilder<List<FavoriteTrail>>(
+        stream: _favoriteTrailsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
           }
+
+          final favorites = snapshot.data ?? const <FavoriteTrail>[];
+          if (favorites.isEmpty) return const _EmptyFavorites();
+
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: favorites.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) =>
-                _FavoritesCard(favorites: favorites[index]),
+                _FavoriteTrailCard(favoriteTrail: favorites[index]),
           );
         },
       ),
@@ -58,20 +59,48 @@ class FavoritesPage extends StatelessWidget {
   }
 }
 
-class _FavoritesCard extends StatelessWidget {
-  final Activity favorites;
+class _EmptyFavorites extends StatelessWidget {
+  const _EmptyFavorites();
 
-  const _FavoritesCard({required this.favorites});
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.star, size: 64, color: AppColors.textSecondary),
+          SizedBox(height: 16),
+          Text(
+            'No favorite trails yet.\nStart exploring and add some to your favorites!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FavoriteTrailCard extends StatelessWidget {
+  final FavoriteTrail favoriteTrail;
+
+  const _FavoriteTrailCard({required this.favoriteTrail});
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
         leading: const Icon(Icons.star),
-        title: Text(favorites.name),
+        title: Text(favoriteTrail.name),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
-          // Navigate to trail details page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  TrailDetailsScreen(trail: favoriteTrail.toTrailMap()),
+            ),
+          );
         },
       ),
     );
