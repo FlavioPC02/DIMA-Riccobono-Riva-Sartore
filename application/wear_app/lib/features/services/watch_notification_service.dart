@@ -1,7 +1,18 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class WatchNotificationService {
-  static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  static FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+
+  @visibleForTesting
+  static void debugOverridePlugin(FlutterLocalNotificationsPlugin plugin) {
+    _notifications = plugin;
+  }
+
+  @visibleForTesting
+  static void debugResetPlugin() {
+    _notifications = FlutterLocalNotificationsPlugin();
+  }
 
   static Future<void> initialize() async {
     const AndroidInitializationSettings initializationSettingsAndroid =

@@ -80,4 +80,10 @@ class _HikeWearAppState extends State<HikeWearApp> {
       home: const WatchAppHomepage(),
     );
   }
+
+  @override
+  void dispose() {
+    _navSubscription?.cancel();
+    super.dispose();
+  }
 }

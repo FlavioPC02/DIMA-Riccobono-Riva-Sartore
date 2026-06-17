@@ -57,7 +57,7 @@ class WatchLocationCubit extends Cubit<WatchLocationState> {
       _navigationController.add(null);
     }
   }
-
+  
   Future<void> pause() async {
     emit(state.copyWith(
       status: HikeRecordingStatus.paused,

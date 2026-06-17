@@ -37,7 +37,7 @@ class HikeLiveStats extends Equatable {
       distanceMeters: 0,
       totalDistanceMeters: 0,
       elevationGapMeters: 0,
-      eta: DateTime.now(),
+      eta: DateTime.fromMillisecondsSinceEpoch(0),
       isOffTrail: false,
     );
   }

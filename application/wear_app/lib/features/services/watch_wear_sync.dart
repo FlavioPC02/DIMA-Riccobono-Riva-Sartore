@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:hike_core/hike_core.dart';
 
@@ -19,7 +20,7 @@ class WatchWearSyncService {
 
   void initalize() {
     //handles multiple calls of initialize. setMethodCallHandler replaces previously registered handlers.
-    _channel.setMethodCallHandler(_handleMethodCallFromPhone);
+    _channel.setMethodCallHandler(handleMethodCallFromPhone);
   }
 
   Future<bool> shouldOpenNavigation() async {
@@ -32,7 +33,8 @@ class WatchWearSyncService {
   }
 
   //Dispathces call from phone to the right stream
-  Future<void> _handleMethodCallFromPhone(MethodCall call) async {
+  @visibleForTesting
+  Future<void> handleMethodCallFromPhone(MethodCall call) async {
     switch (call.method) {
 
       case 'onStatsUpdate':
