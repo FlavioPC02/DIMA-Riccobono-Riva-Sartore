@@ -2,7 +2,11 @@ import 'package:application/core/models/favorite_trail.dart';
 import 'package:application/screens/trail_details_screen.dart';
 import 'package:application/services/favorite_trail_store.dart';
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:hike_core/hike_core.dart';
+=======
+import '../core/theme/app_colors.dart';
+>>>>>>> activity
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});

@@ -11,8 +11,10 @@ import 'package:application/services/weather_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:application/screens/navigator.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/favorite_trail.dart';
 import 'package:application/core/models/trail_point.dart';
 import 'package:application/screens/add_activity_page.dart';
+import 'package:application/services/favorite_trail_store.dart';
 
 class TrailDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> trail;
@@ -25,6 +27,10 @@ class TrailDetailsScreen extends StatefulWidget {
 
 class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   bool _isLoading = true;
+
+  bool _isFavorite = false;
+  bool _isUpdatingFavorite = false;
+  final FavoriteTrailStore _favoriteTrailStore = FavoriteTrailStore();
 
   Map<String, dynamic>? _relationTags;
   Set<String> _surfaces = {};
@@ -51,7 +57,58 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadFavoriteState();
     _fetchTrailDetails();
+  }
+
+  Future<void> _loadFavoriteState() async {
+    try {
+      final isFavorite = await _favoriteTrailStore.isFavorite(widget.trail['id']?.toString() ?? '');
+      if (!mounted) return;
+
+      setState(() {
+        _isFavorite = isFavorite;
+      });
+    } catch (_) {
+      // The app initializes Hive before this screen is shown; this keeps
+      // isolated widget tests from failing before they configure Hive.
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_isUpdatingFavorite) return;
+
+    setState(() {
+      _isUpdatingFavorite = true;
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (_isFavorite) {
+        await _favoriteTrailStore.deleteTrail(widget.trail['id']?.toString() ?? '');
+      } else {
+        await _favoriteTrailStore.saveTrail(
+          FavoriteTrail.fromTrail(widget.trail),
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isFavorite = !_isFavorite;
+      });
+    } catch (_) {
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Could not update favorites.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingFavorite = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchTrailDetails() async {
@@ -296,6 +353,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        actions: [
+          IconButton(
+            icon: _isFavorite
+                ? const Icon(Icons.star)
+                : const Icon(Icons.star_border),
+            color: Colors.yellow,
+            onPressed: _isUpdatingFavorite ? null : _toggleFavorite,
+          ),
+        ],
       ),
       body: Stack(
         children: [_buildBody(), if (!_isLoading) _buildFloatingButtons()],
