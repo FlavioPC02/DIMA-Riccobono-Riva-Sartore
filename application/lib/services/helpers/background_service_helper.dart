@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
-import 'package:application/core/models/location_point.dart';
+
+import '../../core/models/location_point.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_it/get_it.dart';

@@ -9,9 +9,8 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:application/screens/trail_details_screen.dart'
-    show TrailDetailsScreen;
-import '../core/theme/app_colors.dart';
+import 'package:application/screens/trail_details_screen.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 
@@ -77,7 +76,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   final _searchRadius = 10000;
 
   //maximum number of trails to be displayed
-  static const int _trailLimit = 40;
+  static const int _trailLimit = 10;
 
   @override
   void initState() {

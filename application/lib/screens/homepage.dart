@@ -1,4 +1,4 @@
-import 'package:application/core/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:application/screens/profile_screen.dart';
 import 'package:application/screens/favorites_page.dart';
 import 'package:application/services/helpers/notification_permission_helper.dart';

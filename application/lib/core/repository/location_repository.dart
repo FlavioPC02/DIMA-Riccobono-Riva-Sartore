@@ -1,4 +1,4 @@
-import 'package:application/core/models/location_point.dart';
+import '../models/location_point.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 

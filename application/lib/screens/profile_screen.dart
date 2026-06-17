@@ -4,7 +4,7 @@ import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
-import 'package:application/core/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:application/screens/login_screen.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:flutter/material.dart';

@@ -1,7 +1,7 @@
 import 'package:application/screens/signup.dart';
 import 'package:flutter/material.dart';
 import 'package:application/screens/homepage.dart';
-import '../core/theme/app_colors.dart';
+import 'package:hike_core/hike_core.dart';
 import '../services/auth_service.dart';
 
 // Regular expression for validating email addresses

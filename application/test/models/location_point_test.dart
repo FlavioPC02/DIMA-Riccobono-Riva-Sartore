@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:application/core/models/location_point.dart';
 

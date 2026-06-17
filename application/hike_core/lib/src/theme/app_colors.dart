@@ -15,6 +15,8 @@ class AppColors {
   static const Color stopButtonBackground = Colors.red;
   static const Color stopButtonForeground = Colors.white;
 
+  static const Color scaffoldBackgroundColor = Color(0xFF08110E);
+
   static const Color errorBackground = Color(0xFFFFEBEE);
   static const Color errorBorder = Color(0xFFEF9A9A);
   static const Color errorText = Color(0xFFC62828);

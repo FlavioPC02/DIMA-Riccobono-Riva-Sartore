@@ -1,23 +1,23 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/services/phone_wear_sync.dart';
+import 'package:application/services/service_locator.dart';
+import 'package:application/widgets/stats_recording_card.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
-import 'package:application/core/extensions/duration_formatting.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/screens/homepage.dart';
 import 'package:application/services/map_management_service.dart';
 import 'package:application/services/notification_service.dart';
-import 'package:application/services/service_locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:url_launcher/url_launcher.dart';
-import '../core/theme/app_colors.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NavigatorScreen extends StatefulWidget {
@@ -37,33 +37,18 @@ class NavigatorScreen extends StatefulWidget {
   }
 }
 
-class _NavigatorScreenState extends State<NavigatorScreen> {
+class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingObserver {
   static const double _offsetBound = 32;
   static const double _offsetBoundTop = 37;
-  static const double _offTrailThresholdMeters = 50.0;
-  static const double R = 6371000; // Earth radius in meters
-  static const double _movementSpeedThresholdMps = 0.4;
-  static const Duration _movementSampleMaxAge = Duration(seconds: 12);
-
-  double _degToRad(double deg) => deg * (math.pi / 180.0);
 
   final MapController _mapController = MapController();
 
-  late Stopwatch _stopwatch;
-  late Timer _timer;
-  Duration _elapsedTime = Duration.zero;
-  DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(
-    0,
-  );
-  Duration _remainingEta = Duration.zero;
-  DateTime? _lastEtaUpdateAt;
   late final LocationCubit _locationCubit;
 
   bool _isLocatingUser = false;
 
   //CONFIGURABLE VARIABLES
 
-  //TODO: define final app name
   //app name used in API requests (user agent)
   final String _appName = 'FlutterHikingApp/1.0';
 
@@ -72,102 +57,116 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
   //default zoom level for the map
   double mapZoom = 12.0;
+  late Timer _elapsedTimer;
+  Duration _elapsedTime = Duration.zero;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _locationCubit = sl<LocationCubit>();
 
-    _stopwatch = Stopwatch();
-    _stopwatch.start();
-
-    _remainingEta = Duration(minutes: widget.activity.durationMinutes);
-    _lastEtaUpdateAt = DateTime.now();
-
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!mounted || !_stopwatch.isRunning) return;
-      setState(() {
-        _elapsedTime = _stopwatch.elapsed;
+    // If the hike was already stopped (e.g. from watch while app was in background)
+    // navigate away as soon as the first frame is rendered.
+    if (_locationCubit.pendingNavigation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _locationCubit.consumeNavigation();
       });
+    }
+
+    _locationCubit.setInitialEta(Duration(minutes: widget.activity.durationMinutes));
+    _locationCubit.setTotalDistance(widget.activity.distanceKm * 1000);
+    _locationCubit.setTrailData(
+      segments: (widget.trail['subTrails'] as List).cast<List<LatLng>>(),
+      onOffTrail: _showPathDistanceNotification,
+    );
+
+    sl<PhoneWearSyncService>().sendNavigationPrompt();
+
+    _elapsedTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) return;
+      final newElapsed = _locationCubit.elapsed;
+      // Only rebuild when the second boundary crosses — 10 checks per second
+      // but only ~1 rebuild per second for the timer display.
+      if (newElapsed.inSeconds != _elapsedTime.inSeconds) {
+        setState(() {
+          _elapsedTime = newElapsed;
+        });
+      }
     });
 
     _buildMap();
+    _registerLocationCubitCallbacks();
     _locationCubit.startTracking();
   }
 
   @override
   void dispose() {
-    _timer.cancel();
-    _stopwatch.stop();
-    _locationCubit.stopTracking();
+    WidgetsBinding.instance.removeObserver(this);
+    _elapsedTimer.cancel();
+    _locationCubit.unregisterStopCallbacks();
     _locationCubit.close();
     super.dispose();
   }
 
-  void _toggleStopwatch() {
-    final shouldStartTracking = !_stopwatch.isRunning;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _locationCubit.consumeNavigation();
+    }
+  }
 
-    setState(() {
-      if (shouldStartTracking) {
-        _stopwatch.start();
-      } else {
-        _stopwatch.stop();
-      }
-      _elapsedTime = _stopwatch.elapsed;
-    });
+  void _registerLocationCubitCallbacks() {
+    final activityCubit = context.read<ActivityCubit>();
+    final profileCubit = context.read<ProfileCubit>();
+    final activity = widget.activity;
 
-    if (shouldStartTracking) {
-      unawaited(_locationCubit.startTracking());
+    _locationCubit.registerStopCallbacks(
+      onActivitySaved:
+          ({
+            required double distance,
+            required double elevationGap,
+            required Duration elapsed,
+          }) async {
+            activity.trackedDistance = distance;
+            activity.trackedElevationGap = elevationGap;
+            activity.trackedTime = elapsed;
+            activity.status = ActivityStatus.completed;
+
+            if (activity.id.isEmpty) {
+              await activityCubit.addActivity(activity);
+            } else {
+              await activityCubit.updateActivity(activity);
+            }
+
+            // Profile XP update — also safe to call without context
+            final profile = profileCubit.state;
+            profileCubit.updateXp(profile.xp + activity.xpEarned);
+          },
+
+      onNavigateAfterStop: () {
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Navigation()),
+        );
+      },
+    );
+  }
+
+  Future<void> _pauseOrResumeRecording() async {
+    if (_locationCubit.isRunning) {
+      await _locationCubit.pauseTracking();
     } else {
-      unawaited(_locationCubit.stopTracking());
+      await _locationCubit.resumeTracking();
     }
   }
 
   Future<void> _stopRecording() async {
-    setState(() {
-      _stopwatch.stop();
-      _elapsedTime = _stopwatch.elapsed;
-    });
-
-    final cubit = _locationCubit;
-    final activityCubit = context.read<ActivityCubit>();
-    final profileCubit = context.read<ProfileCubit>();
-
-    final activity = widget.activity;
-    activity.trackedDistance = cubit.state.distance;
-    activity.trackedElevationGap = cubit.state.elevationGap ?? 0.0;
-    activity.trackedTime = _elapsedTime;
-    activity.status = ActivityStatus.completed;
-
-    await cubit.stopTracking();
-
-    if (!mounted) {
-      return;
-    }
-
-    if (activity.id.isEmpty) {
-      await activityCubit.addActivity(activity);
-    } else {
-      await activityCubit.updateActivity(activity);
-    }
-
-    //update profile stats
-    final profile = profileCubit.state;
-    profileCubit.updateXp(profile.xp + activity.xpEarned);
-    cubit.clearHistory();
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.of(
-      context,
-      rootNavigator: true,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const Navigation()));
+    await _locationCubit.stopAndSave(navigate: true);
   }
 
-  void _showPathDistanceNotification(int distance, {String? direction}) {
+  void _showPathDistanceNotification(int distance, String direction) {
     final notificationsEnabled = context
         .read<SettingsCubit>()
         .state
@@ -175,7 +174,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
 
     if (!notificationsEnabled) return;
 
-    final String dirText = direction ?? '';
+    final String dirText = direction;
     final String body = 'You are $distance m from the trail. \n$dirText.';
 
     NotificationService.showNotification(title: 'Out of trail', body: body);
@@ -222,7 +221,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     double lng = (first.longitude + last.longitude) / 2.0;
 
     return LatLng(lat, lng);
-    }
+  }
 
   //returns the trail extremes points
   LatLngBounds _buildTrailBounds(List<List<LatLng>> coordinates) {
@@ -305,126 +304,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
     return allLines;
   }
 
-  // returns both distance (meters) and side sign for P relative to segment V->W
-  // side > 0 => P is to the left of segment, side < 0 => to the right
-  Map<String, double> _distanceAndSideToSegment(LatLng p, LatLng v, LatLng w) {
-    final double latRef = _degToRad((v.latitude + w.latitude) / 2.0);
-    double xFor(LatLng a) => _degToRad(a.longitude) * R * math.cos(latRef);
-    double yFor(LatLng a) => _degToRad(a.latitude) * R;
-
-    final double px = xFor(p);
-    final double py = yFor(p);
-    final double vx = xFor(v);
-    final double vy = yFor(v);
-    final double wx = xFor(w);
-    final double wy = yFor(w);
-
-    final double dx = wx - vx;
-    final double dy = wy - vy;
-
-    if (dx == 0 && dy == 0) {
-      final double dist = ((px - vx) * (px - vx) + (py - vy) * (py - vy));
-      return {'distance': math.sqrt(dist), 'side': 0.0};
-    }
-
-    final double t = ((px - vx) * dx + (py - vy) * dy) / (dx * dx + dy * dy);
-    final double tt = t < 0 ? 0 : (t > 1 ? 1 : t);
-    final double projx = vx + tt * dx;
-    final double projy = vy + tt * dy;
-    final double dist2 =
-        (px - projx) * (px - projx) + (py - projy) * (py - projy);
-    // cross product of segment (dx,dy) and vector from proj->P => sign indicates side
-    final double cross = dx * (py - projy) - dy * (px - projx);
-    return {'distance': math.sqrt(dist2), 'side': cross};
-  }
-
-  void checkUserOnTrail(LatLng position) {
-    final List<List<LatLng>> subTrails =
-        widget.trail['subTrails'] as List<List<LatLng>>;
-    if (subTrails.isEmpty) return;
-
-    double minDistance = double.infinity;
-    double sideForMin = 0.0;
-
-    for (final segment in subTrails) {
-      if (segment.length < 2) continue;
-      for (int i = 0; i < segment.length - 1; i++) {
-        final LatLng a = segment[i];
-        final LatLng b = segment[i + 1];
-        final result = _distanceAndSideToSegment(position, a, b);
-        final double d = result['distance']!;
-        final double side = result['side']!;
-        if (d < minDistance) {
-          minDistance = d;
-          sideForMin = side;
-        }
-      }
-    }
-
-    final int distanceMeters = minDistance.isFinite ? minDistance.round() : 0;
-    final DateTime now = DateTime.now();
-
-    if (distanceMeters > _offTrailThresholdMeters &&
-        now.difference(_lastOffTrailNotificationTime).inSeconds >= 60) {
-      _lastOffTrailNotificationTime = now;
-
-      String direction;
-      if (sideForMin > 0.0) {
-        // P is left of segment -> suggest moving right
-        direction = 'Move to the right to get back on the trail';
-      } else if (sideForMin < 0.0) {
-        direction = 'Move to the left to get back on the trail';
-      } else {
-        direction = 'Get closer to the trail';
-      }
-
-      _showPathDistanceNotification(distanceMeters, direction: direction);
-    }
-  }
-
-  DateTime _calculateEta(LocationState stats) {
-    final now = DateTime.now();
-
-    if (!_isUserMoving(stats)) {
-      _lastEtaUpdateAt = now;
-      return now.add(_remainingEta);
-    }
-
-    final lastUpdateAt = _lastEtaUpdateAt ?? now;
-    _lastEtaUpdateAt = now;
-
-    final nextRemaining = _remainingEta - now.difference(lastUpdateAt);
-    _remainingEta = nextRemaining.isNegative ? Duration.zero : nextRemaining;
-
-    return now.add(_remainingEta);
-  }
-
-  bool _isUserMoving(LocationState stats) {
-    if (stats.points.length < 2) {
-      return false;
-    }
-
-    final latestPoint = stats.points.last;
-    final previousPoint = stats.points[stats.points.length - 2];
-    final sampleAge = DateTime.now().difference(latestPoint.timestamp);
-    if (sampleAge > _movementSampleMaxAge) {
-      return false;
-    }
-
-    final elapsedSeconds = latestPoint.timestamp
-        .difference(previousPoint.timestamp)
-        .inSeconds;
-    if (elapsedSeconds <= 0) {
-      return false;
-    }
-
-    final traveledMeters = Haversine().distance(
-      LatLng(previousPoint.lat, previousPoint.lng),
-      LatLng(latestPoint.lat, latestPoint.lng),
-    );
-
-    return traveledMeters / elapsedSeconds >= _movementSpeedThresholdMps;
-  }
+  // function to build polyline layers declaratively
 
   @override
   Widget build(BuildContext context) {
@@ -434,18 +314,9 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
       value: _locationCubit,
       child: PopScope(
         onPopInvokedWithResult: (didPop, _) {
-          if (didPop) _locationCubit.stopTracking();
+          if (didPop) _locationCubit.stopAndSave(navigate: true);
         },
-        child: BlocConsumer<LocationCubit, LocationState>(
-          listenWhen: (previous, current) =>
-              previous.isTracking &&
-              current.isTracking &&
-              current.current != null &&
-              current.points.length > previous.points.length,
-          listener: (context, state) {
-            final position = LatLng(state.current!.lat, state.current!.lng);
-            checkUserOnTrail(position);
-          },
+        child: BlocBuilder<LocationCubit, LocationState>(
           builder: (context, state) {
             return Stack(
               alignment: Alignment.bottomCenter,
@@ -486,11 +357,11 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                   child: FloatingActionButton(
                     heroTag: 'navigator-location-button',
                     backgroundColor: Theme.of(context).colorScheme.secondary,
-                    onPressed: () {
+                    onPressed: () async {
                       setState(() {
                         _isLocatingUser = true;
                       });
-                      DefaultMapManagementService().centerMap(
+                      await DefaultMapManagementService().centerMap(
                         context,
                         _currentCenter,
                         _mapController,
@@ -503,17 +374,18 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
                     mini: true,
                     child: Icon(
                       Icons.my_location,
-                      color: _isLocatingUser ? Colors.lightBlue : null,
+                      color: _isLocatingUser
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.shadow,
                     ),
                   ),
                 ),
                 Positioned.fill(
                   child: StatsRecordingCard(
                     trailName: trailName,
-                    eta: _calculateEta(state),
                     elapsedTime: _elapsedTime,
-                    isRecording: _stopwatch.isRunning,
-                    onToggleRecording: _toggleStopwatch,
+                    isRecording: _locationCubit.isRunning,
+                    onToggleRecording: _pauseOrResumeRecording,
                     onStopRecording: _stopRecording,
                     stats: state,
                   ),
@@ -525,313 +397,4 @@ class _NavigatorScreenState extends State<NavigatorScreen> {
       ),
     );
   }
-}
-
-class StatsRecordingCard extends StatefulWidget {
-  final String trailName;
-  final DateTime eta;
-  final Duration elapsedTime;
-  final bool isRecording;
-  final VoidCallback onToggleRecording;
-  final VoidCallback onStopRecording;
-  final LocationState stats;
-
-  const StatsRecordingCard({
-    super.key,
-    required this.trailName,
-    required this.eta,
-    required this.elapsedTime,
-    required this.isRecording,
-    required this.onToggleRecording,
-    required this.onStopRecording,
-    required this.stats,
-  });
-
-  static double collapsedSheetHeight(BuildContext context, String trailName) {
-    final mediaQuery = MediaQuery.of(context);
-    final textStyle = Theme.of(context).textTheme.titleMedium;
-    final availableWidth = mediaQuery.size.width - 36;
-    final textPainter = TextPainter(
-      text: TextSpan(text: trailName, style: textStyle),
-      textDirection: Directionality.of(context),
-      textAlign: TextAlign.center,
-      maxLines: null,
-    )..layout(maxWidth: availableWidth);
-
-    const double collapsedTopPadding = 16;
-    const double collapsedBottomPadding = 16;
-    return collapsedTopPadding + textPainter.height + collapsedBottomPadding;
-  }
-
-  @override
-  State<StatsRecordingCard> createState() => _StatsRecordingCardState();
-}
-
-class _StatsRecordingCardState extends State<StatsRecordingCard> {
-  static const double _minSheetSize = 0.14;
-  static const double _maxSheetSize = 0.80;
-  static const double _detailsRevealOffset = 0.08;
-  static const int _fractionalDigits = 2;
-
-  double _sheetExtent = _minSheetSize;
-  double _collapsedSheetSize = _minSheetSize;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    final collapsedSheetSize = _calculateCollapsedSheetSize(
-      context,
-      widget.trailName,
-    );
-    if ((collapsedSheetSize - _collapsedSheetSize).abs() > 0.001) {
-      _collapsedSheetSize = collapsedSheetSize;
-      if (_sheetExtent < _collapsedSheetSize) {
-        _sheetExtent = _collapsedSheetSize;
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final showDetails =
-        _sheetExtent >=
-        math.min(_collapsedSheetSize + _detailsRevealOffset, _maxSheetSize);
-
-    return NotificationListener<DraggableScrollableNotification>(
-      onNotification: (notification) {
-        if ((notification.extent - _sheetExtent).abs() > 0.001) {
-          setState(() {
-            _sheetExtent = notification.extent;
-          });
-        }
-        return false;
-      },
-      child: DraggableScrollableSheet(
-        initialChildSize: _collapsedSheetSize,
-        minChildSize: _collapsedSheetSize,
-        maxChildSize: _maxSheetSize,
-        expand: true,
-        builder: (context, scrollController) {
-          return Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondary,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(28),
-                  bottom: Radius.zero,
-                ),
-                border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.25),
-                ),
-              ),
-              child: SafeArea(
-                top: false,
-                left: false,
-                right: false,
-                bottom: true,
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  physics: const ClampingScrollPhysics(),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      18,
-                      showDetails ? 10 : 16,
-                      18,
-                      showDetails ? 14 : 16,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 44,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.onSecondary,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          widget.trailName,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.titleMedium!
-                            .copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          softWrap: true,
-                        ),
-                        if (showDetails) ...[
-                          const SizedBox(height: 12),
-                          const Divider(height: 10),
-                          Column(
-                            children: [
-                              Text('Time', style: theme.textTheme.bodyMedium),
-                              Text(
-                                widget.elapsedTime.toCompactLabel(),
-                                style: theme.textTheme.titleLarge,
-                              ),
-                            ],
-                          ),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 180),
-                            switchInCurve: Curves.easeOut,
-                            switchOutCurve: Curves.easeIn,
-                            child: Column(
-                              key: const ValueKey('expanded-stats'),
-                              children: [
-                                const SizedBox(height: 14),
-                                const Divider(height: 1),
-                                const SizedBox(height: 14),
-                                Column(
-                                  children: [
-                                    Text(
-                                      'ETA',
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                    Text(
-                                      widget.eta.toCompactLabel(),
-                                      style: theme.textTheme.titleLarge,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                const Divider(height: 1),
-                                const SizedBox(height: 14),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            'Distance',
-                                            style: theme.textTheme.bodyMedium,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          Text(
-                                            widget.stats.getDistanceLabel(),
-                                            style: theme.textTheme.titleLarge,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      height: 48,
-                                      child: VerticalDivider(
-                                        color: theme.colorScheme.outline
-                                            .withValues(alpha: 0.35),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            'Elevation Gap',
-                                            style: theme.textTheme.bodyMedium,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            widget.stats.getElevationGapLabel(),
-                                            style: theme.textTheme.titleLarge,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                const Divider(height: 1),
-                                const SizedBox(height: 14),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: ElevatedButton.icon(
-                                        onPressed: widget.onToggleRecording,
-                                        label: widget.isRecording
-                                            ? const Text('Pause')
-                                            : const Text('Resume'),
-                                        icon: widget.isRecording
-                                            ? const Icon(Icons.pause)
-                                            : const Icon(Icons.play_arrow),
-                                        style: widget.isRecording
-                                            ? ElevatedButton.styleFrom(
-                                                backgroundColor: AppColors
-                                                    .pauseButtonBackground,
-                                                foregroundColor: AppColors
-                                                    .pauseButtonForeground,
-                                              )
-                                            : ElevatedButton.styleFrom(
-                                                backgroundColor: AppColors
-                                                    .resumeButtonBackground,
-                                                foregroundColor: AppColors
-                                                    .pauseButtonForeground,
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      flex: 3,
-                                      child: ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              AppColors.stopButtonBackground,
-                                          foregroundColor:
-                                              AppColors.stopButtonForeground,
-                                        ),
-                                        onPressed: widget.onStopRecording,
-                                        label: const Text('Stop'),
-                                        icon: const Icon(Icons.stop),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  static double _calculateCollapsedSheetHeight(
-    BuildContext context,
-    String trailName,
-  ) {
-    return StatsRecordingCard.collapsedSheetHeight(context, trailName);
-  }
-
-  double _calculateCollapsedSheetSize(BuildContext context, String trailName) {
-    final mediaQuery = MediaQuery.of(context);
-    final collapsedHeight = _calculateCollapsedSheetHeight(context, trailName);
-    final collapsedSize =
-        collapsedHeight / mediaQuery.size.height +
-        mediaQuery.padding.bottom / mediaQuery.size.height;
-
-    return collapsedSize.clamp(_minSheetSize, _maxSheetSize);
-  }
-
-  double truncateToDecimalPlaces(num value) =>
-      (value * math.pow(10, _fractionalDigits)).truncate() /
-      math.pow(10, _fractionalDigits);
 }

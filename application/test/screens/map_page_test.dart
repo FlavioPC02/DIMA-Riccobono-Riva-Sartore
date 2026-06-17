@@ -150,15 +150,8 @@ void main() {
 
       final searchButton = find.text('Search for hiking trails in this area');
       expect(searchButton, findsOneWidget);
+      await tester.tap(searchButton);
 
-      final buttonFinder = find.ancestor(
-        of: searchButton,
-        matching: find.byType(ElevatedButton),
-      ).first;
-      final buttonWidget = tester.widget<ElevatedButton>(buttonFinder);
-      expect(buttonWidget.onPressed, isNotNull);
-
-      buttonWidget.onPressed?.call();
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
 

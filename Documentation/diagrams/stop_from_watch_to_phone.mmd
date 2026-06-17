@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant watch
+    participant ws as wear_sync
+    participant wdl as watch_data_layer
+    participant pdl as phone_data_layer
+    participant ps as phone_sync
+    participant phone
+
+    watch ->> watch: stop()
+    watch ->> ws: sendStop()
+    ws ->> wdl: invokeMethod("stopRecording")
+    wdl ->> pdl: sendToPhone("stop")
+    pdl ->> ps: invokeMethod("stopRecording")
+    ps ->> phone: stopAndSave()
+    phone ->> phone: goto ... screen

@@ -1,6 +1,6 @@
 part of '../cubit/location_cubit.dart';
 
-enum LocationStateKind {idle, tracking, error}
+enum LocationStateKind {idle, tracking, paused, error}
 
 class LocationState extends Equatable {
   final LocationStateKind kind;
@@ -17,6 +17,11 @@ class LocationState extends Equatable {
   final double totalAscent;
   final double totalDescent;
 
+  final DateTime? eta;
+
+  final bool isOffTrail;
+  final String? offTrailDirection;
+
   const LocationState._({
     required this.kind,
     this.points = const [],
@@ -26,6 +31,9 @@ class LocationState extends Equatable {
     this.elevationGap,
     this.totalAscent = 0,
     this.totalDescent = 0,
+    this.eta,
+    this.isOffTrail = false,
+    this.offTrailDirection,
   });
 
   const LocationState.idle()
@@ -38,6 +46,9 @@ class LocationState extends Equatable {
     double? elevationGap,
     double totalAscent = 0,
     double totalDescent = 0,
+    DateTime? eta,
+    bool isOffTrail = false,
+    String? offTrailDirection,
   }) : this._(
     kind: LocationStateKind.tracking,
     points: points,
@@ -46,24 +57,52 @@ class LocationState extends Equatable {
     elevationGap: elevationGap,
     totalAscent: totalAscent,
     totalDescent: totalDescent,
+    eta: eta,
+    isOffTrail: isOffTrail,
+    offTrailDirection: offTrailDirection,
+  );
+
+  const LocationState.paused({
+    List<LocationPoint> points = const [],
+    LocationPoint? current,
+    double distance = 0,
+    double? elevationGap,
+    double totalAscent = 0,
+    double totalDescent = 0,
+    DateTime? eta,
+    bool isOffTrail = false,
+    String? offTrailDirection,
+  }) : this._(
+    kind: LocationStateKind.paused,
+    points: points,
+    current: current,
+    distance: distance,
+    elevationGap: elevationGap,
+    totalAscent: totalAscent,
+    totalDescent: totalDescent,
+    eta: eta,
+    isOffTrail: isOffTrail,
+    offTrailDirection: offTrailDirection,
   );
 
   const LocationState.error(String message)
     : this._(kind: LocationStateKind.error, errorMessage: message);
 
   bool get isTracking => kind == LocationStateKind.tracking;
+  bool get isPaused => kind == LocationStateKind.paused;
+  bool get isActive => isTracking || isPaused;
   bool get isError => kind == LocationStateKind.error;
 
   //UI formatters
   String getDistanceLabel() {
-    if (!isTracking) return '--';
+    if (!isActive) return '--';
     if (distance == 0) return '0 m';
     if (distance < 1000) return '${distance.toStringAsFixed(0)} m';
     return '${(distance / 1000).toStringAsFixed(2)} km';
   }
 
   String getElevationGapLabel() {
-    if (!isTracking) return '--';
+    if (!isActive) return '--';
     if (elevationGap == null) return '--';
     final sign = elevationGap! >= 0 ? '+' : '-';
 
@@ -83,5 +122,8 @@ class LocationState extends Equatable {
     elevationGap,
     totalAscent,
     totalDescent,
+    eta,
+    isOffTrail,
+    offTrailDirection,
   ];
 }

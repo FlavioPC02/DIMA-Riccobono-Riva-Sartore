@@ -39,7 +39,6 @@ class NotificationPermissionHelper {
       return false;
     }
 
-    //TODO: utile anche l'exact alarm permission?
     return true;
   }
 

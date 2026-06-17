@@ -1,6 +1,6 @@
-import 'package:application/core/theme/app_colors.dart';
 import 'package:application/services/helpers/trail_details_screen_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:hike_core/hike_core.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -275,16 +275,16 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     int level = TrailDetailsScreenHelper.calculateDifficultyLevel(
       _relationTags, _distanceKm, double.tryParse(_estimatedAscent ?? '0') ?? 0.0
     );
-    if (level == 1) { 
-      difficulty = ActivityDifficulty.easy; 
-    } else if (level == 2) { 
-      difficulty = ActivityDifficulty.moderate; 
-    } else { 
-      difficulty = ActivityDifficulty.hard; 
+    if (level == 1) {
+      difficulty = ActivityDifficulty.easy;
+    } else if (level == 2) {
+      difficulty = ActivityDifficulty.moderate;
+    } else {
+      difficulty = ActivityDifficulty.hard;
     }
     return level;
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -373,13 +373,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
-      child: GridView.count(
+      child: GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        mainAxisExtent: MediaQuery.textScalerOf(context).scale(120.0),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          mainAxisExtent: MediaQuery.textScalerOf(context).scale(120.0),
+        ),
         children: [
           _buildStatCard(Icons.route, 'Distance', value: distanceStr),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: durationStr),
@@ -608,7 +610,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     } else if (maxDistKm <= 100.0) {
       baseInterval = 10.0;
     } else if (maxDistKm <= 200.0) {
-      baseInterval = 20.0; 
+      baseInterval = 20.0;
     } else {
       baseInterval = 50.0;
     }
@@ -973,8 +975,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          ascentStr, 
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), 
+          ascentStr,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
