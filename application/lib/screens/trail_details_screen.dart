@@ -1017,5 +1017,5 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       })
       .where((segment) => segment.isNotEmpty)
       .toList(growable: false);
-}
+  }
 }
