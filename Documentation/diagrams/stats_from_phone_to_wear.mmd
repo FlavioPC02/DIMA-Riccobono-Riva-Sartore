@@ -1,0 +1,20 @@
+sequenceDiagram
+    autonumber
+    participant phone
+    participant ps as phone_sync
+    participant pdl as phone_data_layer
+    participant wdl as watch_data_layer
+    participant ws as wear_sync
+    participant watch
+
+    phone ->> phone: compute stats
+    phone ->> ps: sendStats(stats)
+    ps ->> pdl: invokeMethod("sendStatsToWatch", statsJson)
+    pdl ->> wdl: sendMessageToWatch(method + stats)
+    alt "is connected"
+        wdl ->> wdl: sendToCache
+    else
+        wdl ->> ws: invokeMethod("onStatsUpdate", statsJson)
+        ws ->> watch: statsController.add(stats)
+        watch ->> watch: refresh UI
+    end
