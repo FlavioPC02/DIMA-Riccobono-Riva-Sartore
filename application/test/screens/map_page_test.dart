@@ -10,8 +10,11 @@ import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/settings.dart';
 import 'package:application/screens/map_page.dart';
 import 'package:application/screens/trail_details_screen.dart';
+import '../mocks/mocks_manual.dart';
 import '../utils/map_test_helper.dart';
 import 'package:flutter_map/flutter_map.dart';
+
+import '../utils/test_config.dart';
 
 class DelayedMockGeolocatorPlatform extends MockGeolocatorPlatform {
   @override
@@ -21,14 +24,13 @@ class DelayedMockGeolocatorPlatform extends MockGeolocatorPlatform {
   }
 }
 
-class MockSettingsCubit extends Mock implements SettingsCubit {}
-class MockTileImage extends Mock implements TileImage {}
 
 void main() {
   late DelayedMockGeolocatorPlatform mockGeolocator;
   late MockSettingsCubit mockSettingsCubit;
 
   setUpAll(() async {
+    setupTest();
     const envString = '''MAPBOX_ACCESS_TOKEN=test_token_123''';
     dotenv.loadFromString(envString: envString);
     

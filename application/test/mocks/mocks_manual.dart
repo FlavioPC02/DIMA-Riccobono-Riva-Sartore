@@ -5,6 +5,7 @@ import 'package:application/core/cubit/location_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/favorite_trail.dart';
 import 'package:application/core/models/location_point.dart';
 import 'package:application/core/models/profile.dart';
 import 'package:application/core/models/settings.dart';
@@ -15,8 +16,10 @@ import 'package:application/core/repository/settings_repository.dart';
 import 'package:application/services/background_tracking_service.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:application/services/database_service.dart';
+import 'package:application/services/favorite_trail_store.dart';
 import 'package:application/services/phone_wear_sync.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:mocktail/mocktail.dart';
@@ -31,6 +34,7 @@ class MockDatabaseService extends Mock implements DatabaseService {}
 class MockActivityRepository extends Mock implements ActivityRepository {}
 class MockSettingsRepository extends Mock implements SettingsRepository {}
 class MockProfileRepository extends Mock implements ProfileRepository {}
+class MockFavoriteTrailStore extends Mock implements FavoriteTrailStore {}
 class MockLocationRepository extends Mock implements ILocationRepository {}
 class MockBackgroundTrackingService extends Mock implements BackgroundTrackingService {}
 class MockPhoneWearSyncService extends Mock implements PhoneWearSyncService {}
@@ -43,6 +47,7 @@ class MockHttpClient extends Mock implements HttpClient {}
 class MockHttpClientRequest extends Mock implements HttpClientRequest {}
 class MockHttpClientResponse extends Mock implements HttpClientResponse {}
 class MockHttpHeaders extends Mock implements HttpHeaders {}
+class MockTileImage extends Mock implements TileImage {}
 
 // Fakes for fallback registration
 class FakeActivity extends Fake implements Activity {}
@@ -55,6 +60,7 @@ class FakeHttpClientRequest extends Fake implements HttpClientRequest {}
 class FakeUri extends Fake implements Uri {}
 class FakeNotificationDetails extends Fake implements NotificationDetails {}
 class FakeHikeLiveStats extends Fake implements HikeLiveStats {}
+class FakeFavoriteTrail extends Fake implements FavoriteTrail {}
 
 // Hive mocks
 class MockBox extends Mock implements Box<LocationPoint> {}
@@ -71,6 +77,7 @@ void registerAllFallbacks() {
   registerFallbackValue(FakeLocationState());
   registerFallbackValue(FakeHikeLiveStats());
   registerFallbackValue(HikeRecordingStatus.recording);
+  registerFallbackValue(FakeFavoriteTrail());
 }
 
 // Helper to mock NotificationPermissionHelper static methods

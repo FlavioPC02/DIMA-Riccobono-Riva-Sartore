@@ -18,8 +18,13 @@ import 'package:application/services/favorite_trail_store.dart';
 
 class TrailDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> trail;
+  final FavoriteTrailStore? favoriteTrailStore;
 
-  const TrailDetailsScreen({super.key, required this.trail});
+  const TrailDetailsScreen({
+    super.key, 
+    required this.trail,
+    this.favoriteTrailStore, //field useful for testing
+  });
 
   @override
   State<TrailDetailsScreen> createState() => _TrailDetailsPageState();
@@ -30,7 +35,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
   bool _isFavorite = false;
   bool _isUpdatingFavorite = false;
-  final FavoriteTrailStore _favoriteTrailStore = FavoriteTrailStore();
+  late final FavoriteTrailStore _favoriteTrailStore;
 
   Map<String, dynamic>? _relationTags;
   Set<String> _surfaces = {};
@@ -57,6 +62,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _favoriteTrailStore = widget.favoriteTrailStore ?? FavoriteTrailStore();
     _loadFavoriteState();
     _fetchTrailDetails();
   }
