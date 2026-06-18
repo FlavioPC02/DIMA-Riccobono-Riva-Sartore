@@ -19,7 +19,21 @@ import 'package:application/services/favorite_trail_store.dart';
 class TrailDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> trail;
 
-  const TrailDetailsScreen({super.key, required this.trail});
+  final String? offlineDistance;
+  final String? offlineDuration;
+  final int? offlineDifficulty;
+  final String? offlineAscent;
+  final bool? offlineIsFerrata;
+
+  const TrailDetailsScreen({
+    super.key, 
+    required this.trail,
+    this.offlineDistance,
+    this.offlineDuration,
+    this.offlineDifficulty,
+    this.offlineAscent,
+    this.offlineIsFerrata,
+  });
 
   @override
   State<TrailDetailsScreen> createState() => _TrailDetailsPageState();
@@ -87,8 +101,35 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       if (_isFavorite) {
         await _favoriteTrailStore.deleteTrail(widget.trail['id']?.toString() ?? '');
       } else {
+        final String distanceStr = _relationTags != null 
+            ? TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters)
+            : widget.offlineDistance ?? 'N/D';
+
+        final String durationStr = _relationTags != null
+            ? TrailDetailsScreenHelper.formatDuration(_durationMinutes)
+            : widget.offlineDuration ?? 'N/D';
+
+        final String ascentStr = _relationTags != null
+            ? TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent)
+            : widget.offlineAscent ?? 'N/D';
+
+        final int difficultyLvl = _relationTags != null 
+            ? _difficulty 
+            : (widget.offlineDifficulty ?? 0);
+
+        final bool isFerrata = _relationTags != null
+            ? ((_relationTags?['cai_scale']?.toString().toUpperCase().contains('EEA') ?? false) || (_relationTags?.containsKey('via_ferrata_scale') ?? false))
+            : (widget.offlineIsFerrata ?? false);
+
         await _favoriteTrailStore.saveTrail(
-          FavoriteTrail.fromTrail(widget.trail),
+          FavoriteTrail.fromTrail(
+            widget.trail,
+            distance: distanceStr,
+            duration: durationStr,
+            difficulty: difficultyLvl,
+            ascent: ascentStr,
+            isFerrata: isFerrata,
+          ),
         );
       }
 
@@ -211,10 +252,12 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           _fetchElevations(allPoints);
           _fetchWeather(allPoints.first);
         } else {
-          setState(() {
-            _isLoadingWeather = false;
-            _isLoadingElevations = false;
-          });
+          if (mounted) { 
+            setState(() {
+              _isLoadingWeather = false;
+              _isLoadingElevations = false;
+            });
+          }
         }
 
         if (relTags != null) {
@@ -225,10 +268,12 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             _isLoading = false;
           });
         } else {
-          setState(() {
-            _errorMessage = 'Informations not available.';
-            _isLoading = false;
-          });
+          if (mounted) { 
+            setState(() {
+              _errorMessage = 'Informations not available.';
+              _isLoading = false;
+            });
+          }
         }
 
         return;
@@ -270,15 +315,17 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       });
 
       final response = await http
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: body,
-          )
-          .timeout(const Duration(seconds: 15));
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: body,
+        )
+        .timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -306,7 +353,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         setState(() => _isLoadingElevations = false);
       }
     } catch (e) {
-      setState(() => _isLoadingElevations = false);
+      if (mounted) {
+        setState(() => _isLoadingElevations = false);
+      }
     }
   }
 
@@ -363,8 +412,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [_buildBody(), if (!_isLoading) _buildFloatingButtons()],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _buildBody(),
+            ),
+            if (!_isLoading) _buildFloatingButtons(),
+          ],
+        ),
       ),
     );
   }
@@ -375,6 +431,14 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     }
 
     if (_errorMessage != null) {
+      if (widget.offlineDistance != null) {
+        return Column(
+          children: [
+            _buildHighlightedStats(),
+          ],
+        );
+      }
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -423,11 +487,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   }
 
   Widget _buildHighlightedStats() {
-    final String distanceStr = TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters);
-    final String durationStr = TrailDetailsScreenHelper.formatDuration(_durationMinutes);
-    final String ascentStr = TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent);
+    final String distanceStr = widget.offlineDistance ?? TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters);
+    final String durationStr = widget.offlineDuration ?? TrailDetailsScreenHelper.formatDuration(_durationMinutes);
+    final String ascentStr = widget.offlineAscent ?? TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent);
 
-    _difficulty = _updateDifficulty();
+    _difficulty = widget.offlineDifficulty ?? _updateDifficulty();
 
     bool isFerrata = false;
     final caiScale = _relationTags?['cai_scale']?.toString().toUpperCase() ?? '';
@@ -438,7 +502,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
+      padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0, bottom: 16.0),
       child: GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -452,7 +516,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           _buildStatCard(Icons.route, 'Distance', value: distanceStr),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: durationStr),
           _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(_difficulty)),
-          _buildStatCard(Icons.height, 'Ascent', valueWidget: _buildAscentAndFerrata(ascentStr, isFerrata)),
+          _buildStatCard(Icons.height, 'Ascent', valueWidget: _buildAscentAndFerrata(ascentStr, widget.offlineIsFerrata ?? isFerrata)),
         ],
       ),
     );
@@ -903,96 +967,93 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   }
 
   Widget _buildFloatingButtons() {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 50.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddActivityPage(
-                        activity: Activity(
-                          id: "",
-                          name: widget.trail['name'],
-                          status: ActivityStatus.planned,
-                          date: DateTime.now(),
-                          trailName: widget.trail['name'],
-                          trailId: widget.trail['id']?.toString() ?? '',
-                          trailPath: _trailPath,
-                          distanceKm: _distanceKm,
-                          durationMinutes: _durationMinutes,
-                          difficulty: difficulty,
-                          xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty)
-                        ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 16.0, top: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddActivityPage(
+                      activity: Activity(
+                        id: "",
+                        name: widget.trail['name'],
+                        status: ActivityStatus.planned,
+                        date: DateTime.now(),
+                        trailName: widget.trail['name'],
+                        trailId: widget.trail['id']?.toString() ?? '',
+                        trailPath: _trailPath,
+                        distanceKm: _distanceKm,
+                        durationMinutes: _durationMinutes,
+                        difficulty: difficulty,
+                        xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty)
                       ),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Theme.of(context).colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                icon: const Icon(Icons.calendar_month),
-                label: const Text(
-                  'Plan',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              icon: const Icon(Icons.calendar_month),
+              label: const Text(
+                'Plan',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
-            const SizedBox(width: 16.0),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => NavigatorScreen(
-                        trail: widget.trail,
-                        activity: Activity(
-                          id: "",
-                          name: widget.trail['name'],
-                          status: ActivityStatus.planned,
-                          trailName: widget.trail['name'],
-                          trailId: widget.trail['id']?.toString() ?? '',
-                          trailPath: _trailPath,
-                          distanceKm: _distanceKm,
-                          durationMinutes: _durationMinutes,
-                          date: DateTime.now(),
-                          difficulty: difficulty,
-                          xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty),
-                        ),
+          ),
+          const SizedBox(width: 16.0),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NavigatorScreen(
+                      trail: widget.trail,
+                      activity: Activity(
+                        id: "",
+                        name: widget.trail['name'],
+                        status: ActivityStatus.planned,
+                        trailName: widget.trail['name'],
+                        trailId: widget.trail['id']?.toString() ?? '',
+                        trailPath: _trailPath,
+                        distanceKm: _distanceKm,
+                        durationMinutes: _durationMinutes,
+                        date: DateTime.now(),
+                        difficulty: difficulty,
+                        xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty),
                       ),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.secondary,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                icon: const Icon(Icons.navigation),
-                label: const Text(
-                  'Start',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.secondary,
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              icon: const Icon(Icons.navigation),
+              label: const Text(
+                'Start',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

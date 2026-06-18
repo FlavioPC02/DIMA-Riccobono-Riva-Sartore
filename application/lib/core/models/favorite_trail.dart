@@ -6,17 +6,40 @@ class FavoriteTrail {
   final String name;
   final List<List<TrailPoint>> trailPath;
 
+  final String? distance;
+  final String? duration;
+  final int? difficulty;
+  final String? ascent;
+  final bool? isFerrata;
+
   const FavoriteTrail({
     required this.id,
     required this.name,
     required this.trailPath,
+    this.distance,
+    this.duration,
+    this.difficulty,
+    this.ascent,
+    this.isFerrata,
   });
 
-  factory FavoriteTrail.fromTrail(Map<String, dynamic> trail) {
+  factory FavoriteTrail.fromTrail(
+    Map<String, dynamic> trail, {
+    String? distance,
+    String? duration,
+    int? difficulty,
+    String? ascent,
+    bool? isFerrata,
+  }) {
     return FavoriteTrail(
       id: trail['id']?.toString() ?? '',
       name: trail['name']?.toString() ?? 'Trail',
       trailPath: _trailPathFromSubTrails(trail['subTrails']),
+      distance: distance,
+      duration: duration,
+      difficulty: difficulty,
+      ascent: ascent,
+      isFerrata: isFerrata,
     );
   }
 

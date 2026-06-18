@@ -25,6 +25,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   bool _isLocatingUser = false;
   bool _isLoadingTrails = false;
   bool _isSearchingLocation = false;
+  bool _isAttributionOpen = false;
 
   final double _minZoomThreshold = 11.0;
   bool _isZoomedInEnough = true;
@@ -661,145 +662,177 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     String? currentValue,
     Function(String?) onSelected,
   ) {
-    return PopupMenuButton<String>(
-      initialValue: currentValue,
-      position: PopupMenuPosition.under,
-      constraints: const BoxConstraints(maxWidth: 140, minWidth: 140),
-      onSelected: (val) {
-        if (val == 'CLEAR') {
-          onSelected(null);
-        } else {
-          onSelected(val);
-        }
-      },
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'CLEAR', child: Text('No filter')),
-        ...options.map((opt) => PopupMenuItem(value: opt, child: Text(opt))),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                currentValue ?? title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return PopupMenuButton<String>(
+          initialValue: currentValue,
+          position: PopupMenuPosition.under,
+          constraints: BoxConstraints(
+            minWidth: constraints.maxWidth,
+            maxWidth: constraints.maxWidth,
+          ),
+          onSelected: (val) {
+            if (val == 'CLEAR') {
+              onSelected(null);
+            } else {
+              onSelected(val);
+            }
+          },
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'CLEAR', 
+              child: Text('No filter', overflow: TextOverflow.ellipsis),
+            ),
+            ...options.map((opt) => PopupMenuItem(
+              value: opt, 
+              child: Text(opt, overflow: TextOverflow.ellipsis),
+            )),
+          ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    currentValue ?? title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: currentValue != null
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                      fontWeight: currentValue != null
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 30,
                   color: currentValue != null
                       ? Theme.of(context).colorScheme.primary
                       : null,
-                  fontWeight: currentValue != null
-                      ? FontWeight.bold
-                      : FontWeight.normal,
                 ),
-              ),
+              ],
             ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 30,
-              color: currentValue != null
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildDifficultyFilterMenu() {
-    return PopupMenuButton<String>(
-      initialValue: _filterDifficulty,
-      position: PopupMenuPosition.under,
-      constraints: const BoxConstraints(maxWidth: 140, minWidth: 140),
-      onSelected: (val) {
-        if (val == 'CLEAR') {
-          setState(() => _filterDifficulty = null);
-        } else if (val == 'TOGGLE_FERRATA') {
-          setState(() => _filterFerrata = !_filterFerrata);
-        } else {
-          setState(() => _filterDifficulty = val);
-        }
-      },
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'CLEAR', child: Text('No filter')),
-        const PopupMenuItem(value: 'Beginner', child: Text('Beginner')),
-        const PopupMenuItem(value: 'Intermediate', child: Text('Intermediate')),
-        const PopupMenuItem(value: 'Expert', child: Text('Expert')),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'TOGGLE_FERRATA',
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Expanded(
-                child: Text('Ferrata', overflow: TextOverflow.ellipsis),
-              ),
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSecondary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: _filterFerrata
-                    ? Icon(
-                        Icons.check,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.primary,
-                      )
-                    : null,
-              ),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return PopupMenuButton<String>(
+          initialValue: _filterDifficulty,
+          position: PopupMenuPosition.under,
+          constraints: BoxConstraints(
+            minWidth: constraints.maxWidth,
+            maxWidth: constraints.maxWidth,
           ),
-        ),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                _filterDifficulty ?? 'Difficulty',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+          onSelected: (val) {
+            if (val == 'CLEAR') {
+              setState(() => _filterDifficulty = null);
+            } else if (val == 'TOGGLE_FERRATA') {
+              setState(() => _filterFerrata = !_filterFerrata);
+            } else {
+              setState(() => _filterDifficulty = val);
+            }
+          },
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'CLEAR', 
+              child: Text('No filter', overflow: TextOverflow.ellipsis),
+            ),
+            const PopupMenuItem(
+              value: 'Beginner', 
+              child: Text('Beginner', overflow: TextOverflow.ellipsis),
+            ),
+            const PopupMenuItem(
+              value: 'Intermediate', 
+              child: Text('Intermediate', overflow: TextOverflow.ellipsis),
+            ),
+            const PopupMenuItem(
+              value: 'Expert', 
+              child: Text('Expert', overflow: TextOverflow.ellipsis),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem<String>(
+              value: 'TOGGLE_FERRATA',
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Expanded(
+                    child: Text('Ferrata', overflow: TextOverflow.ellipsis),
+                  ),
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSecondary,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: _filterFerrata
+                        ? Icon(
+                            Icons.check,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    _filterDifficulty ?? 'Difficulty',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: _filterDifficulty != null
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                      fontWeight: _filterDifficulty != null
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 30,
                   color: _filterDifficulty != null
                       ? Theme.of(context).colorScheme.primary
                       : null,
-                  fontWeight: _filterDifficulty != null
-                      ? FontWeight.bold
-                      : FontWeight.normal,
                 ),
-              ),
+              ],
             ),
-            const SizedBox(width: 2),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 30,
-              color: _filterDifficulty != null
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -837,7 +870,19 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 interactionOptions: const InteractionOptions(
                   flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                 ),
+                onTap: (tapPosition, point) {
+                  if (_isAttributionOpen) {
+                    setState(() {
+                      _isAttributionOpen = false;
+                    });
+                  }
+                },
                 onPositionChanged: (camera, hasGesture) {
+                  if (hasGesture && _isAttributionOpen) {
+                    setState(() {
+                      _isAttributionOpen = false;
+                    });
+                  }
                   final isEnough = camera.zoom >= _minZoomThreshold;
                   if (isEnough != _isZoomedInEnough) {
                     setState(() {
@@ -880,15 +925,29 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 ),
                 PolylineLayer(polylines: _buildPolylines()),
                 CurrentLocationLayer(),
-                RichAttributionWidget(
-                  attributions: [
-                    TextSourceAttribution(
-                      'OpenStreetMap contributors',
-                      onTap: () => launchUrl(
-                        Uri.parse('https://openstreetmap.org/copyright'),
-                      ),
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: Listener(
+                    behavior: HitTestBehavior.deferToChild,
+                    onPointerUp: (_) {
+                      if (mounted) {
+                        setState(() {
+                          _isAttributionOpen = !_isAttributionOpen;
+                        });
+                      }
+                    },
+                    child: RichAttributionWidget(
+                      attributions: [
+                        TextSourceAttribution(
+                          'OpenStreetMap contributors',
+                          onTap: () => launchUrl(
+                            Uri.parse('https://openstreetmap.org/copyright'),
+                          ),
+                        ),
+                      ],
+                      popupBackgroundColor: Theme.of(context).colorScheme.secondary,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -1141,8 +1200,12 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 ),
               ),
               //button to search for hiking trails in the current map view
-              Positioned(
-                bottom: MediaQuery.textScalerOf(context).scale(140.0),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                bottom: _isAttributionOpen
+                  ? MediaQuery.textScalerOf(context).scale(140.0)
+                  : 40.0,
                 left: 0,
                 right: 0,
                 child: _foundTrails.isEmpty

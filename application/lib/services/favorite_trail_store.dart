@@ -62,6 +62,11 @@ class FavoriteTrailStore {
       'id': trail.id,
       'name': trail.name,
       'trail_path_json': _encodeTrailPath(trail.trailPath),
+      'distance': trail.distance,
+      'duration': trail.duration,
+      'difficulty': trail.difficulty,
+      'ascent': trail.ascent,
+      'isFerrata': trail.isFerrata,
     };
   }
 
@@ -70,6 +75,11 @@ class FavoriteTrailStore {
       id: entry['id']?.toString() ?? '',
       name: entry['name']?.toString() ?? 'Trail',
       trailPath: _decodeTrailPath(entry['trail_path_json']?.toString()),
+      distance: entry['distance']?.toString(),
+      duration: entry['duration']?.toString(),
+      difficulty: entry['difficulty'] as int?,
+      ascent: entry['ascent']?.toString(),
+      isFerrata: entry['isFerrata'] as bool?,
     );
   }
 

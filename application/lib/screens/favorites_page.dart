@@ -97,8 +97,14 @@ class _FavoriteTrailCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) =>
-                  TrailDetailsScreen(trail: favoriteTrail.toTrailMap()),
+              builder: (_) => TrailDetailsScreen(
+                trail: favoriteTrail.toTrailMap(),
+                offlineDistance: favoriteTrail.distance, 
+                offlineDuration: favoriteTrail.duration,
+                offlineDifficulty: favoriteTrail.difficulty,
+                offlineAscent: favoriteTrail.ascent,
+                offlineIsFerrata: favoriteTrail.isFerrata,
+              ),
             ),
           );
         },
