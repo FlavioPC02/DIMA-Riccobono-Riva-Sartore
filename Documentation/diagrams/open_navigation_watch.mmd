@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant phone
+    participant ps as phone_sync
+    participant pdl as phone_data_layer
+    participant wdl as watch_data_layer
+    participant ws as wear_sync
+    participant watch
+
+    phone ->> phone: starts navigation
+    phone ->> ps: sendNavigationPrompt()
+    ps ->> pdl: invokeMethod("sendNavigationPrompt")
+    pdl ->> wdl: sendMessageToWatch(method)
+    alt "is not connected"
+        wdl ->> wdl: sendToCache
+    else
+        wdl ->> ws: invokeMethod("handleMethodCallFromPhone", method)
+        ws ->> ws: onOpenNavigation()
+        ws ->> watch: changeScreen(navigationScreen)
+        watch ->> watch: refresh UI
+    end

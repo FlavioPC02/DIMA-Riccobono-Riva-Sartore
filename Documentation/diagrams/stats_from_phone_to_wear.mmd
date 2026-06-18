@@ -11,10 +11,10 @@ sequenceDiagram
     phone ->> ps: sendStats(stats)
     ps ->> pdl: invokeMethod("sendStatsToWatch", statsJson)
     pdl ->> wdl: sendMessageToWatch(method + stats)
-    alt "is connected"
+    alt "is not connected"
         wdl ->> wdl: sendToCache
     else
-        wdl ->> ws: invokeMethod("onStatsUpdate", statsJson)
-        ws ->> watch: statsController.add(stats)
+        wdl ->> ws: invokeMethod("handleMethodCallFromPhone", method, statsJson)
+        ws ->> watch: onStatsUpdate(stats)
         watch ->> watch: refresh UI
     end
