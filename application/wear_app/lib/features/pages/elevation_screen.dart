@@ -16,7 +16,7 @@ class ElevationScreen extends StatelessWidget {
         buildWhen: (p, c) => p.stats.elevationGapMeters != c.stats.elevationGapMeters,
         builder: (context, state) {
           final gap = state.stats.elevationGapMeters ?? 0.0;
-          final sign = gap >= 0 ? '+' : '-';
+          final sign = gap >= 0 ? '+' : ''; //Minus sign obtained with string casting
           final gapStr = '$sign${gap.toStringAsFixed(0)} m';
 
           return ScreenShell(
