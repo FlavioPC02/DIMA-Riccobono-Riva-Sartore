@@ -105,17 +105,9 @@ class _ProfilePageState extends State<ProfilePage> {
         title: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.terrain,
-              size: 50,
-            ),
-            SizedBox(width: 20,),
-            Text(
-              'Profile',
-              style: TextStyle(
-                fontSize: 28,
-              ),
-            ),
+            Icon(Icons.person, size: 30),
+            SizedBox(width: 12),
+            Text('Profile'),
           ],
         ),
       ),
@@ -236,20 +228,24 @@ class _Header extends StatelessWidget {
                 ),
                 child: const Icon(Icons.person, size: 60,),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Nickname
-                  Text(
-                    nickname,
-                    style: Theme.of(context).textTheme.headlineMedium
-                  ),
-                  // Mail
-                  Text(
-                    email,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Nickname
+                    Text(
+                      nickname,
+                      style: Theme.of(context).textTheme.headlineMedium
+                    ),
+                    // Mail
+                    Text(
+                      email,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -447,18 +443,30 @@ class _StatsdifficultySection extends StatelessWidget {
                           Expanded(
                             child: Align(
                               alignment: Alignment.centerLeft,
-                              child: Text('Beginner'),
+                              child: Text(
+                                'Beginner',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                           Expanded(
                             child: Center(
-                              child: Text('Intermediate'),
+                              child: Text(
+                                'Intermediate',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                           Expanded(
                             child: Align(
                               alignment: Alignment.centerRight,
-                              child: Text('Expert'),
+                              child: Text(
+                                'Expert',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                         ],

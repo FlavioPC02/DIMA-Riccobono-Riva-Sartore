@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 import 'package:application/services/database_service.dart';
 import 'package:application/services/local_activity_store.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -177,5 +178,99 @@ class ActivityRepository {
     final merged = byId.values.toList();
     merged.sort((a, b) => b.date.compareTo(a.date));
     return merged;
+  }
+
+  Future<Activity?> fetchActivityDetails(String id) async {
+    final remote = _remoteOrNull();
+
+    if (remote != null) {
+      try {
+        final docData = await remote.fetchActivity(id);
+
+        if (docData != null) {
+          Activity remoteActivity = Activity.fromJson(id, docData);
+          
+          final localActivities = await _localStore.streamActivities().first;
+          try {
+             final localActivity = localActivities.firstWhere((a) => a.id == id);
+             remoteActivity = remoteActivity.copyWith(trailPath: localActivity.trailPath);
+          } catch (_) {
+            //activity non exisiting in local cache then ignore trailPath
+          }
+
+          await _localStore.upsertActivity(remoteActivity);
+          
+          return remoteActivity;
+        }
+      } catch (e) {
+        // fallback: read from hive
+      }
+    }
+
+    final localActivities = await _localStore.streamActivities().first;
+    try {
+      return localActivities.firstWhere((a) => a.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveNote(Activity activity, ActivityNote note) async {
+    List<ActivityNote> updatedNotes = List.from(activity.notes);
+    final index = updatedNotes.indexWhere((n) => n.id == note.id);
+    final isNewNote = index == -1;
+    
+    ActivityNote? oldNote = isNewNote ? null : updatedNotes[index];
+
+    if (isNewNote) {
+      updatedNotes.add(note);
+    } else {
+      updatedNotes[index] = note;
+    }
+    
+    await _localStore.upsertActivity(activity.copyWith(notes: updatedNotes));
+
+    final remote = _remoteOrNull();
+    if (remote == null) return;
+
+    final noteToSaveRemotely = ActivityNote(
+      id: note.id,
+      text: note.text,
+      imageUrls: note.imageUrls,
+      createdAt: note.createdAt,
+    );
+
+    if (isNewNote) {
+      updatedNotes[updatedNotes.length - 1] = noteToSaveRemotely;
+    } else {
+      updatedNotes[index] = noteToSaveRemotely;
+    }
+    await _localStore.upsertActivity(activity.copyWith(notes: updatedNotes));
+
+    try {
+      if (isNewNote) {
+        await remote.addNoteToArray(activity.id, noteToSaveRemotely.toJson());
+      } else if (oldNote != null) {
+        await remote.removeNoteFromArray(activity.id, oldNote.toJson());
+        await remote.addNoteToArray(activity.id, noteToSaveRemotely.toJson());
+      }
+    } catch (e) {
+      //note save in local cache
+    }
+  }
+
+  Future<void> deleteNote(Activity activity, ActivityNote noteToDelete) async {
+    List<ActivityNote> updatedNotes = List.from(activity.notes)
+      ..removeWhere((n) => n.id == noteToDelete.id);
+    
+    final localActivity = activity.copyWith(notes: updatedNotes);
+    await _localStore.upsertActivity(localActivity);
+
+    final remote = _remoteOrNull();
+    if (remote != null) {
+      try {
+        remote.removeNoteFromArray(activity.id, noteToDelete.toJson());
+      } catch (_) {}
+    }
   }
 }

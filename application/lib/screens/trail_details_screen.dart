@@ -101,17 +101,17 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       if (_isFavorite) {
         await _favoriteTrailStore.deleteTrail(widget.trail['id']?.toString() ?? '');
       } else {
-        final String distanceStr = _relationTags != null 
+        final String? distanceStr = _relationTags != null 
             ? TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters)
-            : widget.offlineDistance ?? 'N/D';
+            : widget.offlineDistance;
 
-        final String durationStr = _relationTags != null
+        final String? durationStr = _relationTags != null
             ? TrailDetailsScreenHelper.formatDuration(_durationMinutes)
-            : widget.offlineDuration ?? 'N/D';
+            : widget.offlineDuration;
 
-        final String ascentStr = _relationTags != null
+        final String? ascentStr = _relationTags != null
             ? TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent)
-            : widget.offlineAscent ?? 'N/D';
+            : widget.offlineAscent;
 
         final int difficultyLvl = _relationTags != null 
             ? _difficulty 
@@ -244,9 +244,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
         List<LatLng> allPoints = TrailDetailsScreenHelper.stitchSegments(segments);
 
-        _calculatedMeters = meters;
-        _distanceKm = TrailDetailsScreenHelper.getDistanceKm(relTags?['distance'], meters);
-        _durationMinutes = TrailDetailsScreenHelper.getDurationMinutes(relTags?['duration'], relTags?['time'], _distanceKm);
+        final calcMeters = meters;
+        final calcDistKm = TrailDetailsScreenHelper.getDistanceKm(relTags?['distance'], meters);
+        final calcDurMins = TrailDetailsScreenHelper.getDurationMinutes(relTags?['duration'], relTags?['time'], calcDistKm);
         
         if (allPoints.isNotEmpty) {
           _fetchElevations(allPoints);
@@ -262,6 +262,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
         if (relTags != null) {
           setState(() {
+            _calculatedMeters = calcMeters;
+            _distanceKm = calcDistKm;
+            _durationMinutes = calcDurMins;
             _relationTags = relTags;
             _surfaces = tempSurfaces;
             _maxIncline = tempMaxInclineStr;
@@ -1022,7 +1025,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                       trail: widget.trail,
                       activity: Activity(
                         id: "",
-                        name: widget.trail['name'],
+                        name: 'Hike to ${widget.trail['name']}',
                         status: ActivityStatus.planned,
                         trailName: widget.trail['name'],
                         trailId: widget.trail['id']?.toString() ?? '',
@@ -1091,6 +1094,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
               ? '(Intermediate)'
               : '(Expert)',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

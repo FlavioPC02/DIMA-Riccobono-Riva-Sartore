@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/models/trail_point.dart';
 import 'package:application/services/local_activity_store.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,7 +37,14 @@ void main() {
       distanceKm: 4.5,
       durationMinutes: 75,
       xpEarned: 30,
-      notes: 'Bring water',
+      notes: [
+        ActivityNote(
+          id: 'note_1',
+          text: 'Bring water',
+          imageUrls: const [],
+          createdAt: date,
+        )
+      ],
       difficulty: ActivityDifficulty.moderate,
       trackedDistance: 4.2,
       trackedElevationGap: 120,

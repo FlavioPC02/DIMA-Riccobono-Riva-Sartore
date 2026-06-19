@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 
 void main() {
   group('Activity', () {
@@ -14,7 +15,14 @@ void main() {
       distanceKm: 12.3,
       durationMinutes: 95,
       xpEarned: 42.0,
-      notes: 'Beautiful day',
+      notes: [
+        ActivityNote(
+          id: 'note-1',
+          text: 'Beautiful day',
+          imageUrls: const [],
+          createdAt: date,
+        )
+      ],
       difficulty: ActivityDifficulty.moderate,
       trackedDistance: 12.0,
       trackedElevationGap: 200,
@@ -47,6 +55,8 @@ void main() {
       expect(parsed.status, ActivityStatus.completed);
       expect(parsed.difficulty, ActivityDifficulty.moderate);
       expect(parsed.trackedTime, const Duration(hours: 2));
+      expect(parsed.notes.isNotEmpty, true);
+      expect(parsed.notes.first.text, 'Beautiful day');
     });
 
     test('fromJson handles missing optional values and uses defaults', () {
@@ -62,7 +72,7 @@ void main() {
       expect(parsed.trailName, '');
       expect(parsed.distanceKm, 0);
       expect(parsed.durationMinutes, 0);
-      expect(parsed.notes, '');
+      expect(parsed.notes, isEmpty);
       expect(parsed.difficulty, ActivityDifficulty.easy);
       expect(parsed.trackedTime, Duration.zero);
     });

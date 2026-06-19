@@ -13,14 +13,14 @@ void main() {
 
   final dummyActivity = Activity(
     id: 'test_id',
-    name: 'Monte Baldo Hike',
+    name: '',
     status: ActivityStatus.planned,
     date: DateTime(2026, 6, 15),
     trailName: 'Sentiero 65',
     distanceKm: 12.5,
     durationMinutes: 180,
     xpEarned: 0,
-    notes: '',
+    notes: [],
     difficulty: ActivityDifficulty.moderate,
     trackedDistance: 0,
     trackedElevationGap: 0,
@@ -78,11 +78,10 @@ void main() {
       expect(find.text('DATE'), findsOneWidget);
       expect(find.text('DETAILS'), findsOneWidget);
 
-      expect(find.text('Monte Baldo Hike'), findsOneWidget);
       expect(find.text('Sentiero 65'), findsOneWidget);
-      expect(find.text('12.5'), findsOneWidget);
-      expect(find.text('180'), findsOneWidget);
-      expect(find.text('moderate'), findsOneWidget);
+      expect(find.text('12.5 km'), findsOneWidget);
+      expect(find.text('3h'), findsOneWidget);
+      expect(find.text('Intermediate'), findsOneWidget);
 
       final expectedDate = DateFormat('dd/MM/yyyy').format(dummyActivity.date);
       expect(find.text(expectedDate), findsOneWidget);

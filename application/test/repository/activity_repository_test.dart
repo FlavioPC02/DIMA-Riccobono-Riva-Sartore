@@ -187,7 +187,7 @@ void main() {
         'distanceKm': 3.0,
         'durationMinutes': 60,
         'xpEarned': 10.0,
-        'notes': 'n',
+        'notes': [],
         'difficulty': 'easy',
         'trackedDistance': 0.0,
         'trackedElevationGap': 0.0,

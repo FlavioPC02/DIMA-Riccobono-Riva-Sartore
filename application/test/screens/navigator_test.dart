@@ -72,7 +72,7 @@ void main() {
       distanceKm: 5.0,
       durationMinutes: 120,
       xpEarned: 100,
-      notes: '',
+      notes: [],
       difficulty: ActivityDifficulty.moderate,
       trackedDistance: 0,
       trackedElevationGap: 0,

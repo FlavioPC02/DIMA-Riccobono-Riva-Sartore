@@ -1,9 +1,9 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
-import 'package:hike_core/hike_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:hike_core/hike_core.dart';
 
 class AddActivityPage extends StatefulWidget {
   final Activity activity;
@@ -18,6 +18,8 @@ class _AddActivityPageState extends State<AddActivityPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
+  
+  final _nameFocus = FocusNode();
 
   DateTime _selectedDate = DateTime.now();
   bool _saving = false;
@@ -26,11 +28,20 @@ class _AddActivityPageState extends State<AddActivityPage> {
   void initState() {
     super.initState();
     _selectedDate = widget.activity.date;
+    _nameFocus.addListener(() {
+      if (_nameFocus.hasFocus && _nameController.text.isEmpty) {
+        _nameController.text = 'Hike to ${widget.activity.name}';
+        _nameController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _nameController.text.length),
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -59,7 +70,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
       distanceKm: widget.activity.distanceKm,
       durationMinutes: widget.activity.durationMinutes,
       xpEarned: 0,
-      notes: '',
+      notes: [],
       difficulty: widget.activity.difficulty,
       trackedDistance: 0,
       trackedElevationGap: 0,
@@ -75,31 +86,8 @@ class _AddActivityPageState extends State<AddActivityPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         title: const Text('New Planned Hike'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.textPrimary,
-                    ),
-                  )
-                : const Text(
-                    'Save',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-          ),
-        ],
       ),
       body: Form(
         key: _formKey,
@@ -110,9 +98,10 @@ class _AddActivityPageState extends State<AddActivityPage> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _nameController,
+              focusNode: _nameFocus,
               decoration: InputDecoration(
                 labelText: 'Name',
-                hintText: widget.activity.name,
+                floatingLabelBehavior: FloatingLabelBehavior.always,
                 border: const OutlineInputBorder(),
               ),
               validator: (v) =>
@@ -148,10 +137,10 @@ class _AddActivityPageState extends State<AddActivityPage> {
               children: [
                 Expanded(
                   child: TextFormField(
-                    initialValue: widget.activity.distanceKm.toString(),
+                    initialValue: '${widget.activity.distanceKm.toStringAsFixed(1)} km',
                     readOnly: true,
                     decoration: const InputDecoration(
-                      labelText: 'Distance (km)',
+                      labelText: 'Distance',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -159,10 +148,10 @@ class _AddActivityPageState extends State<AddActivityPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextFormField(
-                    initialValue: widget.activity.durationMinutes.toString(),
+                    initialValue: widget.activity.durationMinutes.toMinuteDurationLabel(),
                     readOnly: true,
                     decoration: const InputDecoration(
-                      labelText: 'Duration (min)',
+                      labelText: 'Duration',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -171,7 +160,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
             ),
             const SizedBox(height: 16),
             TextFormField(
-              initialValue: widget.activity.difficulty.name,
+              initialValue: widget.activity.difficulty.label,
               readOnly: true,
               decoration: InputDecoration(
                 labelText: 'Difficulty',
@@ -179,6 +168,26 @@ class _AddActivityPageState extends State<AddActivityPage> {
               ),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'save_button',
+        onPressed: _saving ? null : _save,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onSecondary,
+        icon: _saving
+            ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Theme.of(context).colorScheme.onSecondary,
+                ),
+              )
+            : const Icon(Icons.save),
+        label: Text(
+          _saving ? 'Saving...' : 'Save',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );

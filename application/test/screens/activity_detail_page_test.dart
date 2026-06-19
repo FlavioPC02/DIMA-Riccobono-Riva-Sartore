@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 import 'package:application/screens/activity_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -185,11 +186,12 @@ void main() {
     when(() => mockActivityCubit.state).thenReturn([]); 
     when(() => mockActivityCubit.stream).thenAnswer((_) => Stream.empty());
     when(() => mockActivityCubit.deleteActivity(any())).thenAnswer((_) async {});
+    when(() => mockActivityCubit.loadActivityDetails(any())).thenAnswer((_) async {});
   });
 
   Activity createDummyActivity({
     ActivityStatus status = ActivityStatus.planned,
-    String notes = 'Test notes',
+    List<ActivityNote>? notes,
     ActivityDifficulty difficulty = ActivityDifficulty.moderate,
     int daysFromNow = 5, 
     String trailName = 'Sentiero 65',
@@ -207,7 +209,14 @@ void main() {
       trackedDistance: 5.2,
       trackedTime: const Duration(minutes: 125),
       status: status,
-      notes: notes,
+      notes: notes ?? [
+        ActivityNote(
+          id: 'note_test',
+          text: 'Test notes',
+          imageUrls: const [],
+          createdAt: DateTime.now(),
+        )
+      ],
     );
   }
 
@@ -227,27 +236,20 @@ void main() {
 
       expect(find.text('Escursione al Monte Baldo'), findsOneWidget);
       expect(find.text('Sentiero 65'), findsOneWidget);
-      expect(find.text('Moderate'), findsOneWidget);
+      
+      expect(find.text('Intermediate'), findsOneWidget); 
       
       expect(find.text('Duration'), findsOneWidget);
       expect(find.text('Distance'), findsOneWidget);
       expect(find.text('5.5 km'), findsOneWidget); 
     });
 
-    testWidgets('navigates correctly between Overview, Stats, and Notes tabs', (tester) async {
+    testWidgets('navigates correctly between Overview and Notes tabs', (tester) async {
       final activity = createDummyActivity(daysFromNow: 20);
       await tester.pumpWidget(createWidgetUnderTest(activity));
 
       expect(find.text('Overview'), findsOneWidget);
       expect(find.text('Forecast available only within 14 days of the hike.'), findsOneWidget);
-
-      await tester.tap(find.text('Stats'));
-      await tester.pumpAndSettle(); 
-
-      expect(find.text('Elevation Gain'), findsOneWidget);
-      expect(find.textContaining('400'), findsOneWidget);
-      expect(find.text('XP Earned'), findsOneWidget);
-      expect(find.textContaining('150'), findsOneWidget);
 
       await tester.tap(find.text('Notes'));
       await tester.pumpAndSettle();
@@ -255,14 +257,24 @@ void main() {
       expect(find.text('Test notes'), findsOneWidget);
     });
 
+    testWidgets('shows stats in Overview tab if activity is completed', (tester) async {
+      final activity = createDummyActivity(status: ActivityStatus.completed);
+      await tester.pumpWidget(createWidgetUnderTest(activity));
+
+      expect(find.text('Elevation Gain'), findsOneWidget);
+      expect(find.textContaining('400'), findsOneWidget);
+      expect(find.text('XP Earned'), findsOneWidget);
+      expect(find.textContaining('150'), findsOneWidget);
+    });
+
     testWidgets('shows empty state if notes are empty', (tester) async {
-      final activity = createDummyActivity(notes: '');
+      final activity = createDummyActivity(notes: []);
       await tester.pumpWidget(createWidgetUnderTest(activity));
 
       await tester.tap(find.text('Notes'));
       await tester.pumpAndSettle();
 
-      expect(find.text('No notes yet.'), findsOneWidget);
+      expect(find.textContaining('No notes yet'), findsOneWidget);
     });
 
     testWidgets('cancels activity deletion from the popup', (tester) async {
@@ -303,14 +315,14 @@ void main() {
       final activity = createDummyActivity(difficulty: ActivityDifficulty.easy);
       await tester.pumpWidget(createWidgetUnderTest(activity));
 
-      expect(find.text('Easy'), findsOneWidget);
+      expect(find.text('Beginner'), findsOneWidget);
     });
 
     testWidgets('renders colors and labels for "Hard" difficulty', (tester) async {
       final activity = createDummyActivity(difficulty: ActivityDifficulty.hard);
       await tester.pumpWidget(createWidgetUnderTest(activity));
 
-      expect(find.text('Hard'), findsOneWidget);
+      expect(find.text('Expert'), findsOneWidget);
     });
 
     testWidgets('does not show trail name if it is empty', (tester) async {

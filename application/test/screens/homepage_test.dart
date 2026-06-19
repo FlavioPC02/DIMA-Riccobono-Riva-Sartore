@@ -160,7 +160,7 @@ void main() {
       );
       
       expect(find.text('Diary'), findsOneWidget);
-      expect(find.textContaining('No completed hikes yet'), findsOneWidget);
+      expect(find.textContaining('No planned hikes yet.\nSchedule your next adventure!'), findsOneWidget);
     });
 
     testWidgets('SettingsPage renders ProfilePage', (WidgetTester tester) async {

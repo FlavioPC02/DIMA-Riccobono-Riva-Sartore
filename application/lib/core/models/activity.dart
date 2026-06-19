@@ -1,3 +1,4 @@
+import 'package:application/core/models/activity_note.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -16,7 +17,7 @@ class Activity {
   final double distanceKm;
   final int durationMinutes;
   final double xpEarned;
-  final String notes;
+  final List<ActivityNote> notes;
   final ActivityDifficulty difficulty;
   final String trailId;
   final List<List<TrailPoint>> trailPath;
@@ -33,7 +34,7 @@ class Activity {
     this.distanceKm = 0,
     this.durationMinutes = 0,
     this.xpEarned = 0,
-    this.notes = '',
+    this.notes = const [],
     this.difficulty = ActivityDifficulty.easy,
     this.trailId = '',
     this.trailPath = const [],
@@ -51,7 +52,7 @@ class Activity {
     double? distanceKm,
     int? durationMinutes,
     double? xpEarned,
-    String? notes,
+    List<ActivityNote>? notes,
     ActivityDifficulty? difficulty,
     String? trailId,
     List<List<TrailPoint>>? trailPath,
@@ -105,7 +106,7 @@ class Activity {
     'distanceKm': distanceKm,
     'durationMinutes': durationMinutes,
     'xpEarned': xpEarned,
-    'notes': notes,
+    'notes': notes.map((note) => note.toJson()).toList(),
     'difficulty': difficulty.name,
     'trailId': trailId,
     'trackedDistance': trackedDistance,
@@ -123,14 +124,30 @@ class Activity {
       distanceKm: (json['distanceKm'] ?? 0).toDouble(),
       durationMinutes: json['durationMinutes'] ?? 0,
       xpEarned: (json['xpEarned'] ?? 0).toDouble(),
-      notes: json['notes'] ?? '',
+      notes: (json['notes'] as List<dynamic>?)
+              ?.map((noteJson) => ActivityNote.fromJson(Map<String, dynamic>.from(noteJson as Map)))
+              .toList() ?? 
+          const [],
       difficulty: ActivityDifficulty.values.byName(
         json['difficulty'] ?? 'easy',
       ),
       trailId: json['trailId']?.toString() ?? '',
-      trackedDistance: json['trackedDistance'] ?? 0,
+      trackedDistance: (json['trackedDistance'] ?? 0).toDouble(),
       trackedElevationGap: json['trackedElevationGap'] ?? 0,
       trackedTime: Duration(seconds: json['trackedTime'] ?? 0),
     );
+  }
+}
+
+extension ActivityDifficultyExtension on ActivityDifficulty {
+  String get label {
+    switch (this) {
+      case ActivityDifficulty.easy:
+        return 'Beginner';
+      case ActivityDifficulty.moderate:
+        return 'Intermediate';
+      case ActivityDifficulty.hard:
+        return 'Expert';
+    }
   }
 }

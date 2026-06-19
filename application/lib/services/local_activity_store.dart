@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/models/trail_point.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 
@@ -76,7 +77,7 @@ class HiveActivityStore implements ActivityLocalDataSource {
       'distance_km': activity.distanceKm,
       'duration_minutes': activity.durationMinutes,
       'xp_earned': activity.xpEarned,
-      'notes': activity.notes,
+      'notes': _encodeNotes(activity.notes),
       'difficulty': activity.difficulty.name,
       'tracked_distance': activity.trackedDistance,
       'tracked_elevation_gap': activity.trackedElevationGap,
@@ -100,7 +101,7 @@ class HiveActivityStore implements ActivityLocalDataSource {
       distanceKm: (entry['distance_km'] as num?)?.toDouble() ?? 0,
       durationMinutes: (entry['duration_minutes'] as num?)?.toInt() ?? 0,
       xpEarned: (entry['xp_earned'] as num?)?.toDouble() ?? 0,
-      notes: entry['notes']?.toString() ?? '',
+      notes: _decodeNotes(entry['notes']?.toString()),
       difficulty: ActivityDifficulty.values.byName(
         entry['difficulty']?.toString() ?? ActivityDifficulty.easy.name,
       ),
@@ -146,5 +147,27 @@ class HiveActivityStore implements ActivityLocalDataSource {
         )
         .where((segment) => segment.isNotEmpty)
         .toList(growable: false);
+  }
+
+  String _encodeNotes(List<ActivityNote> notes) {
+    return jsonEncode(notes.map((note) => note.toJson()).toList());
+  }
+
+  List<ActivityNote> _decodeNotes(String? encoded) {
+    if (encoded == null || encoded.isEmpty) return const [];
+
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is! List) return const [];
+
+      return decoded
+          .whereType<Map>()
+          .map((noteMap) => ActivityNote.fromJson(
+                Map<String, dynamic>.from(noteMap), 
+              ))
+          .toList(growable: false);
+    } catch (e) {
+      return const []; 
+    }
   }
 }

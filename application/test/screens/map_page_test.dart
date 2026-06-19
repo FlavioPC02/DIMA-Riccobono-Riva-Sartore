@@ -441,7 +441,6 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Expert').last);
       await tester.pumpAndSettle();
-
       await tester.tap(find.text('Expert'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ferrata').last);
@@ -452,7 +451,7 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 3));
 
       expect(find.text('Sentiero Difficile'), findsOneWidget);
-      expect(find.text('Sentiero Facile'), findsNothing);
+      expect(find.text('Sentiero Facile'), findsOneWidget);
 
       await tearDownMap(tester);
     });

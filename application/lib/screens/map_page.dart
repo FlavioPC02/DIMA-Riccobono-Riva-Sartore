@@ -443,12 +443,11 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 if (_filterDifficulty == 'Beginner' && trailDifficulty != 1) {
                   keep = false;
                 }
-                if (_filterDifficulty == 'Intermediate' &&
-                    trailDifficulty != 2) {
+                if (_filterDifficulty == 'Intermediate' && trailDifficulty == 3) {
                   keep = false;
                 }
-                if (_filterDifficulty == 'Expert' && trailDifficulty != 3) {
-                  keep = false;
+                if (_filterDifficulty == 'Expert') {
+                  //keep all trails if _filterDifficulty is Expert
                 }
 
                 if (!_filterFerrata && requiresEquipment) keep = false;

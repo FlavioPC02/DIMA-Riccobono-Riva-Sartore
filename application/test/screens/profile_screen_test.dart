@@ -20,6 +20,9 @@ void main() {
         (tester) async {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
+          final mockActivityCubit = MockActivityCubit();
+          when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockActivityCubit.state).thenReturn([]);
 
           when(() => mockSettingsCubit.state).thenReturn(
             Settings(
@@ -46,6 +49,7 @@ void main() {
               child: const ProfilePage(),
               settingsCubit: mockSettingsCubit,
               profileCubit: mockProfileCubit,
+              activityCubit: mockActivityCubit,
             ),
           );
 
@@ -62,6 +66,9 @@ void main() {
         (tester) async {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
+          final mockActivityCubit = MockActivityCubit();
+          when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockActivityCubit.state).thenReturn([]);
 
           when(() => mockSettingsCubit.state).thenReturn(
             Settings(
@@ -88,6 +95,7 @@ void main() {
               child: const ProfilePage(),
               settingsCubit: mockSettingsCubit,
               profileCubit: mockProfileCubit,
+              activityCubit: mockActivityCubit,
             ),
           );
 
@@ -108,6 +116,9 @@ void main() {
             (tester) async {
               final mockSettingsCubit = MockSettingsCubit();
               final mockProfileCubit = MockProfileCubit();
+              final mockActivityCubit = MockActivityCubit();
+              when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+              when(() => mockActivityCubit.state).thenReturn([]);
 
               when(() => mockSettingsCubit.state).thenReturn(
                 Settings(
@@ -134,6 +145,7 @@ void main() {
                   child: const ProfilePage(),
                   settingsCubit: mockSettingsCubit,
                   profileCubit: mockProfileCubit,
+                  activityCubit: mockActivityCubit,
                 ),
               );
 
@@ -152,6 +164,9 @@ void main() {
             (tester) async {
               final mockSettingsCubit = MockSettingsCubit();
               final mockProfileCubit = MockProfileCubit();
+              final mockActivityCubit = MockActivityCubit();
+              when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+              when(() => mockActivityCubit.state).thenReturn([]);
 
               when(() => mockSettingsCubit.state).thenReturn(
                 Settings(
@@ -178,6 +193,7 @@ void main() {
                   child: const ProfilePage(),
                   settingsCubit: mockSettingsCubit,
                   profileCubit: mockProfileCubit,
+                  activityCubit: mockActivityCubit,
                 ),
               );
 
@@ -198,6 +214,9 @@ void main() {
         (tester) async {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
+          final mockActivityCubit = MockActivityCubit();
+          when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockActivityCubit.state).thenReturn([]);
 
           when(() => mockSettingsCubit.state).thenReturn(
             Settings(
@@ -224,6 +243,7 @@ void main() {
               child: const ProfilePage(),
               settingsCubit: mockSettingsCubit,
               profileCubit: mockProfileCubit,
+              activityCubit: mockActivityCubit,
             ),
           );
 
@@ -277,6 +297,9 @@ void main() {
         (tester) async {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
+          final mockActivityCubit = MockActivityCubit();
+          when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockActivityCubit.state).thenReturn([]);
 
           when(() => mockSettingsCubit.state).thenReturn(
             Settings(
@@ -303,6 +326,7 @@ void main() {
               child: const ProfilePage(),
               settingsCubit: mockSettingsCubit,
               profileCubit: mockProfileCubit,
+              activityCubit: mockActivityCubit,
             ),
           );
 
@@ -336,6 +360,9 @@ void main() {
         (tester) async {
           final mockSettingsCubit = MockSettingsCubit();
           final mockProfileCubit = MockProfileCubit();
+          final mockActivityCubit = MockActivityCubit();
+          when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+          when(() => mockActivityCubit.state).thenReturn([]);
 
           when(() => mockSettingsCubit.state).thenReturn(
             Settings(
@@ -362,6 +389,7 @@ void main() {
               child: const ProfilePage(),
               settingsCubit: mockSettingsCubit,
               profileCubit: mockProfileCubit,
+              activityCubit: mockActivityCubit,
             ),
           );
 

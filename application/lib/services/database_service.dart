@@ -105,4 +105,32 @@ class DatabaseService {
             .map((doc) => {'id': doc.id, ...doc.data()})
             .toList());
   }
+
+  Future<Map<String, dynamic>?> fetchActivity(String id) async {
+    final snapshot = await _activitiesCollection.doc(id).get(const GetOptions(source: Source.server));
+    if (snapshot.exists && snapshot.data() != null) {
+      return snapshot.data();
+    }
+    return null;
+  }
+
+  Future<void> addNoteToArray(String activityId, Map<String, dynamic> noteJson) async {
+    try {
+      await _activitiesCollection
+          .doc(activityId)
+          .set({
+            'notes': FieldValue.arrayUnion([noteJson]),
+          }, SetOptions(merge: true));
+    } catch (e) {
+      rethrow; 
+    }
+  }
+
+  Future<void> removeNoteFromArray(String activityId, Map<String, dynamic> noteJson) async {
+    await _activitiesCollection
+        .doc(activityId)
+        .set({
+          'notes': FieldValue.arrayRemove([noteJson]),
+        }, SetOptions(merge: true));
+  }
 }

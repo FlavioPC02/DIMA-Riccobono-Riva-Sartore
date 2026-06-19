@@ -1,4 +1,7 @@
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/models/activity_note.dart';
+import 'package:application/widgets/note_dialog.dart';
+import 'package:application/widgets/note_image_gallery.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:application/core/models/weather_data.dart';
 import 'package:application/screens/navigator.dart';
@@ -9,98 +12,160 @@ import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import '../core/models/activity.dart';
 
-class ActivityDetailPage extends StatelessWidget {
-  final Activity activity;
+class ActivityDetailPage extends StatefulWidget {
+  final Activity initialActivity;
 
-  const ActivityDetailPage({super.key, required this.activity});
+  const ActivityDetailPage({super.key, required Activity activity}) : initialActivity = activity;
 
   @override
-  Widget build(BuildContext context) {
+  State<ActivityDetailPage> createState() => _ActivityDetailPageState();
+}
+
+class _ActivityDetailPageState extends State<ActivityDetailPage> {
+  
+  @override
+  void initState() {
+    super.initState();
+    context.read<ActivityCubit>().loadActivityDetails(widget.initialActivity.id);
+  }
+
+ @override
+  Widget build(BuildContext context) {  
     return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        floatingActionButton: activity.status == ActivityStatus.planned
-            ? FloatingActionButton.extended(
-                onPressed: activity.hasTrailPath
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => NavigatorScreen(
-                              trail: activity.navigatorTrail,
-                              activity: activity,
-                            ),
+      length: 2,
+      child: BlocBuilder<ActivityCubit, List<Activity>>(
+        builder: (context, state) {
+          
+          final currentActivity = state.firstWhere(
+            (a) => a.id == widget.initialActivity.id,
+            orElse: () {
+              return widget.initialActivity;
+            }, 
+          );
+
+          return Scaffold(
+            floatingActionButton: Builder(
+              builder: (context) {
+                final tabController = DefaultTabController.of(context);
+                return AnimatedBuilder(
+                  animation: tabController,
+                  builder: (context, _) {
+                    if (tabController.index == 1) {
+                      return FloatingActionButton(
+                        onPressed: () async {
+                          final result = await showDialog<Map<String, dynamic>>(
+                            context: context,
+                            builder: (context) => const NoteDialog(),
+                          );
+
+                          if (result != null && context.mounted) {
+                            final newNote = ActivityNote(
+                              id: '',
+                              text: result['text'] ?? '',
+                              imageUrls: List<String>.from(result['imageUrls'] ?? []),
+                              createdAt: DateTime.now(),
+                            );
+
+                            context.read<ActivityCubit>().addOrUpdateNote(currentActivity, newNote);                        
+                          }
+                        },
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                        child: const Icon(Icons.add),
+                      );
+                    }
+                    if (currentActivity.status == ActivityStatus.planned) {
+                      return FloatingActionButton.extended(
+                        onPressed: currentActivity.hasTrailPath
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => NavigatorScreen(
+                                      trail: currentActivity.navigatorTrail,
+                                      activity: currentActivity,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                        icon: const Icon(Icons.navigation),
+                        label: const Text('Start'),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                );
+              },
+            ),
+            body: NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverAppBar(
+                  pinned: true,
+                  elevation: 0,
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Delete activity',
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete activity'),
+                            content: const Text('Are you sure you want to delete this activity?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
                           ),
                         );
-                      }
-                    : null,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Start'),
-              )
-            : null,
-        body: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: 260,
-              elevation: 0,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Delete activity',
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Delete activity'),
-                        content: const Text(
-                          'Are you sure you want to delete this activity?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text(
-                              'Delete',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true && context.mounted) {
-                      await context.read<ActivityCubit>().deleteActivity(
-                        activity.id,
-                      );
-                      if (context.mounted) Navigator.pop(context);
-                    }
-                  },
+                        if (confirm == true && context.mounted) {
+                          await context.read<ActivityCubit>().deleteActivity(currentActivity.id);
+                          if (context.mounted) Navigator.pop(context);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                SliverToBoxAdapter(
+                  child: Container(
+                    color: Theme.of(context).colorScheme.secondary,
+                    child: _ActivityHeader(activity: currentActivity),
+                  ),
+                ),
+                SliverAppBar(
+                  pinned: true,
+                  primary: false,
+                  toolbarHeight: 0,
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  bottom: const TabBar(
+                    indicatorWeight: 3,
+                    tabs: [
+                      Tab(text: 'Overview'),
+                      Tab(text: 'Notes'),
+                    ],
+                  ),
                 ),
               ],
-              flexibleSpace: FlexibleSpaceBar(
-                background: _ActivityHeader(activity: activity),
-              ),
-              bottom: const TabBar(
-                indicatorWeight: 3,
-                tabs: [
-                  Tab(text: 'Overview'),
-                  Tab(text: 'Stats'),
-                  Tab(text: 'Notes'),
+              body: TabBarView(
+                children: [
+                  _OverviewTab(activity: currentActivity),
+                  _NotesTab(activity: currentActivity),
                 ],
               ),
             ),
-          ],
-          body: TabBarView(
-            children: [
-              _OverviewTab(activity: activity),
-              _StatsTab(activity: activity),
-              _NotesTab(activity: activity),
-            ],
-          ),
-        ),
+          );
+        }
       ),
     );
   }
@@ -113,39 +178,38 @@ class _ActivityHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 56, 20, 60),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            _DifficultyChip(difficulty: activity.difficulty),
-            const SizedBox(height: 12),
-            Text(
-              activity.name,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DifficultyChip(difficulty: activity.difficulty),
+          const SizedBox(height: 12),
+          Text(
+            activity.name,
+            style: TextStyle(
+              fontSize: 24, 
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSecondary,
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _HeaderStat(
-                  icon: Icons.schedule,
-                  label: 'Duration',
-                  value: activity.durationMinutes.toMinuteDurationLabel(),
-                ),
-                const SizedBox(width: 32),
-                _HeaderStat(
-                  icon: Icons.straighten,
-                  label: 'Distance',
-                  value: '${activity.distanceKm.toStringAsFixed(1)} km',
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _HeaderStat(
+                icon: Icons.route,
+                label: 'Distance',
+                value: '${activity.distanceKm.toStringAsFixed(1)} km',
+              ),
+              const SizedBox(width: 32),
+              _HeaderStat(
+                icon: Icons.timer_outlined,
+                label: 'Duration',
+                value: activity.durationMinutes.toMinuteDurationLabel(),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -154,12 +218,6 @@ class _ActivityHeader extends StatelessWidget {
 class _DifficultyChip extends StatelessWidget {
   final ActivityDifficulty difficulty;
   const _DifficultyChip({required this.difficulty});
-
-  static const _labels = {
-    ActivityDifficulty.easy: 'Easy',
-    ActivityDifficulty.moderate: 'Moderate',
-    ActivityDifficulty.hard: 'Hard',
-  };
 
   static const _colors = {
     ActivityDifficulty.easy: Color(0xFF4CAF50),
@@ -176,7 +234,7 @@ class _DifficultyChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        _labels[difficulty]!,
+        difficulty.label,
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -236,23 +294,25 @@ class _OverviewTabState extends State<_OverviewTab> {
     super.initState();
     final isPlanned = widget.activity.status == ActivityStatus.planned;
     final daysUntil = widget.activity.date.difference(DateTime.now()).inDays;
+
+    double? lat;
+    double? lon;
+    if (widget.activity.trailPath.isNotEmpty && widget.activity.trailPath.first.isNotEmpty) {
+      final startPoint = widget.activity.trailPath.first.first;
+      lat = startPoint.lat;
+      lon = startPoint.lng;
+    }
+
     _weatherFuture = isPlanned && daysUntil <= 13 && daysUntil >= 0
-        ? WeatherService().fetchWeather(widget.activity.date)
+        ? WeatherService().fetchWeather(widget.activity.date, lat, lon)
         : null;
   }
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
       children: [
-        if (widget.activity.trailName.isNotEmpty) ...[
-          Text(
-            widget.activity.trailName,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 20),
-        ],
         if (_weatherFuture != null)
           FutureBuilder<WeatherData>(
             future: _weatherFuture,
@@ -261,7 +321,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                 return const _WeatherCardLoading();
               }
               if (snap.hasError) {
-                return _WeatherCardError(message: snap.error.toString());
+                return _WeatherCardError(message: 'Error while fetching weather data. Check your connnection.');
               }
               return _WeatherCard(
                 weather: snap.data!,
@@ -269,10 +329,31 @@ class _OverviewTabState extends State<_OverviewTab> {
               );
             },
           )
-        else if (widget.activity.status == ActivityStatus.planned)
+        else if (widget.activity.status == ActivityStatus.planned && !widget.activity.date.difference(DateTime.now()).isNegative)
           const _WeatherCardError(
             message: 'Forecast available only within 14 days of the hike.',
+        ),
+        Padding(padding: EdgeInsets.only(top: 10)),
+        _StatRow(label: 'Trail Name', value: widget.activity.trailName),
+        _DifficultyRow(difficulty: widget.activity.difficulty),
+        if (widget.activity.status == ActivityStatus.planned)
+          _StatRow(label: 'Planned on', value: DateFormat('d MMMM yyyy').format(widget.activity.date)),
+        if (widget.activity.status == ActivityStatus.completed) ...[
+          _StatRow(label: 'Completed on', value: DateFormat('d MMMM yyyy').format(widget.activity.date)),
+          _StatRow(label: 'XP Earned', value: '${widget.activity.xpEarned}'),
+          _StatRow(
+            label: 'Elevation Gain',
+            value: '${widget.activity.trackedElevationGap} m',
           ),
+          _StatRow(
+            label: 'Tracked Distance',
+            value: '${widget.activity.trackedDistance} km',
+          ),
+          _StatRow(
+            label: 'Tracked Time',
+            value: widget.activity.trackedTime.toCompactLabel(),
+          ),
+        ]
       ],
     );
   }
@@ -376,7 +457,7 @@ class _WeatherCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 116,
+              height: MediaQuery.textScalerOf(context).scale(150),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -393,7 +474,7 @@ class _WeatherCard extends StatelessWidget {
               Icon(Icons.location_on, size: 12, color: Colors.white54),
               SizedBox(width: 4),
               Text(
-                'Based on your current location',
+                'Based on trail location',
                 style: TextStyle(color: Colors.white54, fontSize: 11),
               ),
             ],
@@ -455,29 +536,45 @@ class _HourlySlot extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          Text(
-            '$hour:00',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '$hour:00',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          Lottie.asset(_lottieAsset(entry.weatherCode), width: 32, height: 32),
-          Text(
-            '${entry.temp.round()}°',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+          
+          Expanded(
+            child: Lottie.asset(
+              _lottieAsset(entry.weatherCode), 
+              fit: BoxFit.contain
             ),
           ),
-          Text(
-            entry.precipitationProbability > 0
-                ? '💧${entry.precipitationProbability}%'
-                : '',
-            style: const TextStyle(color: Colors.white60, fontSize: 10),
+
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '${entry.temp.round()}°',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
+          
+          if (entry.precipitationProbability > 0)
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '💧${entry.precipitationProbability}%',
+                style: const TextStyle(color: Colors.white60, fontSize: 10),
+              ),
+            ),
         ],
       ),
     );
@@ -509,55 +606,21 @@ class _WeatherCardError extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: Theme.of(context).colorScheme.tertiary,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
-          const Icon(Icons.cloud_off, color: Colors.grey),
+          const Icon(Icons.cloud_off, color: AppColors.errorText),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
+              style: const TextStyle(color: AppColors.errorText),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatsTab extends StatelessWidget {
-  final Activity activity;
-  const _StatsTab({required this.activity});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _DifficultyRow(difficulty: activity.difficulty),
-        _StatRow(label: 'Distance', value: '${activity.distanceKm} km'),
-        _StatRow(
-          label: 'Duration',
-          value: activity.durationMinutes.toMinuteDurationLabel(),
-        ),
-        _StatRow(label: 'XP Earned', value: '${activity.xpEarned}'),
-        _StatRow(
-          label: 'Elevation Gain',
-          value: '${activity.trackedElevationGap} m',
-        ),
-        _StatRow(
-          label: 'Tracked Distance',
-          value: '${activity.trackedDistance} km',
-        ),
-        _StatRow(
-          label: 'Tracked Time',
-          value: activity.trackedTime.toCompactLabel(),
-        ),
-      ],
     );
   }
 }
@@ -572,13 +635,97 @@ class _NotesTab extends StatelessWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: Text('No notes yet.', style: TextStyle(color: Colors.grey)),
+          child: Text('No notes yet. Tap + to add one!', style: TextStyle(color: Colors.grey)),
         ),
       );
     }
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [Text(activity.notes)],
+    
+    final sortedNotes = List<ActivityNote>.from(activity.notes)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+      itemCount: sortedNotes.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        final note = sortedNotes[index];
+        final dateStr = DateFormat('d MMM yyyy - HH:mm').format(note.createdAt);
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+               final result = await showDialog<Map<String, dynamic>>(
+                 context: context,
+                 builder: (context) => NoteDialog(existingNote: note), 
+               );
+
+               if (result != null && context.mounted) {
+                 final updatedNote = ActivityNote(
+                   id: note.id,
+                   text: result['text'] ?? '',
+                   imageUrls: List<String>.from(result['imageUrls'] ?? []), 
+                   createdAt: note.createdAt,
+                 );
+
+                 context.read<ActivityCubit>().addOrUpdateNote(activity, updatedNote);                        
+               }
+            },
+            onLongPress: () async {
+                 final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete note'),
+                        content: const Text(
+                          'Are you sure you want to delete this note?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+
+                 if (confirm == true && context.mounted) {
+                     context.read<ActivityCubit>().deleteNote(activity, note.id);
+                 }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                     dateStr, 
+                     style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  if (note.text.isNotEmpty) ...[
+                    Text(note.text, style: const TextStyle(fontSize: 15)),
+                    const SizedBox(height: 12),
+                  ],
+                  if (note.imageUrls.isNotEmpty)
+                    NoteImageGallery(imageUrls: note.imageUrls),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -593,8 +740,6 @@ class _DifficultyRow extends StatelessWidget {
     ActivityDifficulty.hard: 3,
   };
 
-  static const _color = Color(0xFFFFA726);
-
   @override
   Widget build(BuildContext context) {
     final filled = _filledCount[difficulty]!;
@@ -605,14 +750,17 @@ class _DifficultyRow extends StatelessWidget {
         children: [
           const Text('Difficulty', style: TextStyle(fontSize: 16)),
           Row(
-            children: List.generate(
-              3,
-              (i) => Icon(
-                Icons.terrain,
-                size: 26,
-                color: i < filled ? _color : Colors.grey.shade300,
-              ),
-            ),
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(3, (index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 1.0, top: 2.0),
+                child: Icon(
+                  index < filled ? Icons.landscape : Icons.landscape_outlined,
+                  size: 23,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              );
+            }),
           ),
         ],
       ),
@@ -631,11 +779,18 @@ class _StatRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: const TextStyle(fontSize: 16)),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

@@ -28,32 +28,32 @@ class DiaryPage extends StatelessWidget {
           bottom: const TabBar(
             indicatorWeight: 3,
             tabs: [
-              Tab(text: 'Completed'),
               Tab(text: 'Planned'),
+              Tab(text: 'Completed'),
             ],
           ),
         ),
         body: BlocBuilder<ActivityCubit, List<Activity>>(
           builder: (context, activities) {
-            final completed = activities
-                .where((a) => a.status == ActivityStatus.completed)
-                .toList();
             final planned = activities
                 .where((a) => a.status == ActivityStatus.planned)
+                .toList();
+            final completed = activities
+                .where((a) => a.status == ActivityStatus.completed)
                 .toList();
 
             return TabBarView(
               children: [
                 _ActivityList(
-                  activities: completed,
-                  emptyIcon: Icons.terrain,
-                  emptyMessage: 'No completed hikes yet.\nStart exploring!',
-                ),
-                _ActivityList(
                   activities: planned,
                   emptyIcon: Icons.event_note,
                   emptyMessage:
                       'No planned hikes yet.\nSchedule your next adventure!',
+                ),
+                _ActivityList(
+                  activities: completed,
+                  emptyIcon: Icons.terrain,
+                  emptyMessage: 'No completed hikes yet.\nStart exploring!',
                 ),
               ],
             );

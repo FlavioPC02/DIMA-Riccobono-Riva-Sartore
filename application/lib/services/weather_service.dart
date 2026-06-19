@@ -9,14 +9,26 @@ class WeatherService {
 
   WeatherService({http.Client? client}) : _client = client ?? http.Client();
 
-  Future<WeatherData> fetchWeather(DateTime date) async {
-    final position = await _getPosition();
+  Future<WeatherData> fetchWeather(DateTime date, [double? lat, double? lon]) async {
+    
     final dateStr = _fmtDate(date);
+
+    double latitude;
+    double longitude;
+    //if lat and lot are null used current position
+    if (lat == null || lon == null) {
+      final position = await _getPosition();
+      latitude = position.latitude;
+      longitude = position.longitude;
+    } else {
+      latitude = lat;
+      longitude = lon;
+    }
 
     final uri = Uri.parse(
       'https://api.open-meteo.com/v1/forecast'
-      '?latitude=${position.latitude}'
-      '&longitude=${position.longitude}'
+      '?latitude=$latitude'
+      '&longitude=$longitude'
       '&daily=weather_code,temperature_2m_max,temperature_2m_min,'
       'precipitation_probability_max,wind_speed_10m_max'
       '&hourly=temperature_2m,weather_code,precipitation_probability'

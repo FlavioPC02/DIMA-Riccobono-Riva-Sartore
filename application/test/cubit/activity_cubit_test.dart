@@ -5,6 +5,7 @@ import 'package:application/core/models/activity.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:application/core/models/activity_note.dart';
 
 import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
@@ -33,7 +34,7 @@ Activity buildActivity({
   double distanceKm = 7.5,
   int durationMinutes = 90,
   double xpEarned = 120,
-  String notes = 'notes',
+  List<ActivityNote>? notes,
   ActivityDifficulty difficulty = ActivityDifficulty.moderate,
   double trackedDistance = 0,
   double trackedElevationGap = 0,
@@ -48,7 +49,7 @@ Activity buildActivity({
     distanceKm: distanceKm,
     durationMinutes: durationMinutes,
     xpEarned: xpEarned,
-    notes: notes,
+    notes: notes ?? const [],
     difficulty: difficulty,
     trackedDistance: trackedDistance,
     trackedElevationGap: trackedElevationGap,
