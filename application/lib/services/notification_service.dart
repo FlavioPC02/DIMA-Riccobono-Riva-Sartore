@@ -30,7 +30,7 @@ class NotificationService {
         ?.createNotificationChannel(channel);
 
       AndroidInitializationSettings initializationSettingsAndroid =
-          const AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('ic_stat_landscape');
 
       const IOSInitializationSettings iosInitializationSettings =
           IOSInitializationSettings(

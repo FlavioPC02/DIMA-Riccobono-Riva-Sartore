@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/services/local_activity_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -172,6 +173,44 @@ void main() {
       );
       await repo.deleteActivity('any-id');
     });
+
+    test('fetchActivityDetails retrieves from local when remote is null', () async {
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      final repo = ActivityRepository(
+        hasCurrentUser: () => false,
+        localStore: localStore,
+      );
+
+      final a = Activity(id: 'local_fetch', name: 'Local Only', status: ActivityStatus.planned, date: DateTime.now());
+      await localStore.upsertActivity(a);
+
+      final fetched = await repo.fetchActivityDetails('local_fetch');
+      expect(fetched?.name, 'Local Only');
+
+      final notFound = await repo.fetchActivityDetails('non_existent');
+      expect(notFound, isNull);
+    });
+
+    test('saveNote saves only locally if remote is null', () async {
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      final repo = ActivityRepository(
+        hasCurrentUser: () => false,
+        localStore: localStore,
+      );
+
+      final a = Activity(id: 'a1', name: 'Activity Note Test', status: ActivityStatus.planned, date: DateTime.now());
+      await localStore.upsertActivity(a);
+
+      final note = ActivityNote(id: 'n1', text: 'Test note', imageUrls: [], createdAt: DateTime.now());
+      
+      await repo.saveNote(a, note);
+      
+      final updatedActivity = localStore.activities.firstWhere((element) => element.id == 'a1');
+      expect(updatedActivity.notes.length, 1);
+      expect(updatedActivity.notes.first.text, 'Test note');
+    });
   });
 
   group('ActivityRepository with remote database', () {
@@ -312,5 +351,215 @@ void main() {
         expect(localStore.activities.single.status, ActivityStatus.completed);
       },
     );
+
+    test('fetchActivityDetails from remote success and merges local trailPath', () async {
+      final mockDb = MockDatabaseService();
+      
+      final remoteDoc = {
+        'name': 'Remote Hike',
+        'status': 'planned',
+        'date': Timestamp.now(),
+        'trailName': 'Trail Remote',
+      };
+      
+      when(() => mockDb.fetchActivity('sync_id')).thenAnswer((_) async => remoteDoc);
+      
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      
+      final localActivity = Activity(id: 'sync_id', name: 'Old Name', status: ActivityStatus.planned, date: DateTime.now(), trailPath: [[]]);
+      await localStore.upsertActivity(localActivity);
+
+      final repo = ActivityRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: () => mockDb,
+        localStore: localStore,
+      );
+
+      final result = await repo.fetchActivityDetails('sync_id');
+      
+      expect(result?.name, 'Remote Hike');
+      expect(result?.trailPath, localActivity.trailPath);
+      verify(() => mockDb.fetchActivity('sync_id')).called(1);
+    });
+
+    test('fetchActivityDetails fallbacks to local store if remote fetch fails', () async {
+      final mockDb = MockDatabaseService();
+      when(() => mockDb.fetchActivity('err_id')).thenThrow(Exception('Network Error'));
+      
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      
+      final fallbackActivity = Activity(id: 'err_id', name: 'Fallback Hike', status: ActivityStatus.planned, date: DateTime.now());
+      await localStore.upsertActivity(fallbackActivity);
+
+      final repo = ActivityRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: () => mockDb,
+        localStore: localStore,
+      );
+
+      final result = await repo.fetchActivityDetails('err_id');
+      
+      expect(result?.name, 'Fallback Hike');
+      verify(() => mockDb.fetchActivity('err_id')).called(1);
+    });
+
+    test('saveNote adds new note to remote array', () async {
+      final mockDb = MockDatabaseService();
+      when(() => mockDb.addNoteToArray(any(), any())).thenAnswer((_) async {});
+      
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      
+      final a = Activity(id: 'a2', name: 'Note Test', status: ActivityStatus.planned, date: DateTime.now());
+      await localStore.upsertActivity(a);
+
+      final repo = ActivityRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: () => mockDb,
+        localStore: localStore,
+      );
+
+      final newNote = ActivityNote(id: 'n2', text: 'Fresh Note', imageUrls: [], createdAt: DateTime.now());
+      await repo.saveNote(a, newNote);
+
+      verify(() => mockDb.addNoteToArray('a2', any())).called(1);
+      verifyNever(() => mockDb.removeNoteFromArray(any(), any()));
+      
+      expect(localStore.activities.firstWhere((act) => act.id == 'a2').notes.length, 1);
+    });
+
+    test('saveNote updates existing note by removing old and adding new to remote array', () async {
+      final mockDb = MockDatabaseService();
+      when(() => mockDb.addNoteToArray(any(), any())).thenAnswer((_) async {});
+      when(() => mockDb.removeNoteFromArray(any(), any())).thenAnswer((_) async {});
+      
+      final oldNote = ActivityNote(id: 'n3', text: 'Old Text', imageUrls: [], createdAt: DateTime.now());
+      final a = Activity(id: 'a3', name: 'Update Note Test', status: ActivityStatus.planned, date: DateTime.now(), notes: [oldNote]);
+      
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      await localStore.upsertActivity(a);
+
+      final repo = ActivityRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: () => mockDb,
+        localStore: localStore,
+      );
+
+      final updatedNote = ActivityNote(id: 'n3', text: 'New Text', imageUrls: [], createdAt: oldNote.createdAt);
+      await repo.saveNote(a, updatedNote);
+
+      verify(() => mockDb.removeNoteFromArray('a3', oldNote.toJson())).called(1);
+      verify(() => mockDb.addNoteToArray('a3', updatedNote.toJson())).called(1);
+      
+      expect(localStore.activities.firstWhere((act) => act.id == 'a3').notes.length, 1);
+      expect(localStore.activities.firstWhere((act) => act.id == 'a3').notes.first.text, 'New Text');
+    });
+
+    test('deleteNote removes from local store and remote array', () async {
+      final mockDb = MockDatabaseService();
+      when(() => mockDb.removeNoteFromArray(any(), any())).thenAnswer((_) async {});
+      
+      final noteToDelete = ActivityNote(id: 'del_1', text: 'To Delete', imageUrls: [], createdAt: DateTime.now());
+      final a = Activity(id: 'a4', name: 'Delete Note Test', status: ActivityStatus.planned, date: DateTime.now(), notes: [noteToDelete]);
+      
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      await localStore.upsertActivity(a);
+
+      final repo = ActivityRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: () => mockDb,
+        localStore: localStore,
+      );
+
+      await repo.deleteNote(a, noteToDelete);
+
+      verify(() => mockDb.removeNoteFromArray('a4', noteToDelete.toJson())).called(1);
+      expect(localStore.activities.firstWhere((act) => act.id == 'a4').notes.isEmpty, true);
+    });
+
+    test('streamActivities triggers remote sync for pending completed activities', () async {
+      final mockDb = MockDatabaseService();
+      final controller = StreamController<List<Map<String, dynamic>>>();
+      addTearDown(controller.close);
+
+      when(() => mockDb.streamActivities()).thenAnswer((_) => controller.stream);
+      when(() => mockDb.updateActivity(any(), any())).thenAnswer((_) async {});
+      
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+      
+      final repo = ActivityRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: () => mockDb,
+        localStore: localStore,
+      );
+
+      final results = <List<Activity>>[];
+      final sub = repo.streamActivities().listen(results.add);
+      
+      final pendingCompleted = Activity(id: 'sync_me', name: 'Local Done', status: ActivityStatus.completed, date: DateTime.now());
+      await localStore.upsertActivity(pendingCompleted);
+      
+      await Future<void>.delayed(Duration(milliseconds: 50));
+
+      verify(() => mockDb.updateActivity('sync_me', any())).called(1);
+      
+      await sub.cancel();
+    });
+
+    test('merged streams are correctly deduped and sorted by date descending', () async {
+      final mockDb = MockDatabaseService();
+      final remoteController = StreamController<List<Map<String, dynamic>>>();
+      addTearDown(remoteController.close);
+
+      when(() => mockDb.streamActivities()).thenAnswer((_) => remoteController.stream);
+      
+      final localStore = FakeActivityLocalStore();
+      addTearDown(localStore.close);
+
+      final repo = ActivityRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: () => mockDb,
+        localStore: localStore,
+      );
+
+      final results = <List<Activity>>[];
+      final sub = repo.streamActivities().listen(results.add);
+
+      final olderDate = DateTime(2026, 1, 1);
+      final newerDate = DateTime(2026, 1, 5);
+
+      await localStore.upsertActivity(Activity(id: 'local1', name: 'Older Local', status: ActivityStatus.planned, date: olderDate));
+      
+      remoteController.add([
+        {
+          'id': 'local1',
+          'name': 'Updated from Remote',
+          'status': 'planned',
+          'date': Timestamp.fromDate(olderDate),
+        },
+        {
+          'id': 'remote1',
+          'name': 'Newer Remote',
+          'status': 'completed',
+          'date': Timestamp.fromDate(newerDate),
+        }
+      ]);
+
+      await Future<void>.delayed(Duration(milliseconds: 50));
+
+      final latestEmission = results.last;
+      
+      expect(latestEmission.length, 2);
+      expect(latestEmission[0].id, 'remote1');
+      expect(latestEmission[1].id, 'local1');
+      expect(latestEmission[1].name, 'Older Local');
+      
+      await sub.cancel();
+    });
   });
 }
