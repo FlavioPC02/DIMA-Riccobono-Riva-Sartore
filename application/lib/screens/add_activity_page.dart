@@ -87,7 +87,10 @@ class _AddActivityPageState extends State<AddActivityPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: const Text('New Planned Hike'),
+        centerTitle: true,
+        title: const Text(
+          'New Planned Hike',
+        ),
       ),
       body: Form(
         key: _formKey,

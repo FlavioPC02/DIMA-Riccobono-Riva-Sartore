@@ -33,6 +33,8 @@ class DatabaseService {
         'nickname': nickname.trim(),
         'email': email.trim(),
         'accountCreated': FieldValue.serverTimestamp(),
+        'level': 0,
+        'xp': 0,
       });
     } on FirebaseException catch(_) {
       throw Exception('Unable to reach the server');

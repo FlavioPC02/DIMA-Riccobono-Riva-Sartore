@@ -81,12 +81,12 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       // When user created close dialogue and load homepage
-      if (context.mounted) {
-        Navigator.of(
-          context,
-          rootNavigator: true,
-        ).push(MaterialPageRoute(builder: (_) => const Navigation()));
-      }
+      //if (context.mounted) {
+      //  Navigator.of(
+      //    context,
+      //    rootNavigator: true,
+      //  ).push(MaterialPageRoute(builder: (_) => const Navigation()));
+      //}
     } catch (e) {
       setState(() {
         _authError = e.toString().replaceFirst('Exception: ', '');
