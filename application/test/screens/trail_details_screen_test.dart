@@ -1,6 +1,11 @@
 import 'dart:io';
+import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/profile_cubit.dart';
+import 'package:application/core/models/profile.dart';
+import 'package:application/services/phone_wear_sync.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:application/screens/trail_details_screen.dart';
@@ -12,6 +17,8 @@ import 'package:mocktail/mocktail.dart';
 
 void main() {
   late MockFavoriteTrailStore mockFavoriteTrailStore;
+  late MockActivityCubit mockActivityCubit;
+  late MockProfileCubit mockProfileCubit;
 
   final trailMap = {'id': 12345, 'name': 'Sentiero Test', 'subTrails': []};
 
@@ -25,6 +32,9 @@ void main() {
     if (!getIt.isRegistered<LocationCubit>()) {
       getIt.registerSingleton<LocationCubit>(MockLocationCubit());
     }
+    if (!getIt.isRegistered<PhoneWearSyncService>()) {
+      getIt.registerSingleton<PhoneWearSyncService>(MockPhoneWearSyncService());
+    }
   });
 
   setUp(() {
@@ -37,7 +47,10 @@ void main() {
     FakeHttpOverrides.customWeatherCodes = null;
 
     final mockLocationCubit = getIt<LocationCubit>();
+    final mockPhoneWearSyncService = getIt<PhoneWearSyncService>();
     mockFavoriteTrailStore = MockFavoriteTrailStore();
+    mockActivityCubit = MockActivityCubit();
+    mockProfileCubit = MockProfileCubit();
 
     when(() => mockLocationCubit.startTracking()).thenAnswer((_) async {});
     when(() => mockLocationCubit.stopAndSave()).thenAnswer((_) async {});
@@ -46,6 +59,25 @@ void main() {
       () => mockLocationCubit.stream,
     ).thenAnswer((_) => const Stream.empty());
     when(() => mockLocationCubit.state).thenReturn(LocationState.idle());
+    when(() => mockLocationCubit.pendingNavigation).thenReturn(false);
+    when(() => mockLocationCubit.isRunning).thenReturn(false);
+    when(() => mockLocationCubit.elapsed).thenReturn(Duration.zero);
+
+    when(
+      () => mockPhoneWearSyncService.sendNavigationPrompt(),
+    ).thenAnswer((_) async {});
+
+    when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+    when(() => mockActivityCubit.close()).thenAnswer((_) async {});
+
+    when(() => mockProfileCubit.state).thenReturn(Profile(
+      nickname: 'test', 
+      mail: 'test@mail.com', 
+      xp: 150, 
+      level: 3,
+    ));
+    when(() => mockProfileCubit.stream).thenAnswer((_) => const Stream.empty());
+    when(() => mockProfileCubit.close()).thenAnswer((_) async {});
 
     when(
       () => mockFavoriteTrailStore.isFavorite(any()),
@@ -218,48 +250,48 @@ void main() {
       }
     });
 
-    //    testWidgets('Tap on "Plan" navigates to AddActivityPage', (
-    //      WidgetTester tester,
-    //    ) async {
-    //      await tester.pumpWidget(
-    //        MaterialApp(home: TrailDetailsScreen(trail: trailMap)),
-    //      );
-    //
-    //      await tester.pump(const Duration(seconds: 1));
-    //      await tester.pump(const Duration(seconds: 1));
-    //
-    //      final planButton = find.widgetWithText(ElevatedButton, 'Plan');
-    //      await tester.ensureVisible(planButton);
-    //      await tester.tap(planButton);
-    //
-    //      await tester.pump();
-    //      await tester.pump(const Duration(seconds: 1));
-    //
-    //      expect(find.byType(TrailDetailsScreen), findsNothing);
-    //    });
-    //
-    //    testWidgets('Tap on "Start" navigates to NavigatorScreen', (
-    //      WidgetTester tester,
-    //    ) async {
-    //      await tester.pumpWidget(
-    //        MaterialApp(home: TrailDetailsScreen(trail: trailMap)),
-    //      );
-    //
-    //      await tester.pump(const Duration(seconds: 1));
-    //      await tester.pump(const Duration(seconds: 1));
-    //
-    //      final planButton = find.text('Start');
-    //      await tester.ensureVisible(planButton);
-    //      await tester.tap(planButton);
-    //
-    //      await tester.pump();
-    //      await tester.pump(const Duration(seconds: 1));
-    //
-    //      final exception = tester.takeException();
-    //      debugPrint(exception);
-    //
-    //      expect(find.byType(TrailDetailsScreen), findsNothing);
-    //    });
+    testWidgets('Tap on "Plan" navigates to AddActivityPage', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(home: TrailDetailsScreen(trail: trailMap)),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+      final planButton = find.text('Plan');
+      await tester.ensureVisible(planButton);
+      await tester.tap(planButton);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(TrailDetailsScreen), findsNothing);
+    });
+    testWidgets('Tap on "Start" navigates to NavigatorScreen', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ActivityCubit>(create: (_) => mockActivityCubit),
+            BlocProvider<ProfileCubit>(create: (_) => mockProfileCubit),
+          ],
+          child: MaterialApp(
+            home: TrailDetailsScreen(
+              trail: trailMap,
+              favoriteTrailStore: mockFavoriteTrailStore,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+      final planButton = find.text('Start');
+      await tester.ensureVisible(planButton);
+      await tester.tap(planButton);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.byType(TrailDetailsScreen), findsNothing);
+    });
   });
 
   group('Favorites test', () {
@@ -337,7 +369,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.star));
       await tester.pump();
 
-      verify(() => mockFavoriteTrailStore.deleteTrail(trailMap['id'].toString())).called(1);
+      verify(
+        () => mockFavoriteTrailStore.deleteTrail(trailMap['id'].toString()),
+      ).called(1);
     });
   });
 }

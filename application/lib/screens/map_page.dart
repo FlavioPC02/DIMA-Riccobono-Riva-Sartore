@@ -82,6 +82,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.85);
+    debugPrint("CIAO MAMMA");
     DefaultMapManagementService().checkStartingLocation(
       context,
       _mapController,

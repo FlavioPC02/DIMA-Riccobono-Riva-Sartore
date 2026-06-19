@@ -11,7 +11,6 @@ abstract class BackgroundTrackingService {
   Stream<LocationPoint> watchLocation();
 }
 
-// coverage:ignore-start
 class BackgroundServiceWrapper {
   const BackgroundServiceWrapper();
 
@@ -20,7 +19,6 @@ class BackgroundServiceWrapper {
   Future<void> stop() => stopBackgroundTracking();
   Stream<LocationPoint> get locationStream => backgroundLocationStream;
 }
-// coverage:ignore-end
 
 class DefaultBackgroundTrackingService implements BackgroundTrackingService {
   final BackgroundServiceWrapper _wrapper;

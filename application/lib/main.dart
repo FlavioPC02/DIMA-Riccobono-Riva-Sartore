@@ -37,7 +37,9 @@ void main() async {
   await NotificationService.initializeNotificationService();
 
   await Hive.initFlutter();
-  Hive.registerAdapter(LocationPointAdapter());
+  if (!Hive.isAdapterRegistered(1)) {
+    Hive.registerAdapter(LocationPointAdapter());
+  }
   await DefaultBackgroundTrackingService().initialize();
   await setupLocator();
 

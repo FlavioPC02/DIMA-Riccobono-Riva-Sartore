@@ -5,7 +5,6 @@ import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:hike_core/hike_core.dart';
-import 'package:application/screens/login_screen.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -59,21 +58,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout() async {
     try {
+      await context.read<ProfileCubit>().close();
+      await context.read<ActivityCubit>().close();
+      await context.read<SettingsCubit>().close();
       await AuthService().signOut();
+    } catch (e) {
       if (!mounted) {
         return;
       }
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const LoginScreen(),
-        ),
-        (route) => false,
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
+      debugPrint(e.toString());
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -580,6 +574,7 @@ class _AccountSection extends StatelessWidget {
 
                 // Exit button
                 ListTile(
+                  key: const ValueKey('logout_button'),
                   leading: const Icon(
                     Icons.power_settings_new,
                     color: Colors.red,

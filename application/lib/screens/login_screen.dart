@@ -104,6 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextFormField(
+            key: const ValueKey("login_mail"),
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
@@ -126,6 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 16),
           TextFormField(
+            key: const ValueKey("login_password"),
             controller: _passwordController,
             focusNode: _passwordFocusNode,
             obscureText: _obscurePassword,
@@ -211,6 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(
                     height: 50,
                     child: ElevatedButton(
+                      key: const ValueKey('login_button'),
                       // Disable button when loading to prevent multiple submissions
                       onPressed: _isLoading ? null : _submitLogin,
                       // Show loading indicator when processing login

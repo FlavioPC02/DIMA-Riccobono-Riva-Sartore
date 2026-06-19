@@ -7,6 +7,21 @@ import 'package:latlong2/latlong.dart';
 
 const LatLng defaultMapCenter = LatLng(41.8967, 12.4822);
 
+Future<bool> checkLocationPermissions() async {  
+  bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    return false;
+  }
+
+  geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+  if (permission == geo.LocationPermission.denied ||
+      permission == geo.LocationPermission.deniedForever) {
+      return false;
+  }
+
+  return true;
+}
+
 void showLocationPermissionDialog(BuildContext context) {
   showDialog(
     context: context,
@@ -112,21 +127,17 @@ Future<LatLng> checkInitialLocation(
   MapController mapController, {
   double mapZoom = 12,
 }) async {
-  bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
-  if (!serviceEnabled) {
-    showLocationServiceDialog(context);
-    return defaultMapCenter;
-  }
 
-  geo.LocationPermission permission = await geo.Geolocator.checkPermission();
-  if (permission == geo.LocationPermission.denied ||
-      permission == geo.LocationPermission.deniedForever) {
-    showLocationPermissionDialog(context);
+  final permissions = await checkLocationPermissions();
+  if (!permissions) {
     return defaultMapCenter;
   }
 
   //fetch the current location and center the map on it
   geo.Position position = await geo.Geolocator.getCurrentPosition();
+
+  if(!context.mounted) return defaultMapCenter;
+
   return moveCameraTo(
     position.latitude,
     position.longitude,
