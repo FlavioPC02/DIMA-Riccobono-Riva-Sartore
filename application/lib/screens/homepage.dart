@@ -1,3 +1,4 @@
+import 'package:application/services/map_management_service.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:application/screens/profile_screen.dart';
 import 'package:application/screens/favorites_page.dart';
@@ -23,6 +24,10 @@ class _NavigationState extends State<Navigation> {
   }
 
   Future<void> _requestPermissions() async {
+    final permission = await DefaultMapManagementService().checkPermissions();
+    if (!permission) {
+      DefaultMapManagementService().showPermissionDialog(context);
+    }
     // Request notification permissions
     final notificationGranted = await NotificationPermissionHelper.requestNotificationPermissions();
     if (!notificationGranted) {

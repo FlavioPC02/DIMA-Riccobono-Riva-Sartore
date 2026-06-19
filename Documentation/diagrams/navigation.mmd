@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    participant n as Navigator Page
+    participant lc as Location Service
+    participant bs as Background Location Service
+    participant gps as GPS
+    participant h@{ "type": "database", "alias": "Internal DB" } as Hive
+
+
+    n ->> lc: startTracking()
+    lc ->>+ bs: start()
+    bs ->> gps: subscribe()
+    loop
+        alt app became foreground
+            lc ->>+ h: getAll()
+            h -->>- lc: List<points>
+            lc ->> lc: computeStats(points)
+            lc ->> n: emit(stats)
+            n ->> n: refresh UI
+        end
+        gps -->> bs: point
+        bs -->> lc: point
+        lc ->> lc: computeStats(point)
+        alt is app foreground
+            lc ->> n: emit(stats)
+            n ->> n: refresh UI
+        end
+        lc ->>+ h: savePoint(point)
+        h -->- lc: response       
+    end

@@ -6,22 +6,26 @@ import 'package:get_it/get_it.dart';
 final GetIt sl = GetIt.instance;
 
 Future<void> setupLocator() async {
-
   //Repository
   final repo = HiveLocationRepository();
   await repo.init();
-  sl.registerSingleton<ILocationRepository>(repo);
+
+  if (!sl.isRegistered<ILocationRepository>()) {
+    sl.registerSingleton<ILocationRepository>(repo);
+  }
 
   // Wear sync service
   final wearSync = PhoneWearSyncService();
   wearSync.initialize();
 
-  sl.registerSingleton<PhoneWearSyncService>(
-    wearSync,
-  );
+  if (!sl.isRegistered<PhoneWearSyncService>()) {
+    sl.registerSingleton<PhoneWearSyncService>(wearSync);
+  }
 
   //Cubits
-  sl.registerFactory<LocationCubit>(
-    () => LocationCubit(sl<ILocationRepository>()),
-  );
+  if (!sl.isRegistered<LocationCubit>()) {
+    sl.registerFactory<LocationCubit>(
+      () => LocationCubit(sl<ILocationRepository>()),
+    );
+  }
 }

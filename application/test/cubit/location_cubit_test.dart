@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:application/core/cubit/location_cubit.dart';
 import 'package:application/core/models/location_point.dart';
@@ -20,6 +21,10 @@ void main() {
   late MockPhoneWearSyncService wearSync;
 
   late StreamController<LocationPoint> locationController;
+
+  late VoidCallback? capturedPauseCallback;
+  late VoidCallback? capturedResumeCallback;
+  late VoidCallback? capturedStopCallback;
 
   LocationPoint point({
     double lat = 41.9,
@@ -61,6 +66,24 @@ void main() {
     when(
       () => wearSync.sendOffTrailNotification(any()),
     ).thenAnswer((_) async {});
+    when(() => wearSync.onPauseFromWatch).thenAnswer((_) => capturedPauseCallback);
+    when(() => wearSync.onPauseFromWatch = any()).thenAnswer((invocation) {
+      capturedPauseCallback =
+          invocation.positionalArguments.first as VoidCallback?;
+      return null;
+    });
+    when(() => wearSync.onResumeFromWatch).thenAnswer((_) => capturedResumeCallback);
+    when(() => wearSync.onResumeFromWatch = any()).thenAnswer((invocation) {
+      capturedResumeCallback =
+          invocation.positionalArguments.first as VoidCallback?;
+      return null;
+    });
+    when(() => wearSync.onStopFromWatch).thenAnswer((_) => capturedStopCallback);
+    when(() => wearSync.onStopFromWatch = any()).thenAnswer((invocation) {
+      capturedStopCallback =
+          invocation.positionalArguments.first as VoidCallback?;
+      return null;
+    });
   });
 
   tearDown(() async {
@@ -578,83 +601,84 @@ void main() {
     );
   });
 
-//  group('watch-triggered commands', () {
-//    blocTest<LocationCubit, LocationState>(
-//      'pauses tracking from watch callback',
-//      build: buildCubit,
-//      act: (cubit) async {
-//        await cubit.startTracking();
-//        wearSync.onPauseFromWatch?.call();
-//      },
-//      expect: () => [
-//        isA<LocationState>(), // tracking
-//        isA<LocationState>(),
-//      ],
-//      verify: (cubit) {
-//        expect(cubit.state.isPaused, true);
-//      }
-//    );
-//
-//    test('onResumeFromWatch callback resumes tracking', () async {
-//      final cubit = buildCubit();
-//      await cubit.startTracking();
-//      await cubit.pauseTracking();
-//
-//      wearSync.onResumeFromWatch?.call();
-//      await Future<void>.delayed(Duration.zero);
-//
-//      expect(cubit.state.isTracking, isTrue);
-//      await cubit.close();
-//    });
-//
-//    test('onStopFromWatch stops tracking WITHOUT navigating, '
-//        'and marks pendingNavigation true', () async {
-//      final cubit = buildCubit();
-//      var navigated = false;
-//      cubit.registerStopCallbacks(
-//        onActivitySaved:
-//            ({
-//              required double distance,
-//              required double elevationGap,
-//              required Duration elapsed,
-//            }) async {},
-//        onNavigateAfterStop: () => navigated = true,
-//      );
-//
-//      await cubit.startTracking();
-//
-//      wearSync.onStopFromWatch?.call();
-//      await Future<void>.delayed(Duration.zero);
-//
-//      expect(navigated, isTrue);
-//      expect(cubit.state.isTracking, isFalse);
-//
-//      await cubit.close();
-//    });
-//
-//    test('pendingNavigation flag is consumed exactly once', () async {
-//      final cubit = buildCubit();
-//      var navigateCallCount = 0;
-//      cubit.registerStopCallbacks(
-//        onActivitySaved:
-//            ({
-//              required double distance,
-//              required double elevationGap,
-//              required Duration elapsed,
-//            }) async {},
-//        onNavigateAfterStop: () => navigateCallCount++,
-//      );
-//
-//      await cubit.startTracking();
-//      wearSync.onStopFromWatch?.call();
-//      await Future<void>.delayed(Duration.zero);
-//
-//      cubit.consumeNavigation();
-//
-//      expect(navigateCallCount, 1);
-//      await cubit.close();
-//    });
-//  });
+  group('watch-triggered commands', () {
+    blocTest<LocationCubit, LocationState>(
+      'pauses tracking from watch callback',
+      build: buildCubit,
+      act: (cubit) async {
+        await cubit.startTracking();
+        capturedPauseCallback?.call();
+        await pumpEventQueue();
+      },
+      expect: () => [
+        isA<LocationState>().having((s) => s.isTracking, 'tracking', isTrue),
+        isA<LocationState>().having((s) => s.isPaused, 'paused', isTrue),
+      ],
+      verify: (cubit) {
+        expect(cubit.state.isPaused, true);
+      },
+    );
+
+    test('onResumeFromWatch callback resumes tracking', () async {
+      final cubit = buildCubit();
+      await cubit.startTracking();
+      await cubit.pauseTracking();
+
+      capturedResumeCallback?.call();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.isTracking, isTrue);
+      await cubit.close();
+    });
+
+    test('onStopFromWatch stops tracking WITHOUT navigating, '
+        'and marks pendingNavigation true', () async {
+      final cubit = buildCubit();
+      var navigated = false;
+      cubit.registerStopCallbacks(
+        onActivitySaved:
+            ({
+              required double distance,
+              required double elevationGap,
+              required Duration elapsed,
+            }) async {},
+        onNavigateAfterStop: () => navigated = true,
+      );
+
+      await cubit.startTracking();
+
+      capturedStopCallback?.call();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(navigated, isTrue);
+      expect(cubit.state.isTracking, isFalse);
+
+      await cubit.close();
+    });
+
+    test('pendingNavigation flag is consumed exactly once', () async {
+      final cubit = buildCubit();
+      var navigateCallCount = 0;
+      cubit.registerStopCallbacks(
+        onActivitySaved:
+            ({
+              required double distance,
+              required double elevationGap,
+              required Duration elapsed,
+            }) async {},
+        onNavigateAfterStop: () => navigateCallCount++,
+      );
+
+      await cubit.startTracking();
+      capturedStopCallback?.call();
+      await Future<void>.delayed(Duration.zero);
+
+      cubit.consumeNavigation();
+
+      expect(navigateCallCount, 1);
+      await cubit.close();
+    });
+  });
 
   group('setTotalDistance', () {
     blocTest<LocationCubit, LocationState>(

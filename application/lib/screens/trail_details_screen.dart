@@ -18,6 +18,7 @@ import 'package:application/services/favorite_trail_store.dart';
 
 class TrailDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> trail;
+  final FavoriteTrailStore? favoriteTrailStore;
 
   final String? offlineDistance;
   final String? offlineDuration;
@@ -26,13 +27,14 @@ class TrailDetailsScreen extends StatefulWidget {
   final bool? offlineIsFerrata;
 
   const TrailDetailsScreen({
-    super.key, 
+    super.key,
     required this.trail,
     this.offlineDistance,
     this.offlineDuration,
     this.offlineDifficulty,
     this.offlineAscent,
     this.offlineIsFerrata,
+    this.favoriteTrailStore, //field useful for testing
   });
 
   @override
@@ -44,7 +46,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
   bool _isFavorite = false;
   bool _isUpdatingFavorite = false;
-  final FavoriteTrailStore _favoriteTrailStore = FavoriteTrailStore();
+  late final FavoriteTrailStore _favoriteTrailStore;
 
   Map<String, dynamic>? _relationTags;
   Set<String> _surfaces = {};
@@ -71,6 +73,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _favoriteTrailStore = widget.favoriteTrailStore ?? FavoriteTrailStore();
     _loadFavoriteState();
     _fetchTrailDetails();
   }
@@ -101,7 +104,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       if (_isFavorite) {
         await _favoriteTrailStore.deleteTrail(widget.trail['id']?.toString() ?? '');
       } else {
-        final String? distanceStr = _relationTags != null 
+        final String? distanceStr = _relationTags != null
             ? TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters)
             : widget.offlineDistance;
 
@@ -113,8 +116,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             ? TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent)
             : widget.offlineAscent;
 
-        final int difficultyLvl = _relationTags != null 
-            ? _difficulty 
+        final int difficultyLvl = _relationTags != null
+            ? _difficulty
             : (widget.offlineDifficulty ?? 0);
 
         final bool isFerrata = _relationTags != null
@@ -252,7 +255,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           _fetchElevations(allPoints);
           _fetchWeather(allPoints.first);
         } else {
-          if (mounted) { 
+          if (mounted) {
             setState(() {
               _isLoadingWeather = false;
               _isLoadingElevations = false;
@@ -271,7 +274,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             _isLoading = false;
           });
         } else {
-          if (mounted) { 
+          if (mounted) {
             setState(() {
               _errorMessage = 'Informations not available.';
               _isLoading = false;

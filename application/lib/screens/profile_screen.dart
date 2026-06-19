@@ -5,7 +5,6 @@ import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:hike_core/hike_core.dart';
-import 'package:application/screens/login_screen.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,7 +12,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 int totalXpTillNextLevel(int level, {int baseXp = 100, double growth = 1.2}) {
   int totalXp = 0;
   for (var i = 0; i < level + 1; i ++) {
-    totalXp += (baseXp * pow(growth, level - 1)).round();
+    totalXp += (baseXp * pow(growth, i + 1)).round();
   }
   return totalXp;
 }
@@ -59,21 +58,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout() async {
     try {
+      await context.read<ProfileCubit>().close();
+      await context.read<ActivityCubit>().close();
+      await context.read<SettingsCubit>().close();
       await AuthService().signOut();
+    } catch (e) {
       if (!mounted) {
         return;
       }
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const LoginScreen(),
-        ),
-        (route) => false,
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
+      debugPrint(e.toString());
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -123,7 +117,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   _Header(
                     nickname: profile.nickname,
                     email: profile.mail,
-                    xpLength: profile.xp / totalXpTillNextLevel(profile.level + 1),
+                    xpLength: profile.xp / totalXpTillNextLevel(profile.level),
                     level: profile.level,
                   ),
 
@@ -198,6 +192,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final indicatorLength = xpLength.clamp(0, 1.0).toDouble();
     return Container(
       width: 420,
       decoration: BoxDecoration(
@@ -253,7 +248,7 @@ class _Header extends StatelessWidget {
           SizedBox(height: 20,),
 
           //XP bar
-          xpBar(context),
+          xpBar(context, indicatorLength),
 
           SizedBox(height: 20,),
         ],
@@ -261,7 +256,7 @@ class _Header extends StatelessWidget {
     );
   }
 
-  Widget xpBar(BuildContext context) {
+  Widget xpBar(BuildContext context, double indicatorLength) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Column(
@@ -301,7 +296,7 @@ class _Header extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               child: LinearProgressIndicator(
                 minHeight: 14,
-                value: xpLength,
+                value: indicatorLength,
                 backgroundColor: AppColors.inactiveTrackColor,
                 valueColor: AlwaysStoppedAnimation(Theme.of(context).colorScheme.primary),
               ),
@@ -587,6 +582,7 @@ class _AccountSection extends StatelessWidget {
 
                 // Exit button
                 ListTile(
+                  key: const ValueKey('logout_button'),
                   leading: const Icon(
                     Icons.power_settings_new,
                     color: Colors.red,

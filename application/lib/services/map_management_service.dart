@@ -8,26 +8,62 @@ abstract class MapManagementService {
 
   void showServiceDialog(BuildContext context);
 
-  Future<LatLng> checkStartingLocation(BuildContext context, MapController mapController, {double mapZoom = 12});
+  Future<bool> checkPermissions();
 
-  LatLng moveCamera(double lat, double lng, double zoom, MapController mapController);
+  Future<LatLng> checkStartingLocation(
+    BuildContext context,
+    MapController mapController, {
+    double mapZoom = 12,
+  });
 
-  Future<LatLng> centerMap(BuildContext context, LatLng currentCenter, MapController mapController, {double zoom = 12});
+  LatLng moveCamera(
+    double lat,
+    double lng,
+    double zoom,
+    MapController mapController,
+  );
+
+  Future<LatLng> centerMap(
+    BuildContext context,
+    LatLng currentCenter,
+    MapController mapController, {
+    double zoom = 12,
+  });
 }
 
 class DefaultMapManagementService implements MapManagementService {
   @override
-  void showPermissionDialog(BuildContext context) => showLocationPermissionDialog(context);
+  void showPermissionDialog(BuildContext context) =>
+      showLocationPermissionDialog(context);
 
   @override
-  void showServiceDialog(BuildContext context) => showLocationServiceDialog(context);
+  void showServiceDialog(BuildContext context) =>
+      showLocationServiceDialog(context);
 
   @override
-  Future<LatLng> checkStartingLocation(BuildContext context, MapController mapController, {double mapZoom = 12}) => checkInitialLocation(context, mapController, mapZoom: mapZoom);
+  Future<bool> checkPermissions() =>
+    checkLocationPermissions();
 
   @override
-  LatLng moveCamera(double lat, double lng, double zoom, MapController mapController) => moveCameraTo(lat, lng, zoom, mapController);
+  Future<LatLng> checkStartingLocation(
+    BuildContext context,
+    MapController mapController, {
+    double mapZoom = 12,
+  }) => checkInitialLocation(context, mapController, mapZoom: mapZoom);
 
   @override
-  Future<LatLng> centerMap(BuildContext context, LatLng currentCenter, MapController mapController, {double zoom = 12}) => centerMapOnUser(context, currentCenter, mapController, zoom: zoom);
+  LatLng moveCamera(
+    double lat,
+    double lng,
+    double zoom,
+    MapController mapController,
+  ) => moveCameraTo(lat, lng, zoom, mapController);
+
+  @override
+  Future<LatLng> centerMap(
+    BuildContext context,
+    LatLng currentCenter,
+    MapController mapController, {
+    double zoom = 12,
+  }) => centerMapOnUser(context, currentCenter, mapController, zoom: zoom);
 }

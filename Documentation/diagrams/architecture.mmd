@@ -1,0 +1,97 @@
+---
+config:
+  flowchart:
+    defaultRenderer: "elk"
+---
+
+flowchart
+
+%% =====================================================
+%% SMARTWATCH
+%% =====================================================
+
+subgraph WATCH["Smartwatch App"]
+direction RL
+
+watch_wear["Wear Data\n Layer Service"]
+
+watch_app["Flutter App"]
+
+watch_channel["Platform\n Channel\n Adapter"]
+
+watch_channel <--> watch_wear
+watch_app <--> watch_channel
+
+
+end
+
+%% =====================================================
+%% SMARTPHONE
+%% =====================================================
+
+subgraph PHONE["Smartphone App"]
+direction LR
+
+phone_data["Data Layer"]
+
+phone_app["Flutter App"]
+
+phone_channel["Platform\n Channel\n Adapter"]
+
+phone_wear["Wear Data\n Layer Service"]
+
+hive[("Hive Cache")]
+
+phone_app <--> phone_data
+phone_app <--> phone_channel
+phone_channel <--> phone_wear
+phone_data <--> hive
+
+end
+
+%% Force strict vertical stacking
+%%PHONE --> anchor --> WATCH
+
+%% =====================================================
+%% EXTERNAL SERVICES
+%% =====================================================
+
+subgraph SERVICES["External Services"]
+direction TB
+
+subgraph FIREBASE["Firebase"]
+direction TB
+
+auth["Firebase\n Authentication"]
+firestore[("Firestore")]
+
+end
+
+subgraph GEO["Geospatial APIs"]
+direction TB
+
+osm["OpenStreet\nMap"]
+overpass["Overpass\n API"]
+elevation["Open\nElevation"]
+weather["Open\nWeather"]
+
+end
+
+end
+
+%% =====================================================
+%% COMMUNICATIONS
+%% =====================================================
+
+phone_data <-->|HTTPS| osm
+phone_data <-->|HTTPS| overpass
+phone_data <-->|HTTPS| elevation
+phone_data <-->|HTTPS| weather
+
+phone_wear <-->|Bluetooth| watch_wear
+
+phone_data <-->|HTTPS| auth
+phone_data <-->|HTTPS| firestore
+
+%% Hide anchor node
+style anchor fill:transparent,stroke:transparent,color:transparent

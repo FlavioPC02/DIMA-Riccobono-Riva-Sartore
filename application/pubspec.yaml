@@ -36,6 +36,7 @@ dependencies:
     path: hike_core
   flutter_native_splash: ^2.4.7
   image_picker: ^1.2.2
+  package_info_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:
@@ -45,6 +46,8 @@ dev_dependencies:
   mocktail: ^1.0.5
   plugin_platform_interface: ^2.1.8
   build_runner: ^2.9.0
+  integration_test:
+    sdk: flutter
   flutter_launcher_icons: ^0.14.4
 
 flutter:

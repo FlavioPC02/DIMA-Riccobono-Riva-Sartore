@@ -4,7 +4,7 @@ sequenceDiagram
     participant auth as Authentication<br>Service
     participant dbser as Database<br>Service
     participant fba as Firebase<br>Authentication
-    participant fs as Firestore
+    participant fs@{ "type": "database", "alias": "Internal DB" } as Firestore
     participant home as Homepage
 
     sign ->> sign: Fill in form

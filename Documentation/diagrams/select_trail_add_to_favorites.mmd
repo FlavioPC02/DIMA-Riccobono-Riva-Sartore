@@ -1,0 +1,42 @@
+sequenceDiagram
+    autonumber
+    participant home as Homepage
+    participant osm as OpenStreetMap
+    participant tds as Trail Details Page
+    participant oPass as Overpass
+    participant aap as Add Activity Page
+    participant fs as Favorite Service
+    participant h@{ "type": "database", "alias": "Internal DB" } as Hive
+
+    home ->>+ osm: searchLocation(name)
+    alt location not found
+        osm --> home: Error: Location not found
+    else
+        osm -->- home: location
+        home ->>+ oPass: searchTrails(location)
+        alt trails not found
+            oPass --> home: Error: no trail found in this location
+        else
+            oPass -->- home: list<trails>
+            home ->> home: select trail
+            home ->> tds: tap on trail
+            tds ->>+ oPass: fetchTrailDetail(trail)
+            oPass -->- tds: details
+            alt go back operation
+                tds ->> home: return()
+            else
+                tds ->> tds: favorite button
+                alt already favorite
+                    tds ->>+ fs: deleteFavorite(trail)
+                    fs ->>+ h: delete(trail)
+                    h -->- fs: response
+                    fs -->- tds: response
+                else
+                    tds ->>+ fs: addFavorite(trail)
+                    fs ->>+ h: put(trail)
+                    h ->>- fs: response
+                    fs ->>- tds: response
+                end
+            end
+        end
+    end

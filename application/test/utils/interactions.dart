@@ -1,1 +1,0 @@
-// TODO: mettere qui tutte le fake interazioni con l'app così da facilitarci il lavoro con i test di integrazione 

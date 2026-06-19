@@ -58,8 +58,8 @@ class SettingsCubit extends HydratedCubit<Settings> {
   }
 
   @override
-  Future<void> close() {
-    _remoteSubscription?.cancel();
+  Future<void> close() async {
+    await _remoteSubscription?.cancel();
     return super.close();
   }
 }
