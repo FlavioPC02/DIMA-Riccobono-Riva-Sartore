@@ -13,4 +13,4 @@ sequenceDiagram
     wdl ->> pdl: sendToPhone("stop")
     pdl ->> ps: invokeMethod("stopRecording")
     ps ->> phone: stopAndSave()
-    phone ->> phone: goto ... screen
+    phone ->> phone: changeScreen(Homepage)
