@@ -58,9 +58,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout() async {
     try {
-      await context.read<ProfileCubit>().close();
-      await context.read<ActivityCubit>().close();
-      await context.read<SettingsCubit>().close();
+      await context.read<ProfileCubit>().reset();
+      if (mounted) {
+        await context.read<ActivityCubit>().reset();
+      }
+      if (mounted) {
+        await context.read<SettingsCubit>().reset();
+      }
       await AuthService().signOut();
     } catch (e) {
       if (!mounted) {

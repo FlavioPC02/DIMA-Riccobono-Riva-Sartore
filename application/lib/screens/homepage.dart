@@ -93,7 +93,7 @@ class _NavigationState extends State<Navigation> {
       //indexed stack keeps the state of each page alive when switching between them
       body: IndexedStack(
         index: _currentPageIndex,
-        children: const <Widget>[
+        children: <Widget>[
           MapPage(),
           DiaryPage(),
           FavoritesPage(),

@@ -146,9 +146,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
           },
 
       onNavigateAfterStop: () {
-        debugPrint("Sto uscendo");
         if (!mounted) return;
-        Navigator.of(context, rootNavigator: true).pushReplacement(
+        Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const Navigation()),
         );
       },

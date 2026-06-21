@@ -11,7 +11,7 @@ Future<void> setupLocator() async {
   await repo.init();
 
   if (!sl.isRegistered<ILocationRepository>()) {
-    sl.registerSingleton<ILocationRepository>(repo);
+    sl.registerFactory<ILocationRepository>(() => repo);
   }
 
   // Wear sync service
