@@ -157,7 +157,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
   Future<void> _fetchTrailDetails() async {
     final query =
-        """
+    """
       [out:json][timeout:15];
       relation(${widget.trail['id']});
       out tags geom; 
@@ -410,6 +410,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         actions: [
           IconButton(
+            key: const ValueKey('favorites_button'),
             icon: _isFavorite
                 ? const Icon(Icons.star)
                 : const Icon(Icons.star_border),
@@ -979,6 +980,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         children: [
           Expanded(
             child: ElevatedButton.icon(
+              key: const ValueKey('plan_trail'),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -1020,6 +1022,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           const SizedBox(width: 16.0),
           Expanded(
             child: ElevatedButton.icon(
+              key: const ValueKey('start_tracking_trail'),
               onPressed: () {
                 Navigator.push(
                   context,

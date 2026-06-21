@@ -128,6 +128,7 @@ class _ActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
+        key: const ValueKey('activity_card'),
         leading: const Icon(Icons.hiking),
         title: Text(activity.name),
         subtitle: Text(DateFormat('dd/MM/yyyy').format(activity.date)),

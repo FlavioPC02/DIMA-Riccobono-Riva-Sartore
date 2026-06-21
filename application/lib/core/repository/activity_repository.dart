@@ -7,16 +7,19 @@ import 'package:application/services/local_activity_store.dart';
 import 'package:application/services/trail_geometry_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:rxdart/rxdart.dart';
 
 class ActivityRepository {
   final bool Function()? hasCurrentUser;
   final DatabaseService Function()? databaseServiceFactory;
+  final Stream<User?> Function()? authChanges;
   final ActivityLocalDataSource _localStore;
   final TrailGeometryDataSource _trailGeometrySource;
 
   ActivityRepository({
     this.hasCurrentUser,
     this.databaseServiceFactory,
+    this.authChanges,
     ActivityLocalDataSource? localStore,
     TrailGeometryDataSource? trailGeometrySource,
   }) : _localStore = localStore ?? HiveActivityStore(),
@@ -37,16 +40,27 @@ class ActivityRepository {
 
   Stream<List<Activity>> streamActivities() {
     final localStream = _localStore.streamActivities();
-    final remote = _remoteOrNull();
-    if (remote == null) return localStream;
+    final authStream = authChanges != null
+        ? authChanges!()
+        : FirebaseAuth.instance.authStateChanges();
 
-    final remoteStream = remote.streamActivities().map(
-      (list) => list
-          .map((data) => Activity.fromJson(data['id'] as String, data))
-          .toList(),
-    );
+    final remoteStream = authStream.switchMap((user) {
+      if (user == null) {
+        return Stream<List<Activity>>.value(const []);
+      }
 
-    return _mergeActivityStreams(localStream, remoteStream);
+      final remote = databaseServiceFactory != null
+          ? databaseServiceFactory!()
+          : DatabaseService();
+
+      return remote.streamActivities().map(
+        (list) => list
+            .map((data) => Activity.fromJson(data['id'] as String, data))
+            .toList(),
+      );
+    });
+
+    return _mergeActivityStreams(localStream, authStream, remoteStream);
   }
 
   Future<String?> addActivity(Activity activity) async {
@@ -106,13 +120,16 @@ class ActivityRepository {
 
   Stream<List<Activity>> _mergeActivityStreams(
     Stream<List<Activity>> localStream,
+    Stream<User?> authStream,
     Stream<List<Activity>> remoteStream,
   ) {
     late StreamSubscription<List<Activity>> localSubscription;
     late StreamSubscription<List<Activity>> remoteSubscription;
+    late StreamSubscription<User?> authSubscription;
 
     List<Activity> localActivities = const [];
     List<Activity> remoteActivities = const [];
+    User? currentUser;
 
     final controller = StreamController<List<Activity>>();
 
@@ -124,21 +141,60 @@ class ActivityRepository {
     controller.onListen = () {
       localSubscription = localStream.listen((activities) {
         localActivities = activities;
+
+        //sync only if user logged in
+        if (currentUser != null) {
+          final remote = databaseServiceFactory != null
+              ? databaseServiceFactory!()
+              : DatabaseService();
+          _syncPendingCompletedActivities(activities, remote);
+        }
         emitMerged();
       }, onError: controller.addError);
+
+      authSubscription = authStream.listen((user) {
+        currentUser = user;
+        if (user == null) {
+          //drop remote activities immediatly, without waiting for remote stream
+          remoteActivities = const [];
+          emitMerged();
+        }
+      });
 
       remoteSubscription = remoteStream.listen((activities) {
         remoteActivities = activities;
         emitMerged();
-      }, onError: (_) {});
+      }, onError: controller.addError);
     };
 
     controller.onCancel = () async {
       await localSubscription.cancel();
       await remoteSubscription.cancel();
+      await authSubscription.cancel();
     };
 
     return controller.stream;
+  }
+
+  void _syncPendingCompletedActivities(
+    List<Activity> activities,
+    DatabaseService remote,
+  ) {
+    for (final activity in activities) {
+      if (activity.status == ActivityStatus.completed) {
+        unawaited(_syncCompletedActivity(activity, remote));
+      }
+    }
+  }
+
+  Future<void> _syncCompletedActivity(
+    Activity activity,
+    DatabaseService remote,
+  ) async {
+    final savedRemotely = await _trySaveRemote(activity, remote);
+    if (savedRemotely) {
+      await _localStore.deleteActivity(activity.id);
+    }
   }
 
   List<Activity> _mergeActivities(
@@ -208,13 +264,9 @@ class ActivityRepository {
         );
         if (trailPath.any((segment) => segment.isNotEmpty)) {
           hydratedActivity = activity.copyWith(trailPath: trailPath);
-          _logTrailDownload(
-            'Path reconstructed for activity=${activity.id}',
-          );
+          _logTrailDownload('Path reconstructed for activity=${activity.id}');
         } else {
-          _logTrailDownload(
-            'No geometry returned for activity=${activity.id}',
-          );
+          _logTrailDownload('No geometry returned for activity=${activity.id}');
         }
       } catch (error) {
         _logTrailDownload(

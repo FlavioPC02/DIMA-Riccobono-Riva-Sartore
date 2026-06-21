@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ActivityCubit extends Cubit<List<Activity>> {
@@ -9,9 +11,16 @@ class ActivityCubit extends Cubit<List<Activity>> {
   StreamSubscription<List<Activity>>? _subscription;
 
   ActivityCubit(this._repository) : super([]) {
-    _subscription = _repository.streamActivities().listen((activities) {
-      emit(activities);
-    });
+    _subscription = _repository.streamActivities().listen(
+      (activities) {
+        emit(activities);
+      },
+      onError: (e) {
+        if (e is FirebaseException && e.code == 'permission-denied') {
+          return;
+        }
+      },
+    );
   }
 
   Future<void> addActivity(Activity activity) async {
@@ -39,36 +48,45 @@ class ActivityCubit extends Cubit<List<Activity>> {
     await _repository.deleteActivity(id);
   }
 
+  Future<void> reset() async {
+    debugPrint("Activity cubit sta RESETTANDO");
+    emit([]);
+  }
+
   @override
   Future<void> close() async {
+    debugPrint("Activity cubit sta CHIUDENDO");
     await _subscription?.cancel();
+    _subscription = null;
     return super.close();
   }
 
   Future<void> loadActivityDetails(String id) async {
     final fetchedActivity = await _repository.fetchActivityDetails(id);
-    
+
     if (fetchedActivity != null) {
       final newState = state.map((a) {
         return a.id == id ? fetchedActivity : a;
       }).toList();
-      
+
       emit(newState);
     }
   }
 
   Future<void> addOrUpdateNote(Activity activity, ActivityNote note) async {
-    final noteId = note.id.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : note.id;
+    final noteId = note.id.isEmpty
+        ? DateTime.now().millisecondsSinceEpoch.toString()
+        : note.id;
     final finalNote = ActivityNote(
-        id: noteId,
-        text: note.text,
-        imageUrls: note.imageUrls,
-        createdAt: note.createdAt,
+      id: noteId,
+      text: note.text,
+      imageUrls: note.imageUrls,
+      createdAt: note.createdAt,
     );
 
     List<ActivityNote> updatedNotes = List.from(activity.notes);
     final index = updatedNotes.indexWhere((n) => n.id == finalNote.id);
-    
+
     if (index >= 0) {
       updatedNotes[index] = finalNote;
     } else {
@@ -80,7 +98,7 @@ class ActivityCubit extends Cubit<List<Activity>> {
       return a.id == updatedActivity.id ? updatedActivity : a;
     }).toList();
 
-    emit(newState); 
+    emit(newState);
 
     await _repository.saveNote(activity, finalNote);
   }
@@ -97,7 +115,7 @@ class ActivityCubit extends Cubit<List<Activity>> {
     final newState = state.map((a) {
       return a.id == updatedActivity.id ? updatedActivity : a;
     }).toList();
-    
+
     emit(newState);
   }
 }

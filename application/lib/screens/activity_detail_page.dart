@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity_note.dart';
+import 'package:application/core/models/trail_point.dart';
 import 'package:application/widgets/note_dialog.dart';
 import 'package:application/widgets/note_image_gallery.dart';
 import 'package:hike_core/hike_core.dart';
@@ -8,6 +11,7 @@ import 'package:application/screens/navigator.dart';
 import 'package:application/services/weather_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import '../core/models/activity.dart';
@@ -15,157 +19,277 @@ import '../core/models/activity.dart';
 class ActivityDetailPage extends StatefulWidget {
   final Activity initialActivity;
 
-  const ActivityDetailPage({super.key, required Activity activity}) : initialActivity = activity;
+  const ActivityDetailPage({super.key, required Activity activity})
+    : initialActivity = activity;
 
   @override
   State<ActivityDetailPage> createState() => _ActivityDetailPageState();
 }
 
 class _ActivityDetailPageState extends State<ActivityDetailPage> {
-  
+  final String _appName = 'FlutterHikingApp/1.0';
+
   @override
   void initState() {
     super.initState();
-    context.read<ActivityCubit>().loadActivityDetails(widget.initialActivity.id);
+    context.read<ActivityCubit>().loadActivityDetails(
+      widget.initialActivity.id,
+    );
   }
 
- @override
-  Widget build(BuildContext context) {  
+  Future<List<List<TrailPoint>>> _fetchTrailPath(
+    Activity currentActivity,
+  ) async {
+    final query =
+        """
+      [out:json][timeout:15];
+      relation(${currentActivity.trailId});
+      way(r);
+      out tags geom;
+    """;
+
+    final overpassServers = [
+      Uri.parse('https://overpass-api.de/api/interpreter'),
+      Uri.parse('https://overpass.private.coffee/api/interpreter'),
+      Uri.parse('https://overpass.kumi.systems/api/interpreter'),
+    ];
+
+    for (final overpassUrl in overpassServers) {
+      try {
+        final response = await http
+            .post(overpassUrl, body: query, headers: {'User-Agent': _appName})
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode != 200) {
+          continue;
+        }
+
+        final data = json.decode(response.body);
+        final elements = data['elements'] as List<dynamic>;
+
+        final segments = <List<TrailPoint>>[];
+
+        for (final el in elements) {
+          if (el['type'] != 'way' || el['geometry'] == null) {
+            continue;
+          }
+
+          final geometry = el['geometry'] as List<dynamic>;
+
+          final points = geometry
+              .map<TrailPoint>(
+                (geo) => TrailPoint(
+                  lat: (geo['lat'] as num).toDouble(),
+                  lng: (geo['lon'] as num).toDouble(),
+                ),
+              )
+              .toList();
+
+          if (points.isNotEmpty) {
+            segments.add(points);
+          }
+        }
+        return segments;
+      } catch (e) {
+        return [[]];
+      }
+    }
+    return [[]];
+  }
+
+  Future<Activity> _loadActivity(Activity activity) async {
+    if(!activity.hasTrailPath) {
+      final newActivity = activity.copyWith(
+        trailPath: await _fetchTrailPath(activity),
+      );
+
+      if(!mounted) return newActivity;
+
+      context.read<ActivityCubit>().updateActivity(newActivity);
+      return newActivity;
+    }
+
+    return activity;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
       child: BlocBuilder<ActivityCubit, List<Activity>>(
         builder: (context, state) {
-          
-          final currentActivity = state.firstWhere(
+          final activity = state.firstWhere(
             (a) => a.id == widget.initialActivity.id,
             orElse: () {
               return widget.initialActivity;
-            }, 
+            },
           );
 
-          return Scaffold(
-            floatingActionButton: Builder(
-              builder: (context) {
-                final tabController = DefaultTabController.of(context);
-                return AnimatedBuilder(
-                  animation: tabController,
-                  builder: (context, _) {
-                    if (tabController.index == 1) {
-                      return FloatingActionButton(
-                        onPressed: () async {
-                          final result = await showDialog<Map<String, dynamic>>(
-                            context: context,
-                            builder: (context) => const NoteDialog(),
-                          );
+          return FutureBuilder<Activity>(
+            future: _loadActivity(activity),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-                          if (result != null && context.mounted) {
-                            final newNote = ActivityNote(
-                              id: '',
-                              text: result['text'] ?? '',
-                              imageUrls: List<String>.from(result['imageUrls'] ?? []),
-                              createdAt: DateTime.now(),
-                            );
+              final currentActivity = snapshot.data!;
 
-                            context.read<ActivityCubit>().addOrUpdateNote(currentActivity, newNote);                        
-                          }
-                        },
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                        child: const Icon(Icons.add),
-                      );
-                    }
-                    if (currentActivity.status == ActivityStatus.planned) {
-                      return FloatingActionButton.extended(
-                        onPressed: currentActivity.hasTrailPath
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => NavigatorScreen(
-                                      trail: currentActivity.navigatorTrail,
-                                      activity: currentActivity,
-                                    ),
+              return Scaffold(
+                floatingActionButton: Builder(
+                  builder: (context) {
+                    final tabController = DefaultTabController.of(context);
+                    return AnimatedBuilder(
+                      animation: tabController,
+                      builder: (context, _) {
+                        if (tabController.index == 1) {
+                          return FloatingActionButton(
+                            onPressed: () async {
+                              final result =
+                                  await showDialog<Map<String, dynamic>>(
+                                    context: context,
+                                    builder: (context) => const NoteDialog(),
+                                  );
+
+                              if (result != null && context.mounted) {
+                                final newNote = ActivityNote(
+                                  id: '',
+                                  text: result['text'] ?? '',
+                                  imageUrls: List<String>.from(
+                                    result['imageUrls'] ?? [],
                                   ),
+                                  createdAt: DateTime.now(),
+                                );
+
+                                context.read<ActivityCubit>().addOrUpdateNote(
+                                  currentActivity,
+                                  newNote,
                                 );
                               }
-                            : null,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                        icon: const Icon(Icons.navigation),
-                        label: const Text('Start'),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                );
-              },
-            ),
-            body: NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                SliverAppBar(
-                  pinned: true,
-                  elevation: 0,
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: 'Delete activity',
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Delete activity'),
-                            content: const Text('Are you sure you want to delete this activity?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSecondary)),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true && context.mounted) {
-                          await context.read<ActivityCubit>().deleteActivity(currentActivity.id);
-                          if (context.mounted) Navigator.pop(context);
+                            },
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onSecondary,
+                            child: const Icon(Icons.add),
+                          );
                         }
+                        if (currentActivity.status == ActivityStatus.planned) {
+                          return FloatingActionButton.extended(
+                            key: const ValueKey('start_button'),
+                            onPressed: currentActivity.hasTrailPath
+                                ? () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => NavigatorScreen(
+                                          trail: currentActivity.navigatorTrail,
+                                          activity: currentActivity,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onSecondary,
+                            icon: const Icon(Icons.navigation),
+                            label: const Text('Start'),
+                          );
+                        }
+                        return const SizedBox.shrink();
                       },
+                    );
+                  },
+                ),
+                body: NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                    SliverAppBar(
+                      pinned: true,
+                      elevation: 0,
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      foregroundColor: Theme.of(
+                        context,
+                      ).colorScheme.onSecondary,
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: 'Delete activity',
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Delete activity'),
+                                content: const Text(
+                                  'Are you sure you want to delete this activity?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text(
+                                      'Delete',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true && context.mounted) {
+                              await context
+                                  .read<ActivityCubit>()
+                                  .deleteActivity(currentActivity.id);
+                              if (context.mounted) Navigator.pop(context);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    SliverToBoxAdapter(
+                      child: Container(
+                        color: Theme.of(context).colorScheme.secondary,
+                        child: _ActivityHeader(activity: currentActivity),
+                      ),
+                    ),
+                    SliverAppBar(
+                      pinned: true,
+                      primary: false,
+                      toolbarHeight: 0,
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      bottom: const TabBar(
+                        indicatorWeight: 3,
+                        tabs: [
+                          Tab(text: 'Overview'),
+                          Tab(text: 'Notes'),
+                        ],
+                      ),
                     ),
                   ],
-                ),
-                SliverToBoxAdapter(
-                  child: Container(
-                    color: Theme.of(context).colorScheme.secondary,
-                    child: _ActivityHeader(activity: currentActivity),
-                  ),
-                ),
-                SliverAppBar(
-                  pinned: true,
-                  primary: false,
-                  toolbarHeight: 0,
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  bottom: const TabBar(
-                    indicatorWeight: 3,
-                    tabs: [
-                      Tab(text: 'Overview'),
-                      Tab(text: 'Notes'),
+                  body: TabBarView(
+                    children: [
+                      _OverviewTab(activity: currentActivity),
+                      _NotesTab(activity: currentActivity),
                     ],
                   ),
                 ),
-              ],
-              body: TabBarView(
-                children: [
-                  _OverviewTab(activity: currentActivity),
-                  _NotesTab(activity: currentActivity),
-                ],
-              ),
-            ),
+              );
+            },
           );
-        }
+        },
       ),
     );
   }
@@ -188,7 +312,7 @@ class _ActivityHeader extends StatelessWidget {
           Text(
             activity.name,
             style: TextStyle(
-              fontSize: 24, 
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.onSecondary,
             ),
@@ -297,7 +421,8 @@ class _OverviewTabState extends State<_OverviewTab> {
 
     double? lat;
     double? lon;
-    if (widget.activity.trailPath.isNotEmpty && widget.activity.trailPath.first.isNotEmpty) {
+    if (widget.activity.trailPath.isNotEmpty &&
+        widget.activity.trailPath.first.isNotEmpty) {
       final startPoint = widget.activity.trailPath.first.first;
       lat = startPoint.lat;
       lon = startPoint.lng;
@@ -321,7 +446,10 @@ class _OverviewTabState extends State<_OverviewTab> {
                 return const _WeatherCardLoading();
               }
               if (snap.hasError) {
-                return _WeatherCardError(message: 'Error while fetching weather data. Check your connnection.');
+                return _WeatherCardError(
+                  message:
+                      'Error while fetching weather data. Check your connnection.',
+                );
               }
               return _WeatherCard(
                 weather: snap.data!,
@@ -329,17 +457,24 @@ class _OverviewTabState extends State<_OverviewTab> {
               );
             },
           )
-        else if (widget.activity.status == ActivityStatus.planned && !widget.activity.date.difference(DateTime.now()).isNegative)
+        else if (widget.activity.status == ActivityStatus.planned &&
+            !widget.activity.date.difference(DateTime.now()).isNegative)
           const _WeatherCardError(
             message: 'Forecast available only within 14 days of the hike.',
-        ),
+          ),
         Padding(padding: EdgeInsets.only(top: 10)),
         _StatRow(label: 'Trail Name', value: widget.activity.trailName),
         _DifficultyRow(difficulty: widget.activity.difficulty),
         if (widget.activity.status == ActivityStatus.planned)
-          _StatRow(label: 'Planned on', value: DateFormat('d MMMM yyyy').format(widget.activity.date)),
+          _StatRow(
+            label: 'Planned on',
+            value: DateFormat('d MMMM yyyy').format(widget.activity.date),
+          ),
         if (widget.activity.status == ActivityStatus.completed) ...[
-          _StatRow(label: 'Completed on', value: DateFormat('d MMMM yyyy').format(widget.activity.date)),
+          _StatRow(
+            label: 'Completed on',
+            value: DateFormat('d MMMM yyyy').format(widget.activity.date),
+          ),
           _StatRow(label: 'XP Earned', value: '${widget.activity.xpEarned}'),
           _StatRow(
             label: 'Elevation Gain',
@@ -353,7 +488,7 @@ class _OverviewTabState extends State<_OverviewTab> {
             label: 'Tracked Time',
             value: widget.activity.trackedTime.toCompactLabel(),
           ),
-        ]
+        ],
       ],
     );
   }
@@ -547,11 +682,11 @@ class _HourlySlot extends StatelessWidget {
               ),
             ),
           ),
-          
+
           Expanded(
             child: Lottie.asset(
-              _lottieAsset(entry.weatherCode), 
-              fit: BoxFit.contain
+              _lottieAsset(entry.weatherCode),
+              fit: BoxFit.contain,
             ),
           ),
 
@@ -566,7 +701,7 @@ class _HourlySlot extends StatelessWidget {
               ),
             ),
           ),
-          
+
           if (entry.precipitationProbability > 0)
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -635,11 +770,14 @@ class _NotesTab extends StatelessWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: Text('No notes yet. Tap + to add one!', style: TextStyle(color: Colors.grey)),
+          child: Text(
+            'No notes yet. Tap + to add one!',
+            style: TextStyle(color: Colors.grey),
+          ),
         ),
       );
     }
-    
+
     final sortedNotes = List<ActivityNote>.from(activity.notes)
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
@@ -652,56 +790,63 @@ class _NotesTab extends StatelessWidget {
         final dateStr = DateFormat('d MMM yyyy - HH:mm').format(note.createdAt);
         return Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () async {
-               final result = await showDialog<Map<String, dynamic>>(
-                 context: context,
-                 builder: (context) => NoteDialog(existingNote: note), 
-               );
+              final result = await showDialog<Map<String, dynamic>>(
+                context: context,
+                builder: (context) => NoteDialog(existingNote: note),
+              );
 
-               if (result != null && context.mounted) {
-                 final updatedNote = ActivityNote(
-                   id: note.id,
-                   text: result['text'] ?? '',
-                   imageUrls: List<String>.from(result['imageUrls'] ?? []), 
-                   createdAt: note.createdAt,
-                 );
+              if (result != null && context.mounted) {
+                final updatedNote = ActivityNote(
+                  id: note.id,
+                  text: result['text'] ?? '',
+                  imageUrls: List<String>.from(result['imageUrls'] ?? []),
+                  createdAt: note.createdAt,
+                );
 
-                 context.read<ActivityCubit>().addOrUpdateNote(activity, updatedNote);                        
-               }
+                context.read<ActivityCubit>().addOrUpdateNote(
+                  activity,
+                  updatedNote,
+                );
+              }
             },
             onLongPress: () async {
-                 final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Delete note'),
-                        content: const Text(
-                          'Are you sure you want to delete this note?',
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Delete note'),
+                  content: const Text(
+                    'Are you sure you want to delete this note?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSecondary,
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: Text(
-                              'Cancel',
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text(
-                              'Delete',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ],
                       ),
-                    );
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text(
+                        'Delete',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
 
-                 if (confirm == true && context.mounted) {
-                     context.read<ActivityCubit>().deleteNote(activity, note.id);
-                 }
+              if (confirm == true && context.mounted) {
+                context.read<ActivityCubit>().deleteNote(activity, note.id);
+              }
             },
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -709,11 +854,15 @@ class _NotesTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                     dateStr, 
-                     style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)
+                    dateStr,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   if (note.text.isNotEmpty) ...[
                     Text(note.text, style: const TextStyle(fontSize: 15)),
                     const SizedBox(height: 12),

@@ -37,6 +37,7 @@ dependencies:
   flutter_native_splash: ^2.4.7
   image_picker: ^1.2.2
   package_info_plus: ^10.1.0
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:
