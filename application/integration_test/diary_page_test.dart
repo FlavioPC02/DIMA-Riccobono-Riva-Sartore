@@ -33,6 +33,9 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 10));
 
     await login(tester);
+
+    final seededId = await seedPlannedActivity();
+
     await goToDiaryPage(tester);
 
     final plannedTab = find.text('Planned');
@@ -57,9 +60,8 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 10));
 
     expect(find.byType(NavigatorScreen), findsOneWidget);
-    //TODO: non salvo online il percorso, quindi se lo storage locale viene distrutto per un motivo X non so come recuperare i dati
 
-    //TODO: se non ci sono trails va aggiunto a manina -> da capire come fare quando mi rispondono
+    await deletePlannedActivity(seededId);
   });
 
   testWidgets('Go to completed activities and open one', (tester) async {

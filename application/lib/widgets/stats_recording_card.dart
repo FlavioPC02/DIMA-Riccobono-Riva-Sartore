@@ -122,6 +122,7 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                       children: [
                         Center(
                           child: Container(
+                            key: const ValueKey('sheet_drag_handle'),
                             width: 44,
                             height: 4,
                             decoration: BoxDecoration(
@@ -264,6 +265,7 @@ class _StatsRecordingCardState extends State<StatsRecordingCard> {
                                     Expanded(
                                       flex: 3,
                                       child: ElevatedButton.icon(
+                                        key: const ValueKey('stop_button'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
                                               AppColors.stopButtonBackground,

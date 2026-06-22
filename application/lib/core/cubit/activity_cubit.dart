@@ -3,7 +3,6 @@ import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ActivityCubit extends Cubit<List<Activity>> {
@@ -50,7 +49,6 @@ class ActivityCubit extends Cubit<List<Activity>> {
 
   @override
   Future<void> close() async {
-    debugPrint("Activity cubit sta CHIUDENDO");
     await _subscription?.cancel();
     _subscription = null;
     return super.close();
