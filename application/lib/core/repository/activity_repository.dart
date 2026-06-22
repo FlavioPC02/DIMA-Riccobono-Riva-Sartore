@@ -45,7 +45,7 @@ class ActivityRepository {
           .toList(),
     );
 
-    return _mergeActivityStreams(localStream, remoteStream, remote);
+    return _mergeActivityStreams(localStream, remoteStream);
   }
 
   Future<String?> addActivity(Activity activity) async {
@@ -80,16 +80,13 @@ class ActivityRepository {
     }
 
     if (remote == null) {
-      await _localStore.upsertActivity(activity);
-      return;
+      throw StateError(
+        'A completed activity requires an authenticated Firestore user',
+      );
     }
 
-    final savedRemotely = await _trySaveRemote(activity, remote);
-    if (savedRemotely) {
-      await _localStore.deleteActivity(activity.id);
-    } else {
-      await _localStore.upsertActivity(activity);
-    }
+    await remote.updateActivity(activity.id, activity.toJson());
+    await _localStore.upsertActivity(activity);
   }
 
   Future<bool> _trySaveRemote(
@@ -109,7 +106,6 @@ class ActivityRepository {
   Stream<List<Activity>> _mergeActivityStreams(
     Stream<List<Activity>> localStream,
     Stream<List<Activity>> remoteStream,
-    DatabaseService remote,
   ) {
     late StreamSubscription<List<Activity>> localSubscription;
     late StreamSubscription<List<Activity>> remoteSubscription;
@@ -127,7 +123,6 @@ class ActivityRepository {
     controller.onListen = () {
       localSubscription = localStream.listen((activities) {
         localActivities = activities;
-        _syncPendingCompletedActivities(activities, remote);
         emitMerged();
       }, onError: controller.addError);
 
@@ -143,27 +138,6 @@ class ActivityRepository {
     };
 
     return controller.stream;
-  }
-
-  void _syncPendingCompletedActivities(
-    List<Activity> activities,
-    DatabaseService remote,
-  ) {
-    for (final activity in activities) {
-      if (activity.status == ActivityStatus.completed) {
-        unawaited(_syncCompletedActivity(activity, remote));
-      }
-    }
-  }
-
-  Future<void> _syncCompletedActivity(
-    Activity activity,
-    DatabaseService remote,
-  ) async {
-    final savedRemotely = await _trySaveRemote(activity, remote);
-    if (savedRemotely) {
-      await _localStore.deleteActivity(activity.id);
-    }
   }
 
   List<Activity> _mergeActivities(

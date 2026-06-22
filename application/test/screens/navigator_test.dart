@@ -493,8 +493,16 @@ void main() {
       );
 
       //existing activity => call updateActivity
-      verify(() => mockActivityCubit.updateActivity(any())).called(1);
+      final savedActivity = verify(
+        () => mockActivityCubit.updateActivity(captureAny()),
+      ).captured.single as Activity;
       verifyNever(() => mockActivityCubit.addActivity(any()));
+
+      expect(savedActivity.status, ActivityStatus.completed);
+      expect(savedActivity.trackedDistance, 4200.0);
+      expect(savedActivity.trackedElevationGap, 150.0);
+      expect(savedActivity.trackedTime, const Duration(minutes: 42));
+      expect(existingActivity.status, ActivityStatus.planned);
 
       verify(() => mockProfileCubit.updateXp(any())).called(1);
     });

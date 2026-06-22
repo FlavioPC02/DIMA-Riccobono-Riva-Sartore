@@ -19,7 +19,20 @@ class ActivityCubit extends Cubit<List<Activity>> {
   }
 
   Future<void> updateActivity(Activity activity) async {
-    await _repository.updateActivity(activity);
+    final previousState = state;
+
+    emit(
+      state
+          .map((current) => current.id == activity.id ? activity : current)
+          .toList(growable: false),
+    );
+
+    try {
+      await _repository.updateActivity(activity);
+    } catch (_) {
+      emit(previousState);
+      rethrow;
+    }
   }
 
   Future<void> deleteActivity(String id) async {

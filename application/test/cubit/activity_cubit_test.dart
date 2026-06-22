@@ -115,6 +115,32 @@ void main() {
       await cubit.close();
     });
 
+    test('emits an updated activity before the repository completes', () async {
+      final controller = StreamController<List<Activity>>();
+      addTearDown(controller.close);
+      final repo = createMockRepo(remoteStream: controller.stream);
+      final saveCompleter = Completer<void>();
+      when(() => repo.updateActivity(any())).thenAnswer((_) => saveCompleter.future);
+      final cubit = ActivityCubit(repo);
+      final planned = buildActivity(id: 'a1');
+      final completed = buildActivity(
+        id: 'a1',
+        status: ActivityStatus.completed,
+      );
+
+      controller.add([planned]);
+      await Future<void>.delayed(Duration.zero);
+
+      final saveFuture = cubit.updateActivity(completed);
+
+      expect(cubit.state.single.status, ActivityStatus.completed);
+      verify(() => repo.updateActivity(completed)).called(1);
+
+      saveCompleter.complete();
+      await saveFuture;
+      await cubit.close();
+    });
+
     test('forwards deleteActivity to the repository', () async {
       final repo = createMockRepo();
       final cubit = ActivityCubit(repo);

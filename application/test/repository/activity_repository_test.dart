@@ -120,7 +120,7 @@ void main() {
     });
 
     test(
-      'addActivity keeps completed activities locally without remote',
+      'addActivity rejects completed activities without a Firestore user',
       () async {
         final localStore = FakeActivityLocalStore();
         addTearDown(localStore.close);
@@ -135,15 +135,14 @@ void main() {
           date: DateTime.now(),
         );
 
-        final id = await repo.addActivity(a);
+        await expectLater(repo.addActivity(a), throwsA(isA<StateError>()));
 
-        expect(id, equals('local_1'));
-        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities, isEmpty);
       },
     );
 
     test(
-      'updateActivity keeps completed activities locally without remote',
+      'updateActivity rejects completed activities without a Firestore user',
       () async {
         final localStore = FakeActivityLocalStore();
         addTearDown(localStore.close);
@@ -151,21 +150,19 @@ void main() {
           hasCurrentUser: () => false,
           localStore: localStore,
         );
-        final planned = Activity(
+        final completed = Activity(
           id: 'i',
           name: 'x',
-          status: ActivityStatus.planned,
+          status: ActivityStatus.completed,
           date: DateTime.now(),
         );
 
-        await repo.updateActivity(planned);
-        expect(localStore.activities.single.id, equals('i'));
-
-        await repo.updateActivity(
-          planned.copyWith(status: ActivityStatus.completed),
+        await expectLater(
+          repo.updateActivity(completed),
+          throwsA(isA<StateError>()),
         );
 
-        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities, isEmpty);
       },
     );
 
@@ -296,7 +293,7 @@ void main() {
     });
 
     test(
-      'updateActivity removes completed activities locally after remote save',
+      'updateActivity caches completed activities after Firestore save',
       () async {
         final mockDb = MockDatabaseService();
         when(
@@ -324,13 +321,64 @@ void main() {
           planned.copyWith(status: ActivityStatus.completed),
         );
 
-        expect(localStore.activities, isEmpty);
+        expect(localStore.activities.single.status, ActivityStatus.completed);
         verify(() => mockDb.updateActivity('i1', any())).called(2);
       },
     );
 
     test(
-      'updateActivity keeps completed activities locally when remote fails',
+      'completed activity remains visible while the Firestore stream is stale',
+      () async {
+        final mockDb = MockDatabaseService();
+        final remoteController = StreamController<List<Map<String, dynamic>>>();
+        addTearDown(remoteController.close);
+        when(
+          () => mockDb.streamActivities(),
+        ).thenAnswer((_) => remoteController.stream);
+        when(
+          () => mockDb.updateActivity(any(), any()),
+        ).thenAnswer((_) async {});
+
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        final planned = Activity(
+          id: 'i1',
+          name: 'X',
+          status: ActivityStatus.planned,
+          date: DateTime(2026, 1, 1),
+        );
+        await localStore.upsertActivity(planned);
+
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+        );
+        final emissions = <List<Activity>>[];
+        final subscription = repo.streamActivities().listen(emissions.add);
+        addTearDown(subscription.cancel);
+
+        remoteController.add([
+          {
+            'id': 'i1',
+            'name': 'X',
+            'status': 'planned',
+            'date': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          },
+        ]);
+        await Future<void>.delayed(Duration.zero);
+
+        await repo.updateActivity(
+          planned.copyWith(status: ActivityStatus.completed),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emissions.last.single.status, ActivityStatus.completed);
+      },
+    );
+
+    test(
+      'updateActivity propagates Firestore failures without a local fallback',
       () async {
         final mockDb = MockDatabaseService();
         when(
@@ -351,9 +399,12 @@ void main() {
           date: DateTime.now(),
         );
 
-        await repo.updateActivity(completed);
+        await expectLater(
+          repo.updateActivity(completed),
+          throwsA(isA<Exception>()),
+        );
 
-        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities, isEmpty);
       },
     );
 
@@ -607,7 +658,7 @@ void main() {
       expect(localStore.activities.firstWhere((act) => act.id == 'a4').notes.isEmpty, true);
     });
 
-    test('streamActivities triggers remote sync for pending completed activities', () async {
+    test('streamActivities does not sync locally completed activities', () async {
       final mockDb = MockDatabaseService();
       final controller = StreamController<List<Map<String, dynamic>>>();
       addTearDown(controller.close);
@@ -632,7 +683,7 @@ void main() {
       
       await Future<void>.delayed(Duration(milliseconds: 50));
 
-      verify(() => mockDb.updateActivity('sync_me', any())).called(1);
+      verifyNever(() => mockDb.updateActivity(any(), any()));
       
       await sub.cancel();
     });
