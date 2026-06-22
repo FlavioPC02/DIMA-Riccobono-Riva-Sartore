@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
@@ -100,27 +102,45 @@ class MainApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  StreamSubscription<User?>? _authSubscription;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLoggedIn = FirebaseAuth.instance.currentUser != null;
+
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      debugPrint("user = $user");
+      final loggedIn = user != null;
+      if(loggedIn == _isLoggedIn) return;
+
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+
+      setState(() {
+        _isLoggedIn = loggedIn;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        debugPrint("AuthGate build: user = ${snapshot.data}");
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (!snapshot.hasData) {
-          return const LoginScreen();
-        }
-
-        return const Navigation();
-      },
-    );
+    return _isLoggedIn ? const Navigation() : const LoginScreen();
   }
 }

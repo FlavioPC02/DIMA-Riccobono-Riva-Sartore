@@ -1,7 +1,6 @@
 import 'package:application/core/models/profile.dart';
 import 'package:application/core/repository/profile_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -9,6 +8,7 @@ import 'dart:math' as math;
 class ProfileCubit extends HydratedCubit<Profile> {
   final ProfileRepository _repository;
   StreamSubscription<Profile?>? _remoteSubscription;
+  StreamSubscription<User?>? _authSubscription;
 
   ProfileCubit(this._repository)
     : super(
@@ -19,7 +19,43 @@ class ProfileCubit extends HydratedCubit<Profile> {
           level: 0,
         ),
       ) {
-    _bootstrapSync();
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) {
+        _onLoggedOut();
+      } else {
+        _onLoggedIn();
+      }
+    });
+  }
+
+  void _onLoggedOut() {
+    _remoteSubscription?.cancel();
+    _remoteSubscription = null;
+    clear();
+    emit(Profile(nickname: '', mail: '', xp: 0, level: 0));
+  }
+
+  Future<void> _onLoggedIn() async {
+    await _remoteSubscription?.cancel();
+    _remoteSubscription = null;
+
+    if (isClosed) return;
+
+    final remoteProfile = await _repository.fetchRemote();
+
+    if (isClosed) return;
+
+    if (remoteProfile != null) {
+      emit(remoteProfile);
+    }
+
+    _remoteSubscription = _repository.streamRemote().listen(
+      (remote) {
+        if (remote != null && remote != state) {
+          emit(remote);
+        }
+      }
+    );
   }
 
   void updateNickname(String value) {
@@ -53,29 +89,6 @@ class ProfileCubit extends HydratedCubit<Profile> {
     return level;
   }
 
-  Future<void> _bootstrapSync() async {
-    final remoteProfile = await _repository.fetchRemote();
-
-    if (isClosed) return;
-
-    if (remoteProfile != null) {
-      emit(remoteProfile);
-    }
-
-    _remoteSubscription = _repository.streamRemote().listen(
-      (remote) {
-        if (remote != null && remote != state) {
-          emit(remote);
-        }
-      },
-      onError: (e) {
-        if (e is FirebaseException && e.code == 'permission-denied') {
-          return;
-        }
-      },
-    );
-  }
-
   void _emitAndSync(Profile next) {
     emit(next);
     unawaited(_repository.saveRemote(next));
@@ -92,19 +105,12 @@ class ProfileCubit extends HydratedCubit<Profile> {
     return state.toJson();
   }
 
-  Future<void> reset() async {
-    debugPrint("Profile cubit sta RESETTANDO");
-    await _remoteSubscription?.cancel();
-    _remoteSubscription = null;
-
-    emit(Profile(nickname: '', mail: '', xp: 0, level: 0));
-  }
-
   @override
   Future<void> close() async {
-    debugPrint("Profile cubit sta CHIUDENDO");
     await _remoteSubscription?.cancel();
+    await _authSubscription?.cancel();
     _remoteSubscription = null;
+    _authSubscription = null;
     return super.close();
   }
 }

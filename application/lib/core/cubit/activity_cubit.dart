@@ -35,11 +35,6 @@ class ActivityCubit extends Cubit<List<Activity>> {
     await _repository.deleteActivity(id);
   }
 
-  Future<void> reset() async {
-    debugPrint("Activity cubit sta RESETTANDO");
-    emit([]);
-  }
-
   @override
   Future<void> close() async {
     debugPrint("Activity cubit sta CHIUDENDO");
