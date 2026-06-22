@@ -4,18 +4,23 @@ import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/services/database_service.dart';
 import 'package:application/services/local_activity_store.dart';
+import 'package:application/services/trail_geometry_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ActivityRepository {
   final bool Function()? hasCurrentUser;
   final DatabaseService Function()? databaseServiceFactory;
   final ActivityLocalDataSource _localStore;
+  final TrailGeometryDataSource _trailGeometrySource;
 
   ActivityRepository({
     this.hasCurrentUser,
     this.databaseServiceFactory,
     ActivityLocalDataSource? localStore,
-  }) : _localStore = localStore ?? HiveActivityStore();
+    TrailGeometryDataSource? trailGeometrySource,
+  }) : _localStore = localStore ?? HiveActivityStore(),
+       _trailGeometrySource =
+           trailGeometrySource ?? OverpassTrailGeometryService();
 
   DatabaseService? _remoteOrNull() {
     final hasUser = hasCurrentUser != null
@@ -182,31 +187,30 @@ class ActivityRepository {
 
   Future<Activity?> fetchActivityDetails(String id) async {
     final remote = _remoteOrNull();
+    final localActivity = await _findLocalActivity(id);
 
     if (remote != null) {
       try {
         final docData = await remote.fetchActivity(id);
 
         if (docData != null) {
-          Activity remoteActivity = Activity.fromJson(id, docData);
-          
-          final localActivities = await _localStore.streamActivities().first;
-          try {
-             final localActivity = localActivities.firstWhere((a) => a.id == id);
-             remoteActivity = remoteActivity.copyWith(trailPath: localActivity.trailPath);
-          } catch (_) {
-            //activity non exisiting in local cache then ignore trailPath
-          }
+          final remoteActivity = Activity.fromJson(
+            id,
+            docData,
+          ).copyWith(trailPath: localActivity?.trailPath);
 
-          await _localStore.upsertActivity(remoteActivity);
-          
-          return remoteActivity;
+          return _hydrateAndCacheTrailPath(remoteActivity);
         }
-      } catch (e) {
+      } catch (_) {
         // fallback: read from hive
       }
     }
 
+    if (localActivity == null) return null;
+    return _hydrateAndCacheTrailPath(localActivity);
+  }
+
+  Future<Activity?> _findLocalActivity(String id) async {
     final localActivities = await _localStore.streamActivities().first;
     try {
       return localActivities.firstWhere((a) => a.id == id);
@@ -215,11 +219,31 @@ class ActivityRepository {
     }
   }
 
+  Future<Activity> _hydrateAndCacheTrailPath(Activity activity) async {
+    var hydratedActivity = activity;
+
+    if (!activity.hasTrailPath && activity.trailId.isNotEmpty) {
+      try {
+        final trailPath = await _trailGeometrySource.fetchTrailPath(
+          activity.trailId,
+        );
+        if (trailPath.any((segment) => segment.isNotEmpty)) {
+          hydratedActivity = activity.copyWith(trailPath: trailPath);
+        }
+      } catch (_) {
+        // Keep the activity available even if its geometry cannot be fetched.
+      }
+    }
+
+    await _localStore.upsertActivity(hydratedActivity);
+    return hydratedActivity;
+  }
+
   Future<void> saveNote(Activity activity, ActivityNote note) async {
     List<ActivityNote> updatedNotes = List.from(activity.notes);
     final index = updatedNotes.indexWhere((n) => n.id == note.id);
     final isNewNote = index == -1;
-    
+
     ActivityNote? oldNote = isNewNote ? null : updatedNotes[index];
 
     if (isNewNote) {
@@ -227,7 +251,7 @@ class ActivityRepository {
     } else {
       updatedNotes[index] = note;
     }
-    
+
     await _localStore.upsertActivity(activity.copyWith(notes: updatedNotes));
 
     final remote = _remoteOrNull();
@@ -262,7 +286,7 @@ class ActivityRepository {
   Future<void> deleteNote(Activity activity, ActivityNote noteToDelete) async {
     List<ActivityNote> updatedNotes = List.from(activity.notes)
       ..removeWhere((n) => n.id == noteToDelete.id);
-    
+
     final localActivity = activity.copyWith(notes: updatedNotes);
     await _localStore.upsertActivity(localActivity);
 

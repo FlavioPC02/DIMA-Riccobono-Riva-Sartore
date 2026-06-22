@@ -991,7 +991,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                         date: DateTime.now(),
                         trailName: widget.trail['name'],
                         trailId: widget.trail['id']?.toString() ?? '',
-                        trailPath: _trailPath,
+                        trailPath: _trailPath(),
                         distanceKm: _distanceKm,
                         durationMinutes: _durationMinutes,
                         difficulty: difficulty,
@@ -1032,7 +1032,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                         status: ActivityStatus.planned,
                         trailName: widget.trail['name'],
                         trailId: widget.trail['id']?.toString() ?? '',
-                        trailPath: _trailPath,
+                        trailPath: _trailPath(),
                         distanceKm: _distanceKm,
                         durationMinutes: _durationMinutes,
                         date: DateTime.now(),
@@ -1132,7 +1132,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   }
 
 
-  List<List<TrailPoint>> get _trailPath {
+  List<List<TrailPoint>> _trailPath() {
   final subTrails = widget.trail['subTrails'];
   if (subTrails is! List) return const [];
 

@@ -2,14 +2,19 @@ import 'dart:async';
 
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
+import 'package:application/core/models/trail_point.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/services/local_activity_store.dart';
+import 'package:application/services/trail_geometry_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
+
+class MockTrailGeometryDataSource extends Mock
+    implements TrailGeometryDataSource {}
 
 class FakeActivityLocalStore implements ActivityLocalDataSource {
   final _controller = StreamController<List<Activity>>.broadcast();
@@ -382,6 +387,127 @@ void main() {
       expect(result?.trailPath, localActivity.trailPath);
       verify(() => mockDb.fetchActivity('sync_id')).called(1);
     });
+
+    test(
+      'fetchActivityDetails downloads and caches a missing trailPath by trailId',
+      () async {
+        final mockDb = MockDatabaseService();
+        final geometrySource = MockTrailGeometryDataSource();
+        const downloadedPath = [
+          [TrailPoint(lat: 45.1, lng: 9.1), TrailPoint(lat: 45.2, lng: 9.2)],
+        ];
+        final remoteDoc = {
+          'name': 'Remote Hike',
+          'status': 'planned',
+          'date': Timestamp.now(),
+          'trailName': 'Remote Trail',
+          'trailId': '12345',
+        };
+
+        when(
+          () => mockDb.fetchActivity('remote_activity'),
+        ).thenAnswer((_) async => remoteDoc);
+        when(
+          () => geometrySource.fetchTrailPath('12345'),
+        ).thenAnswer((_) async => downloadedPath);
+
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          trailGeometrySource: geometrySource,
+        );
+
+        final result = await repo.fetchActivityDetails('remote_activity');
+
+        expect(result?.trailPath, downloadedPath);
+        expect(localStore.activities.single.trailPath, downloadedPath);
+        verify(() => geometrySource.fetchTrailPath('12345')).called(1);
+      },
+    );
+
+    test(
+      'fetchActivityDetails reuses the local trailPath without downloading it',
+      () async {
+        final mockDb = MockDatabaseService();
+        final geometrySource = MockTrailGeometryDataSource();
+        const cachedPath = [
+          [TrailPoint(lat: 45.1, lng: 9.1)],
+        ];
+        final remoteDoc = {
+          'name': 'Remote Hike',
+          'status': 'planned',
+          'date': Timestamp.now(),
+          'trailId': '12345',
+        };
+
+        when(
+          () => mockDb.fetchActivity('cached_activity'),
+        ).thenAnswer((_) async => remoteDoc);
+
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        await localStore.upsertActivity(
+          Activity(
+            id: 'cached_activity',
+            name: 'Cached',
+            status: ActivityStatus.planned,
+            date: DateTime.now(),
+            trailId: '12345',
+            trailPath: cachedPath,
+          ),
+        );
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          trailGeometrySource: geometrySource,
+        );
+
+        final result = await repo.fetchActivityDetails('cached_activity');
+
+        expect(result?.trailPath, cachedPath);
+        verifyNever(() => geometrySource.fetchTrailPath(any()));
+      },
+    );
+
+    test(
+      'fetchActivityDetails keeps remote metadata when trail download fails',
+      () async {
+        final mockDb = MockDatabaseService();
+        final geometrySource = MockTrailGeometryDataSource();
+        final remoteDoc = {
+          'name': 'Remote Hike',
+          'status': 'planned',
+          'date': Timestamp.now(),
+          'trailId': '12345',
+        };
+
+        when(
+          () => mockDb.fetchActivity('offline_activity'),
+        ).thenAnswer((_) async => remoteDoc);
+        when(
+          () => geometrySource.fetchTrailPath('12345'),
+        ).thenThrow(Exception('offline'));
+
+        final localStore = FakeActivityLocalStore();
+        addTearDown(localStore.close);
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          trailGeometrySource: geometrySource,
+        );
+
+        final result = await repo.fetchActivityDetails('offline_activity');
+
+        expect(result?.name, 'Remote Hike');
+        expect(result?.trailPath, isEmpty);
+        expect(localStore.activities.single.name, 'Remote Hike');
+      },
+    );
 
     test('fetchActivityDetails fallbacks to local store if remote fetch fails', () async {
       final mockDb = MockDatabaseService();
