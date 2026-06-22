@@ -1,3 +1,5 @@
+import 'package:application/core/models/activity.dart';
+import 'package:application/core/repository/activity_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,4 +87,35 @@ Future<void> goToNavigatorScreen(WidgetTester tester) async {
   final navigateButton = find.byKey(Key('start_tracking_trail'));
   await tester.tap(navigateButton);
   await tester.pump(const Duration(seconds: 10));
+}
+
+Future<void> goToActivityDetailPage(WidgetTester tester) async {
+  await goToDiaryPage(tester);
+
+  final plannedTab = find.text('Planned');
+  expect(plannedTab, findsOneWidget);
+
+  await tester.tap(plannedTab);
+  await tester.pumpAndSettle();
+
+  final plannedTrails = find.byKey(Key('activity_card'));
+  expect(plannedTrails, findsAtLeast(1));
+
+  await tester.tap(plannedTrails.first);
+  await tester.pump(const Duration(seconds: 5));
+}
+
+Future<String> seedPlannedActivity() async {
+  final activity = Activity(
+    id: '',
+    name: 'Test Hike',
+    status: ActivityStatus.planned,
+    date: DateTime.now().add(const Duration(days: 1)),
+  );
+  final id = await ActivityRepository().addActivity(activity);
+  return id!;
+}
+
+Future<void> deletePlannedActivity(String id) async {
+  await ActivityRepository().deleteActivity(id);
 }

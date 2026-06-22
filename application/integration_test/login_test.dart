@@ -30,7 +30,7 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  testWidgets('log in and navigate to profile page', (tester) async {
+  testWidgets('log in and navigate to homepage', (tester) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 10));
 
@@ -70,6 +70,5 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 20));
 
     expect(find.byType(LoginScreen), findsOneWidget);
-    await tester.pumpAndSettle(const Duration(seconds: 10));
   });
 }

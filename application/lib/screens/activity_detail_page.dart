@@ -143,6 +143,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                       builder: (context, _) {
                         if (tabController.index == 1) {
                           return FloatingActionButton(
+                            key: const ValueKey('add_note'),
                             onPressed: () async {
                               final result =
                                   await showDialog<Map<String, dynamic>>(

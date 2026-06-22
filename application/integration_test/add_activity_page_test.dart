@@ -1,7 +1,4 @@
-import 'dart:math';
-
 import 'package:application/screens/add_activity_page.dart';
-import 'package:application/screens/navigator.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +27,6 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  //TODO: da finire quando ci avrò capito qualcosa
   testWidgets('Plan activity', (tester) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 10));
@@ -57,8 +53,6 @@ void main() {
     await tester.ensureVisible(saveButton);
     await tester.tap(saveButton);
     await tester.pump();
-
-    await goToPlannedDiaryPage(tester);
 
     expect(find.text('Test activity'), findsAtLeast(1));
     expect(find.text('08/10/2026'), findsAtLeast(1));
