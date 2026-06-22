@@ -6,6 +6,7 @@ import 'package:application/services/database_service.dart';
 import 'package:application/services/local_activity_store.dart';
 import 'package:application/services/trail_geometry_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class ActivityRepository {
   final bool Function()? hasCurrentUser;
@@ -197,20 +198,45 @@ class ActivityRepository {
     var hydratedActivity = activity;
 
     if (!activity.hasTrailPath && activity.trailId.isNotEmpty) {
+      _logTrailDownload(
+        'Local path missing for activity=${activity.id}; '
+        'downloading trailId=${activity.trailId}',
+      );
       try {
         final trailPath = await _trailGeometrySource.fetchTrailPath(
           activity.trailId,
         );
         if (trailPath.any((segment) => segment.isNotEmpty)) {
           hydratedActivity = activity.copyWith(trailPath: trailPath);
+          _logTrailDownload(
+            'Path reconstructed for activity=${activity.id}',
+          );
+        } else {
+          _logTrailDownload(
+            'No geometry returned for activity=${activity.id}',
+          );
         }
-      } catch (_) {
+      } catch (error) {
+        _logTrailDownload(
+          'Download failed for activity=${activity.id}: $error',
+        );
         // Keep the activity available even if its geometry cannot be fetched.
       }
+    } else if (activity.hasTrailPath) {
+      _logTrailDownload('Local cache hit for activity=${activity.id}');
+    } else {
+      _logTrailDownload(
+        'Cannot download activity=${activity.id}: trailId is empty',
+      );
     }
 
     await _localStore.upsertActivity(hydratedActivity);
+    _logTrailDownload('Activity=${activity.id} saved in the local cache');
     return hydratedActivity;
+  }
+
+  void _logTrailDownload(String message) {
+    if (kDebugMode) debugPrint('[TrailDownload] $message');
   }
 
   Future<void> saveNote(Activity activity, ActivityNote note) async {

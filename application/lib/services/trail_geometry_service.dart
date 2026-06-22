@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:application/core/models/trail_point.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 abstract interface class TrailGeometryDataSource {
@@ -29,7 +30,12 @@ class OverpassTrailGeometryService implements TrailGeometryDataSource {
   @override
   Future<List<List<TrailPoint>>> fetchTrailPath(String trailId) async {
     final relationId = int.tryParse(trailId);
-    if (relationId == null || relationId <= 0) return const [];
+    if (relationId == null || relationId <= 0) {
+      _log('Invalid trailId: $trailId');
+      return const [];
+    }
+
+    _log('Starting download for trailId=$trailId');
 
     final query =
         '''
@@ -43,6 +49,7 @@ out geom;
 
     for (final endpoint in _endpoints) {
       try {
+        _log('Trying ${endpoint.host}');
         final response = await _client
             .post(
               endpoint,
@@ -53,15 +60,27 @@ out geom;
 
         if (response.statusCode != 200) {
           lastError = 'Overpass returned HTTP ${response.statusCode}';
+          _log('${endpoint.host} returned HTTP ${response.statusCode}');
           continue;
         }
 
-        return _decodeTrailPath(response.body);
+        final trailPath = _decodeTrailPath(response.body);
+        final pointCount = trailPath.fold<int>(
+          0,
+          (total, segment) => total + segment.length,
+        );
+        _log(
+          'Download completed: ${trailPath.length} segments, '
+          '$pointCount points',
+        );
+        return trailPath;
       } catch (error) {
         lastError = error;
+        _log('${endpoint.host} failed: $error');
       }
     }
 
+    _log('Download failed for trailId=$trailId: $lastError');
     throw TrailGeometryException(
       'Unable to retrieve trail $trailId from Overpass',
       cause: lastError,
@@ -96,6 +115,10 @@ out geom;
     }
 
     return segments;
+  }
+
+  void _log(String message) {
+    if (kDebugMode) debugPrint('[TrailDownload] $message');
   }
 }
 
