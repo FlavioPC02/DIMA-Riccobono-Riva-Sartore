@@ -11,7 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 int totalXpTillNextLevel(int level, {int baseXp = 100, double growth = 1.2}) {
   int totalXp = 0;
-  for (var i = 0; i < level + 1; i ++) {
+  for (var i = 0; i < level + 1; i++) {
     totalXp += (baseXp * pow(growth, i + 1)).round();
   }
   return totalXp;
@@ -21,7 +21,7 @@ class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState(){
+  State<ProfilePage> createState() {
     return _ProfilePageState();
   }
 }
@@ -58,14 +58,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout() async {
     try {
-      await context.read<ProfileCubit>().reset();
-      if (mounted) {
-        await context.read<ActivityCubit>().reset();
-      }
-      if (mounted) {
-        await context.read<SettingsCubit>().reset();
-      }
       await AuthService().signOut();
+      //if (mounted) {
+      //  Navigator.of(context).popUntil((route) => route.isFirst);
+      //}
     } catch (e) {
       if (!mounted) {
         return;
@@ -74,16 +70,13 @@ class _ProfilePageState extends State<ProfilePage> {
       debugPrint(e.toString());
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Logout failed. Try again.'),
-        ),
+        const SnackBar(content: Text('Logout failed. Try again.')),
       );
     }
   }
 
   double truncateToDecimalPlaces(num value) =>
-      (value * pow(10, 2)).truncate() /
-        pow(10, 2);
+      (value * pow(10, 2)).truncate() / pow(10, 2);
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +84,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final profile = context.watch<ProfileCubit>().state;
     final activities = context.watch<ActivityCubit>().state;
 
-    if (!_isNicknameFormExpanded && _nicknameController.text != profile.nickname) {
+    if (!_isNicknameFormExpanded &&
+        _nicknameController.text != profile.nickname) {
       _nicknameController.text = profile.nickname;
     }
 
@@ -127,14 +121,19 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   // Stats & difficulty card
                   _StatsdifficultySection(
-                    hikeNumber: activities.where((a) => a.status == ActivityStatus.completed).toList().length,
+                    hikeNumber: activities
+                        .where((a) => a.status == ActivityStatus.completed)
+                        .toList()
+                        .length,
                     distance: truncateToDecimalPlaces(
                       activities.fold<double>(
-                        0.0,
-                        (distance, activity) => activity.status == ActivityStatus.completed
-                            ? distance + activity.trackedDistance
-                            : distance,
-                      ) / 1000, //kilometers
+                            0.0,
+                            (distance, activity) =>
+                                activity.status == ActivityStatus.completed
+                                ? distance + activity.trackedDistance
+                                : distance,
+                          ) /
+                          1000, //kilometers
                     ),
                     difficultyLevel: settings.difficulty,
                     ondifficultyChanged: (value) {
@@ -167,7 +166,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     notificationValue: settings.notifications,
                     onNotificationValueChanged: (value) {
                       setState(() {
-                        context.read<SettingsCubit>().updateNotifications(value);
+                        context.read<SettingsCubit>().updateNotifications(
+                          value,
+                        );
                       });
                     },
                   ),
@@ -190,9 +191,9 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.nickname,
     required this.email,
-    required this.xpLength, 
-    required this.level
-    });
+    required this.xpLength,
+    required this.level,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -201,60 +202,63 @@ class _Header extends StatelessWidget {
       width: 420,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondary,
-        borderRadius:BorderRadius.vertical(
+        borderRadius: BorderRadius.vertical(
           top: Radius.zero,
           bottom: Radius.circular(30),
-        )
+        ),
       ),
       child: Column(
         children: [
-          SizedBox(height: 15,),
+          SizedBox(height: 15),
           //Avatar + text info
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                margin: const EdgeInsets.only(right: 10),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFF4E9D8),
-                  border: Border.all(
-                    color: const Color(0xFF4A2F1F),
-                    width: 2,
+          Padding(
+            padding: EdgeInsetsGeometry.fromLTRB(15, 0, 15, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 90,
+                  height: 90,
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFF4E9D8),
+                    border: Border.all(
+                      color: const Color(0xFF4A2F1F),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(Icons.person, size: 60),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Nickname
+                      Text(
+                        nickname,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      // Mail
+                      Text(
+                        email,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                child: const Icon(Icons.person, size: 60,),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Nickname
-                    Text(
-                      nickname,
-                      style: Theme.of(context).textTheme.headlineMedium
-                    ),
-                    // Mail
-                    Text(
-                      email,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
 
-          SizedBox(height: 20,),
+          SizedBox(height: 20),
 
           //XP bar
           xpBar(context, indicatorLength),
 
-          SizedBox(height: 20,),
+          SizedBox(height: 20),
         ],
       ),
     );
@@ -272,24 +276,20 @@ class _Header extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'XP Level',
-                textAlign: TextAlign.left,
-              ),
-              Text(
-                'Level $level',
-                textAlign: TextAlign.end,
-              ),
+              Text('XP Level', textAlign: TextAlign.left),
+              Text('Level $level', textAlign: TextAlign.end),
             ],
           ),
-          
+
           // progress bar
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.25),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.shadow.withValues(alpha: 0.25),
                   blurRadius: 12,
                   spreadRadius: 1,
                   offset: const Offset(0, 3),
@@ -302,7 +302,9 @@ class _Header extends StatelessWidget {
                 minHeight: 14,
                 value: indicatorLength,
                 backgroundColor: AppColors.inactiveTrackColor,
-                valueColor: AlwaysStoppedAnimation(Theme.of(context).colorScheme.primary),
+                valueColor: AlwaysStoppedAnimation(
+                  Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
           ),
@@ -340,7 +342,7 @@ class _StatsdifficultySection extends StatelessWidget {
             'Stats & difficulty',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 10,),
+          const SizedBox(height: 10),
 
           //Card
           Container(
@@ -359,51 +361,38 @@ class _StatsdifficultySection extends StatelessWidget {
                       Expanded(
                         child: Column(
                           children: [
-                            Icon(Icons.terrain,),
-                            SizedBox(height: 6,),
-                            Text(
-                              hikeNumber.toString(),
-                            ),
+                            Icon(Icons.terrain),
+                            SizedBox(height: 6),
+                            Text(hikeNumber.toString()),
                             Text(
                               hikeNumber == 1 ? 'Hike' : 'Hikes',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
 
                       // Vertical divider
-                      SizedBox(
-                        height: 60,
-                        child: VerticalDivider(),
-                      ),
+                      SizedBox(height: 60, child: VerticalDivider()),
 
                       // Distance
                       Expanded(
                         child: Column(
                           children: [
                             Icon(Icons.directions_walk),
-                            SizedBox(height: 6,),
+                            SizedBox(height: 6),
                             // Distance text
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  distance.toString(),
-                                ),
-                                Text(
-                                  ' Km',
-                                )
+                                Text(distance.toString()),
+                                Text(' Km'),
                               ],
                             ),
                             Text(
                               'Distance',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                       ),
@@ -411,7 +400,7 @@ class _StatsdifficultySection extends StatelessWidget {
                   ),
                 ),
 
-                const Divider(height: 1,),
+                const Divider(height: 1),
 
                 // difficulty Slider
                 Padding(
@@ -419,15 +408,17 @@ class _StatsdifficultySection extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Select your difficulty level:',
-                      ),
-                      const SizedBox(height: 10,),
+                      const Text('Select your difficulty level:'),
+                      const SizedBox(height: 10),
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 10,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 10,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 22,
+                          ),
                         ),
                         child: Slider(
                           value: difficultyLevel,
@@ -474,13 +465,13 @@ class _StatsdifficultySection extends StatelessWidget {
                   ),
                 ),
 
-                const Divider(height: 1,),
+                const Divider(height: 1),
 
                 // Ferrata switch
                 SwitchListTile(
                   title: const Text('Ferrata equipment'),
                   secondary: const Icon(Icons.hiking),
-                  value: ferrataSwitchValue, 
+                  value: ferrataSwitchValue,
                   onChanged: onFerrataSwitchChanged,
                 ),
               ],
@@ -518,11 +509,8 @@ class _AccountSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Account',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10,),
+          const Text('Account', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
 
           Container(
             decoration: BoxDecoration(
@@ -573,16 +561,16 @@ class _AccountSection extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Divider(height: 1,),
+                const Divider(height: 1),
 
                 // Notification switch
                 SwitchListTile(
                   secondary: Icon(Icons.notifications),
                   title: const Text('Notification'),
-                  value: notificationValue, 
+                  value: notificationValue,
                   onChanged: onNotificationValueChanged,
                 ),
-                const Divider(height: 1,),
+                const Divider(height: 1),
 
                 // Exit button
                 ListTile(
@@ -600,7 +588,7 @@ class _AccountSection extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 16,),
+          SizedBox(height: 16),
         ],
       ),
     );

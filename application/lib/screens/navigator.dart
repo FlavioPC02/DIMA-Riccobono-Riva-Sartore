@@ -7,7 +7,6 @@ import 'package:hike_core/hike_core.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
-import 'package:application/screens/homepage.dart';
 import 'package:application/services/map_management_service.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:flutter/material.dart';
@@ -147,8 +146,8 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
 
       onNavigateAfterStop: () {
         if (!mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const Navigation()),
+        Navigator.of(context).popUntil(
+          (route) => route.isFirst,
         );
       },
     );
