@@ -59,9 +59,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _logout() async {
     try {
       await AuthService().signOut();
-      //if (mounted) {
-      //  Navigator.of(context).popUntil((route) => route.isFirst);
-      //}
     } catch (e) {
       if (!mounted) {
         return;

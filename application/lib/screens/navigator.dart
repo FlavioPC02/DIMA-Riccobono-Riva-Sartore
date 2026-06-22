@@ -1,5 +1,6 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/services/phone_wear_sync.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:application/widgets/stats_recording_card.dart';
@@ -146,6 +147,7 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
 
       onNavigateAfterStop: () {
         if (!mounted) return;
+        context.read<NavigationIndexCubit>().setIndex(0); //Go back to map page
         Navigator.of(context).popUntil(
           (route) => route.isFirst,
         );

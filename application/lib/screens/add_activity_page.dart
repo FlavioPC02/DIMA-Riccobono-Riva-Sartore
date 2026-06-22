@@ -1,4 +1,5 @@
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -81,7 +82,10 @@ class AddActivityPageState extends State<AddActivityPage> {
 
     await context.read<ActivityCubit>().addActivity(activity);
 
-    if (mounted) Navigator.pop(context);
+    if (mounted) {
+      context.read<NavigationIndexCubit>().setIndex(1); // go to diary page
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 
   @override
