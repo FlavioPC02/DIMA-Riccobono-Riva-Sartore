@@ -48,12 +48,22 @@ class ActivityRepository {
     return _mergeActivityStreams(localStream, remoteStream);
   }
 
+  Future<PlannedTrail?> getPlannedTrail(String activityId) async {
+    return await _plannedTrailStore.getTrail(activityId);
+  }
+
   Future<String> addPlannedActivity(
     Activity activity,
     List<List<TrailPoint>> trailPoints,
   ) async {
     if (activity.status != ActivityStatus.planned) {
       throw ArgumentError('Activity must have status planned');
+    }
+
+    final hasGeometry = trailPoints.any((segment) => segment.isNotEmpty);
+
+    if (!hasGeometry) {
+      throw ArgumentError('Trail geometry is required');
     }
 
     if (activity.id.isEmpty) {
@@ -97,6 +107,7 @@ class ActivityRepository {
 
   Future<void> deleteActivity(String id) async {
     await _localStore.deleteActivity(id);
+    await _plannedTrailStore.deleteTrail(id);
 
     final remote = _remoteOrNull();
     if (remote == null) return;
@@ -119,7 +130,9 @@ class ActivityRepository {
     }
 
     await remote.updateActivity(activity.id, activity.toJson());
-    await _localStore.upsertActivity(activity);
+
+    await _localStore.deleteActivity(activity.id);
+    await _plannedTrailStore.deleteTrail(activity.id);
   }
 
   Future<bool> _trySaveRemote(
@@ -202,7 +215,14 @@ class ActivityRepository {
 
         if (docData != null) {
           final remoteActivity = Activity.fromJson(id, docData);
-          await _localStore.upsertActivity(remoteActivity);
+
+          if (remoteActivity.status == ActivityStatus.planned) {
+            await _localStore.upsertActivity(remoteActivity);
+          } else {
+            await _localStore.deleteActivity(id);
+            await _plannedTrailStore.deleteTrail(id);
+          }
+
           return remoteActivity;
         }
       } catch (_) {
@@ -237,7 +257,9 @@ class ActivityRepository {
     }
 
     activity.notes = updatedNotes;
-    await _localStore.upsertActivity(activity);
+    if (activity.status == ActivityStatus.planned) {
+      await _localStore.upsertActivity(activity);
+    }
 
     final remote = _remoteOrNull();
     if (remote == null) return;
@@ -266,7 +288,9 @@ class ActivityRepository {
       ..removeWhere((n) => n.id == noteToDelete.id);
 
     activity.notes = updatedNotes;
-    await _localStore.upsertActivity(activity);
+    if (activity.status == ActivityStatus.planned) {
+      await _localStore.upsertActivity(activity);
+    }
 
     final remote = _remoteOrNull();
     if (remote != null) {

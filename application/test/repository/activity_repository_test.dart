@@ -7,6 +7,9 @@ import 'package:application/services/local_activity_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:application/services/planned_trail_store.dart';
+import 'package:application/core/models/planned_trail.dart';
+import 'package:application/core/models/trail_point.dart';
 
 import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
@@ -56,12 +59,59 @@ class FakeActivityLocalStore implements ActivityLocalDataSource {
   }
 }
 
+class MockPlannedTrailStore extends Mock
+    implements PlannedTrailLocalDataSource {}
+
 void main() {
   setUpAll(() {
     setupTest();
+    registerFallbackValue(
+      const PlannedTrail(activityId: '', trailId: '', segments: []),
+    );
   });
 
   group('ActivityRepository when no user is signed in', () {
+    test('addPlannedActivity saves activity and geometry locally', () async {
+      final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+
+      addTearDown(localStore.close);
+
+      when(() => plannedTrailStore.saveTrail(any())).thenAnswer((_) async {});
+
+      final repository = ActivityRepository(
+        hasCurrentUser: () => false,
+        localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
+      );
+
+      final activity = Activity(
+        name: 'Offline hike',
+        status: ActivityStatus.planned,
+        date: DateTime(2026, 7, 1),
+        trailId: '12345',
+      );
+
+      const trailPoints = [
+        [TrailPoint(lat: 45.1, lng: 9.1), TrailPoint(lat: 45.2, lng: 9.2)],
+      ];
+
+      final id = await repository.addPlannedActivity(activity, trailPoints);
+
+      expect(id, 'local_1');
+      expect(localStore.activities.single.id, 'local_1');
+
+      final savedTrail =
+          verify(
+                () => plannedTrailStore.saveTrail(captureAny()),
+              ).captured.single
+              as PlannedTrail;
+
+      expect(savedTrail.activityId, 'local_1');
+      expect(savedTrail.trailId, '12345');
+      expect(savedTrail.segments.first.length, 2);
+      expect(savedTrail.segments.first.first.lat, 45.1);
+    });
     test('streamActivities returns an empty stream', () async {
       final localStore = FakeActivityLocalStore();
       addTearDown(localStore.close);
@@ -164,12 +214,21 @@ void main() {
 
     test('deleteActivity does not throw', () async {
       final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+
       addTearDown(localStore.close);
+
+      when(() => plannedTrailStore.deleteTrail(any())).thenAnswer((_) async {});
+
       final repo = ActivityRepository(
         hasCurrentUser: () => false,
         localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
       );
+
       await repo.deleteActivity('any-id');
+
+      verify(() => plannedTrailStore.deleteTrail('any-id')).called(1);
     });
 
     test(
@@ -283,11 +342,15 @@ void main() {
       when(() => mockDb.deleteActivity(any())).thenAnswer((_) async {});
 
       final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+
+      when(() => plannedTrailStore.deleteTrail(any())).thenAnswer((_) async {});
       addTearDown(localStore.close);
       final repo = ActivityRepository(
         hasCurrentUser: () => true,
         databaseServiceFactory: () => mockDb,
         localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
       );
 
       final a = Activity(
@@ -306,10 +369,11 @@ void main() {
 
       await repo.deleteActivity('i1');
       verify(() => mockDb.deleteActivity('i1')).called(1);
+      verify(() => plannedTrailStore.deleteTrail('i1')).called(1);
     });
 
     test(
-      'updateActivity caches completed activities after Firestore save',
+      'updateActivity removes completed activity after Firestore save',
       () async {
         final mockDb = MockDatabaseService();
         when(
@@ -317,11 +381,17 @@ void main() {
         ).thenAnswer((_) async {});
 
         final localStore = FakeActivityLocalStore();
+        final plannedTrailStore = MockPlannedTrailStore();
+
+        when(
+          () => plannedTrailStore.deleteTrail(any()),
+        ).thenAnswer((_) async {});
         addTearDown(localStore.close);
         final repo = ActivityRepository(
           hasCurrentUser: () => true,
           databaseServiceFactory: () => mockDb,
           localStore: localStore,
+          plannedTrailStore: plannedTrailStore,
         );
         final planned = Activity(
           id: 'i1',
@@ -336,13 +406,15 @@ void main() {
         planned.status = ActivityStatus.completed;
         await repo.updateActivity(planned);
 
-        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities, isEmpty);
+
+        verify(() => plannedTrailStore.deleteTrail('i1')).called(1);
         verify(() => mockDb.updateActivity('i1', any())).called(2);
       },
     );
 
     test(
-      'completed activity remains visible while the Firestore stream is stale',
+      'completed activity is removed locally while Firestore stream updates',
       () async {
         final mockDb = MockDatabaseService();
         final remoteController = StreamController<List<Map<String, dynamic>>>();
@@ -355,6 +427,11 @@ void main() {
         ).thenAnswer((_) async {});
 
         final localStore = FakeActivityLocalStore();
+        final plannedTrailStore = MockPlannedTrailStore();
+
+        when(
+          () => plannedTrailStore.deleteTrail(any()),
+        ).thenAnswer((_) async {});
         addTearDown(localStore.close);
         final planned = Activity(
           id: 'i1',
@@ -368,6 +445,7 @@ void main() {
           hasCurrentUser: () => true,
           databaseServiceFactory: () => mockDb,
           localStore: localStore,
+          plannedTrailStore: plannedTrailStore,
         );
         final emissions = <List<Activity>>[];
         final subscription = repo.streamActivities().listen(emissions.add);
@@ -387,7 +465,7 @@ void main() {
         await repo.updateActivity(planned);
         await Future<void>.delayed(Duration.zero);
 
-        expect(emissions.last.single.status, ActivityStatus.completed);
+        expect(localStore.activities, isEmpty);
       },
     );
 

@@ -4,6 +4,7 @@ import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:application/core/models/trail_point.dart';
+import 'package:application/core/models/planned_trail.dart';
 
 class ActivityCubit extends Cubit<List<Activity>> {
   final ActivityRepository _repository;
@@ -23,10 +24,11 @@ class ActivityCubit extends Cubit<List<Activity>> {
     Activity activity,
     List<List<TrailPoint>> trailPoints,
   ) async {
-    await _repository.addPlannedActivity(
-      activity,
-      trailPoints,
-    );
+    await _repository.addPlannedActivity(activity, trailPoints);
+  }
+
+  Future<PlannedTrail?> getPlannedTrail(String activityId) async {
+    return await _repository.getPlannedTrail(activityId);
   }
 
   Future<void> updateActivity(Activity activity) async {

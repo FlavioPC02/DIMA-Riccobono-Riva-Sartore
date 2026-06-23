@@ -985,7 +985,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         children: [
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () {
+              onPressed: _trailSegments.isEmpty
+              ? null
+              : () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
