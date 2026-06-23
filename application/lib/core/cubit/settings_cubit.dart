@@ -6,12 +6,16 @@ import 'dart:async';
 
 class SettingsCubit extends HydratedCubit<Settings> {
   final SettingsRepository _repository;
+  final Stream<User?> Function()? authChanges; //injectable for test
   StreamSubscription<Settings?>? _remoteSubscription;
   StreamSubscription<User?>? _authSubscription;
 
-  SettingsCubit(this._repository)
+  SettingsCubit(this._repository, {this.authChanges})
     : super(Settings(notifications: true, ferrata: false, difficulty: 0)) {
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+    final stream = authChanges != null
+        ? authChanges!()
+        : FirebaseAuth.instance.authStateChanges();
+    _authSubscription = stream.listen((user) {
       if (user == null) {
         _onLoggedOut();
       } else {
@@ -31,23 +35,21 @@ class SettingsCubit extends HydratedCubit<Settings> {
     await _remoteSubscription?.cancel();
     _remoteSubscription = null;
 
-    if(isClosed) return;
+    if (isClosed) return;
 
     final remoteSettings = await _repository.fetchRemote();
 
-    if(isClosed) return;
+    if (isClosed) return;
 
     if (remoteSettings != null) {
       emit(remoteSettings);
     }
 
-    _remoteSubscription = _repository.streamRemote().listen(
-      (remote) {
-        if (remote != null && remote != state) {
-          emit(remote);
-        }
-      },
-    );
+    _remoteSubscription = _repository.streamRemote().listen((remote) {
+      if (remote != null && remote != state) {
+        emit(remote);
+      }
+    });
   }
 
   void updateNotifications(bool value) {

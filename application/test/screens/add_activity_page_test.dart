@@ -10,6 +10,7 @@ import '../utils/pump_app.dart';
 
 void main() {
   late MockActivityCubit mockActivityCubit;
+  late MockNavigationIndexCubit mockNavigationIndexCubit;
 
   final dummyActivity = Activity(
     id: 'test_id',
@@ -33,11 +34,13 @@ void main() {
 
   setUp(() {
     mockActivityCubit = MockActivityCubit();
+    mockNavigationIndexCubit = MockNavigationIndexCubit();
     
     when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
     when(() => mockActivityCubit.state).thenReturn([]);
-
     when(() => mockActivityCubit.addActivity(any())).thenAnswer((_) async => '');
+
+    when(() => mockNavigationIndexCubit.stream).thenAnswer((_) => Stream<int>.value(0));
   });
 
   Widget createWidgetUnderTest() {

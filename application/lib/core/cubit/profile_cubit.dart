@@ -7,10 +7,11 @@ import 'dart:math' as math;
 
 class ProfileCubit extends HydratedCubit<Profile> {
   final ProfileRepository _repository;
+  final Stream<User?> Function()? authChanges; //injectable for test
   StreamSubscription<Profile?>? _remoteSubscription;
   StreamSubscription<User?>? _authSubscription;
 
-  ProfileCubit(this._repository)
+  ProfileCubit(this._repository, {this.authChanges})
     : super(
         Profile(
           nickname: 'name',
@@ -19,7 +20,10 @@ class ProfileCubit extends HydratedCubit<Profile> {
           level: 0,
         ),
       ) {
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+    final stream = authChanges != null
+        ? authChanges!()
+        : FirebaseAuth.instance.authStateChanges();
+    _authSubscription = stream.listen((user) {
       if (user == null) {
         _onLoggedOut();
       } else {
@@ -49,13 +53,11 @@ class ProfileCubit extends HydratedCubit<Profile> {
       emit(remoteProfile);
     }
 
-    _remoteSubscription = _repository.streamRemote().listen(
-      (remote) {
-        if (remote != null && remote != state) {
-          emit(remote);
-        }
+    _remoteSubscription = _repository.streamRemote().listen((remote) {
+      if (remote != null && remote != state) {
+        emit(remote);
       }
-    );
+    });
   }
 
   void updateNickname(String value) {

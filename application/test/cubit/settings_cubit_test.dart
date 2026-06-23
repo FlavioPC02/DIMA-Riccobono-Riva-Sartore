@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/settings.dart';
 import 'package:bloc_test/bloc_test.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -16,20 +17,31 @@ MockSettingsRepository createMockRepo({
   final repo = MockSettingsRepository();
 
   when(() => repo.fetchRemote()).thenAnswer((_) async => initialSettings);
-  when(() => repo.streamRemote()).thenAnswer((_) => remoteStream ?? Stream.empty());
+  when(
+    () => repo.streamRemote(),
+  ).thenAnswer((_) => remoteStream ?? Stream.empty());
   when(() => repo.saveRemote(any())).thenAnswer((_) async {});
 
   return repo;
 }
 
 void main() {
+  late StreamController<User?> authController;
+
   setUpAll(() {
     setupTest();
   });
 
+  setUp(() {
+    authController = StreamController<User?>();
+  });
+
   blocTest<SettingsCubit, Settings>(
     'update notifications test',
-    build: () => SettingsCubit(createMockRepo()),
+    build: () => SettingsCubit(
+      createMockRepo(),
+      authChanges: () => authController.stream,
+    ),
     act: (cubit) => cubit.updateNotifications(false),
     expect: () => [
       isA<Settings>().having((s) => s.notifications, 'notifications', false),
@@ -38,16 +50,20 @@ void main() {
 
   blocTest<SettingsCubit, Settings>(
     'update ferrata test',
-    build: () => SettingsCubit(createMockRepo()),
+    build: () => SettingsCubit(
+      createMockRepo(),
+      authChanges: () => authController.stream,
+    ),
     act: (cubit) => cubit.updateFerrata(true),
-    expect: () => [
-      isA<Settings>().having((s) => s.ferrata, 'ferrata', true),
-    ],
+    expect: () => [isA<Settings>().having((s) => s.ferrata, 'ferrata', true)],
   );
 
   blocTest<SettingsCubit, Settings>(
     'update difficulty test',
-    build: () => SettingsCubit(createMockRepo()),
+    build: () => SettingsCubit(
+      createMockRepo(),
+      authChanges: () => authController.stream,
+    ),
     act: (cubit) => cubit.updateDifficulty(0.0),
     expect: () => [
       isA<Settings>().having((s) => s.difficulty, 'difficulty', 0.0),
@@ -56,15 +72,20 @@ void main() {
 
   blocTest<SettingsCubit, Settings>(
     'bootstrap emits initial remote settings when available',
-    build: () => SettingsCubit(
-      createMockRepo(
-        initialSettings: Settings(
-          notifications: false,
-          ferrata: true,
-          difficulty: 1.0,
+    build: () {
+      final sc = SettingsCubit(
+        createMockRepo(
+          initialSettings: Settings(
+            notifications: false,
+            ferrata: true,
+            difficulty: 1.0,
+          ),
         ),
-      ),
-    ),
+        authChanges: () => authController.stream,
+      );
+      authController.add(FakeUser());
+      return sc;
+    },
     expect: () => [
       isA<Settings>()
           .having((s) => s.notifications, 'notifications', false)
@@ -75,19 +96,29 @@ void main() {
 
   blocTest<SettingsCubit, Settings>(
     'bootstrap does not emit when fetchRemote returns null',
-    build: () => SettingsCubit(createMockRepo(initialSettings: null)),
+    build: () => SettingsCubit(
+      createMockRepo(initialSettings: null),
+      authChanges: () => authController.stream,
+    ),
     expect: () => <Matcher>[],
   );
 
   test('stream remote emits new value and ignores null', () async {
     final controller = StreamController<Settings?>();
-    final cubit = SettingsCubit(createMockRepo(remoteStream: controller.stream));
+    final cubit = SettingsCubit(
+      createMockRepo(remoteStream: controller.stream),
+      authChanges: () => authController.stream,
+    );
 
     final emitted = <Settings>[];
     final sub = cubit.stream.listen(emitted.add);
 
+    authController.add(FakeUser());
+
     await Future<void>.delayed(Duration.zero);
-    controller.add(Settings(notifications: false, ferrata: true, difficulty: 2.0));
+    controller.add(
+      Settings(notifications: false, ferrata: true, difficulty: 2.0),
+    );
     controller.add(null);
     await Future<void>.delayed(Duration.zero);
 
@@ -103,7 +134,12 @@ void main() {
 
   test('close cancels remote subscription', () async {
     final controller = StreamController<Settings?>();
-    final cubit = SettingsCubit(createMockRepo(remoteStream: controller.stream));
+    final cubit = SettingsCubit(
+      createMockRepo(remoteStream: controller.stream),
+      authChanges: () => authController.stream,
+    );
+
+    authController.add(FakeUser());
 
     await Future<void>.delayed(Duration.zero);
     expect(controller.hasListener, true);
@@ -116,7 +152,7 @@ void main() {
 
   test('update methods persist via saveRemote', () async {
     final repo = createMockRepo();
-    final cubit = SettingsCubit(repo);
+    final cubit = SettingsCubit(repo, authChanges: () => authController.stream);
 
     cubit.updateNotifications(false);
     cubit.updateFerrata(true);
@@ -129,12 +165,11 @@ void main() {
   });
 
   test('toJson and fromJson convert settings correctly', () async {
-    final cubit = SettingsCubit(createMockRepo());
-    const map = {
-      'notifications': false,
-      'ferrata': true,
-      'difficulty': 0.7,
-    };
+    final cubit = SettingsCubit(
+      createMockRepo(),
+      authChanges: () => authController.stream,
+    );
+    const map = {'notifications': false, 'ferrata': true, 'difficulty': 0.7};
 
     final parsed = cubit.fromJson(map);
     expect(parsed, isNotNull);
