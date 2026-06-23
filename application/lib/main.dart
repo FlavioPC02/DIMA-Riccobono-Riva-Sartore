@@ -1,4 +1,5 @@
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/cubit/map_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/location_point.dart';
@@ -60,6 +61,7 @@ class RootApp extends StatelessWidget {
         BlocProvider(create: (_) => SettingsCubit(SettingsRepository())),
         BlocProvider(create: (_) => ProfileCubit(ProfileRepository())),
         BlocProvider(create: (_) => ActivityCubit(ActivityRepository())),
+        BlocProvider(create: (context) => MapCubit()),
       ],
       child: const MainApp(),
     );

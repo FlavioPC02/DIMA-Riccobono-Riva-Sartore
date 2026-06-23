@@ -1,3 +1,4 @@
+import 'package:application/core/cubit/map_cubit.dart';
 import 'package:application/services/map_management_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -15,7 +16,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  final bool clearSearchAndTrails;
+
+  const MapPage({
+    super.key,
+    this.clearSearchAndTrails = false,
+  });
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -840,23 +846,42 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     //needed for AutomaticKeepAliveClientMixin
     super.build(context);
 
-    return BlocListener<SettingsCubit, dynamic>(
-      listenWhen: (previous, current) =>
-          previous.difficulty != current.difficulty ||
-          previous.ferrata != current.ferrata,
-      listener: (context, state) {
-        setState(() {
-          if (state.difficulty == 0.0) {
-            _filterDifficulty = 'Beginner';
-          } else if (state.difficulty == 1.0) {
-            _filterDifficulty = 'Intermediate';
-          } else if (state.difficulty == 2.0) {
-            _filterDifficulty = 'Expert';
-          }
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<SettingsCubit, dynamic>(
+          listenWhen: (previous, current) =>
+            previous.difficulty != current.difficulty ||
+            previous.ferrata != current.ferrata,
+          listener: (context, state) {
+            setState(() {
+              if (state.difficulty == 0.0) {
+                _filterDifficulty = 'Beginner';
+              } else if (state.difficulty == 1.0) {
+                _filterDifficulty = 'Intermediate';
+              } else if (state.difficulty == 2.0) {
+                _filterDifficulty = 'Expert';
+              }
 
-          _filterFerrata = state.ferrata;
-        });
-      },
+              _filterFerrata = state.ferrata;
+            });
+          },
+        ),
+        BlocListener<MapCubit, MapState>(
+          listener: (context, state) {
+            if (state == MapState.clearSearchAndTrails) {
+              if (_searchController.text.isNotEmpty || _foundTrails.isNotEmpty) {
+                _searchController.clear();
+                FocusScope.of(context).unfocus();
+                
+                setState(() {
+                  _foundTrails.clear();
+                  _locationSuggestions.clear();
+                });
+              }  
+            }
+          },
+        ),
+      ],
       child: Scaffold(
         body: Stack(
           children: [
