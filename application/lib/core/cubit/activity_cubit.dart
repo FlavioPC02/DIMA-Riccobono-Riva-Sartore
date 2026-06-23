@@ -3,22 +3,39 @@ import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ActivityCubit extends Cubit<List<Activity>> {
   final ActivityRepository _repository;
   StreamSubscription<List<Activity>>? _subscription;
+  StreamSubscription<User?>? _authSubscription;
 
   ActivityCubit(this._repository) : super([]) {
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) {
+        _onLoggedOut();
+      } else {
+        _onLoggedIn();
+      }
+    });
+  }
+
+  void _onLoggedOut() {
+    _subscription?.cancel();
+    _subscription = null;
+    emit([]);
+  }
+
+  void _onLoggedIn() {
+    _subscription?.cancel();
     _subscription = _repository.streamActivities().listen(
-      (activities) {
-        emit(activities);
-      },
-      onError: (e) {
-        if (e is FirebaseException && e.code == 'permission-denied') {
-          return;
+      (activities) => emit(activities),
+      onError: (Object e, StackTrace st) {
+        if (kDebugMode) {
+          debugPrint('ActivityCubit stream error: $e');
         }
-      },
+      }
     );
   }
 
@@ -50,7 +67,9 @@ class ActivityCubit extends Cubit<List<Activity>> {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    await _authSubscription?.cancel();
     _subscription = null;
+    _authSubscription = null;
     return super.close();
   }
 
@@ -58,11 +77,7 @@ class ActivityCubit extends Cubit<List<Activity>> {
     final fetchedActivity = await _repository.fetchActivityDetails(id);
 
     if (fetchedActivity != null) {
-      final newState = state.map((a) {
-        return a.id == id ? fetchedActivity : a;
-      }).toList();
-
-      emit(newState);
+      emit(state.map((a) => a.id == id ? fetchedActivity : a).toList());
     }
   }
 

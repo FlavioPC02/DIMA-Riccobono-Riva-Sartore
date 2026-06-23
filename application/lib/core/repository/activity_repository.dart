@@ -41,8 +41,8 @@ class ActivityRepository {
   Stream<List<Activity>> streamActivities() {
     final localStream = _localStore.streamActivities();
     final authStream = authChanges != null
-        ? authChanges!()
-        : FirebaseAuth.instance.authStateChanges();
+      ? authChanges!()
+      : FirebaseAuth.instance.authStateChanges();
 
     final remoteStream = authStream.switchMap((user) {
       if (user == null) {
@@ -50,13 +50,13 @@ class ActivityRepository {
       }
 
       final remote = databaseServiceFactory != null
-          ? databaseServiceFactory!()
-          : DatabaseService();
+        ? databaseServiceFactory!()
+        : DatabaseService();
 
       return remote.streamActivities().map(
         (list) => list
-            .map((data) => Activity.fromJson(data['id'] as String, data))
-            .toList(),
+          .map((data) => Activity.fromJson(data['id'] as String, data))
+          .toList(),
       );
     });
 
@@ -141,13 +141,11 @@ class ActivityRepository {
     controller.onListen = () {
       localSubscription = localStream.listen((activities) {
         localActivities = activities;
-
-        //sync only if user logged in
         if (currentUser != null) {
           final remote = databaseServiceFactory != null
-              ? databaseServiceFactory!()
-              : DatabaseService();
-          _syncPendingCompletedActivities(activities, remote);
+            ? databaseServiceFactory!()
+            : DatabaseService();
+          _syncPendingActivities(activities, remote);
         }
         emitMerged();
       }, onError: controller.addError);
@@ -155,7 +153,6 @@ class ActivityRepository {
       authSubscription = authStream.listen((user) {
         currentUser = user;
         if (user == null) {
-          //drop remote activities immediatly, without waiting for remote stream
           remoteActivities = const [];
           emitMerged();
         }
@@ -176,27 +173,6 @@ class ActivityRepository {
     return controller.stream;
   }
 
-  void _syncPendingCompletedActivities(
-    List<Activity> activities,
-    DatabaseService remote,
-  ) {
-    for (final activity in activities) {
-      if (activity.status == ActivityStatus.completed) {
-        unawaited(_syncCompletedActivity(activity, remote));
-      }
-    }
-  }
-
-  Future<void> _syncCompletedActivity(
-    Activity activity,
-    DatabaseService remote,
-  ) async {
-    final savedRemotely = await _trySaveRemote(activity, remote);
-    if (savedRemotely) {
-      await _localStore.deleteActivity(activity.id);
-    }
-  }
-
   List<Activity> _mergeActivities(
     List<Activity> localActivities,
     List<Activity> remoteActivities,
@@ -214,6 +190,17 @@ class ActivityRepository {
     final merged = byId.values.toList();
     merged.sort((a, b) => b.date.compareTo(a.date));
     return merged;
+  }
+
+  void _syncPendingActivities(
+    List<Activity> activities,
+    DatabaseService remote,
+  ) {
+    for (final activity in activities) {
+      if (activity.status == ActivityStatus.completed) {
+        unawaited(_trySaveRemote(activity, remote));
+      }
+    }
   }
 
   Future<Activity?> fetchActivityDetails(String id) async {
@@ -264,9 +251,13 @@ class ActivityRepository {
         );
         if (trailPath.any((segment) => segment.isNotEmpty)) {
           hydratedActivity = activity.copyWith(trailPath: trailPath);
-          _logTrailDownload('Path reconstructed for activity=${activity.id}');
+          _logTrailDownload(
+            'Path reconstructed for activity=${activity.id}',
+          );
         } else {
-          _logTrailDownload('No geometry returned for activity=${activity.id}');
+          _logTrailDownload(
+            'No geometry returned for activity=${activity.id}',
+          );
         }
       } catch (error) {
         _logTrailDownload(
