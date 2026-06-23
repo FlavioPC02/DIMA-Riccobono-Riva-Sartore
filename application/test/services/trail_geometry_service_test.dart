@@ -42,9 +42,9 @@ void main() {
 
     expect(trailPath, hasLength(2));
     expect(trailPath.first, hasLength(2));
-    expect(trailPath.first.first.lat, 45.1);
-    expect(trailPath.first.first.lng, 9.1);
-    expect(trailPath.last.single.lat, 45.3);
+    expect(trailPath.first.first.latitude, 45.1);
+    expect(trailPath.first.first.longitude, 9.1);
+    expect(trailPath.last.single.latitude, 45.3);
   });
 
   test(

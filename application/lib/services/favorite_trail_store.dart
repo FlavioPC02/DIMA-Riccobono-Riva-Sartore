@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:application/core/models/favorite_trail.dart';
-import 'package:application/core/models/trail_point.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 
 class FavoriteTrailStore {
@@ -61,7 +58,6 @@ class FavoriteTrailStore {
     return {
       'id': trail.id,
       'name': trail.name,
-      'trail_path_json': _encodeTrailPath(trail.trailPath),
       'distance': trail.distance,
       'duration': trail.duration,
       'difficulty': trail.difficulty,
@@ -74,7 +70,6 @@ class FavoriteTrailStore {
     return FavoriteTrail(
       id: entry['id']?.toString() ?? '',
       name: entry['name']?.toString() ?? 'Trail',
-      trailPath: _decodeTrailPath(entry['trail_path_json']?.toString()),
       distance: entry['distance']?.toString(),
       duration: entry['duration']?.toString(),
       difficulty: entry['difficulty'] as int?,
@@ -87,33 +82,4 @@ class FavoriteTrailStore {
     return entry.map((key, value) => MapEntry(key.toString(), value));
   }
 
-  String _encodeTrailPath(List<List<TrailPoint>> trailPath) {
-    return jsonEncode(
-      trailPath
-          .map((segment) => segment.map((point) => point.toJson()).toList())
-          .toList(),
-    );
-  }
-
-  List<List<TrailPoint>> _decodeTrailPath(String? encoded) {
-    if (encoded == null || encoded.isEmpty) return const [];
-
-    final decoded = jsonDecode(encoded);
-    if (decoded is! List) return const [];
-
-    return decoded
-        .whereType<List>()
-        .map(
-          (segment) => segment
-              .whereType<Map>()
-              .map(
-                (point) => TrailPoint.fromJson(
-                  point.map((key, value) => MapEntry(key.toString(), value)),
-                ),
-              )
-              .toList(growable: false),
-        )
-        .where((segment) => segment.isNotEmpty)
-        .toList(growable: false);
-  }
 }

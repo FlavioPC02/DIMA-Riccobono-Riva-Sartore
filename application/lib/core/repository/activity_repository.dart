@@ -1,27 +1,26 @@
 import 'dart:async';
-
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/services/database_service.dart';
 import 'package:application/services/local_activity_store.dart';
-import 'package:application/services/trail_geometry_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:application/services/planned_trail_store.dart';
+import 'package:application/core/models/planned_trail.dart';
+import 'package:application/core/models/trail_point.dart';
 
 class ActivityRepository {
   final bool Function()? hasCurrentUser;
   final DatabaseService Function()? databaseServiceFactory;
   final ActivityLocalDataSource _localStore;
-  final TrailGeometryDataSource _trailGeometrySource;
+  final PlannedTrailLocalDataSource _plannedTrailStore;
 
   ActivityRepository({
     this.hasCurrentUser,
     this.databaseServiceFactory,
     ActivityLocalDataSource? localStore,
-    TrailGeometryDataSource? trailGeometrySource,
+    PlannedTrailLocalDataSource? plannedTrailStore,
   }) : _localStore = localStore ?? HiveActivityStore(),
-       _trailGeometrySource =
-           trailGeometrySource ?? OverpassTrailGeometryService();
+       _plannedTrailStore = plannedTrailStore ?? PlannedTrailStore();
 
   DatabaseService? _remoteOrNull() {
     final hasUser = hasCurrentUser != null
@@ -49,18 +48,51 @@ class ActivityRepository {
     return _mergeActivityStreams(localStream, remoteStream);
   }
 
-  Future<String?> addActivity(Activity activity) async {
-    final id = activity.id.isEmpty ? _localStore.createId() : activity.id;
-    final localActivity = activity.copyWith(id: id);
-    await _saveActivity(localActivity);
+  Future<String> addPlannedActivity(
+    Activity activity,
+    List<List<TrailPoint>> trailPoints,
+  ) async {
+    if (activity.status != ActivityStatus.planned) {
+      throw ArgumentError('Activity must have status planned');
+    }
 
-    return id;
+    if (activity.id.isEmpty) {
+      activity.id = _localStore.createId();
+    }
+
+    final plannedTrail = PlannedTrail(
+      activityId: activity.id,
+      trailId: activity.trailId,
+      segments: trailPoints,
+    );
+
+    try {
+      await _localStore.upsertActivity(activity);
+      await _plannedTrailStore.saveTrail(plannedTrail);
+    } catch (_) {
+      await _localStore.deleteActivity(activity.id);
+      await _plannedTrailStore.deleteTrail(activity.id);
+      rethrow;
+    }
+
+    await _trySaveRemote(activity, _remoteOrNull());
+    return activity.id;
+  }
+
+  Future<String?> addActivity(Activity activity) async {
+    if (activity.id.isEmpty) {
+      activity.id = _localStore.createId();
+    }
+    await _saveActivity(activity);
+
+    return activity.id;
   }
 
   Future<void> updateActivity(Activity activity) async {
-    final id = activity.id.isEmpty ? _localStore.createId() : activity.id;
-    final localActivity = activity.copyWith(id: id);
-    await _saveActivity(localActivity);
+    if (activity.id.isEmpty) {
+      activity.id = _localStore.createId();
+    }
+    await _saveActivity(activity);
   }
 
   Future<void> deleteActivity(String id) async {
@@ -169,12 +201,9 @@ class ActivityRepository {
         final docData = await remote.fetchActivity(id);
 
         if (docData != null) {
-          final remoteActivity = Activity.fromJson(
-            id,
-            docData,
-          ).copyWith(trailPath: localActivity?.trailPath);
-
-          return _hydrateAndCacheTrailPath(remoteActivity);
+          final remoteActivity = Activity.fromJson(id, docData);
+          await _localStore.upsertActivity(remoteActivity);
+          return remoteActivity;
         }
       } catch (_) {
         // fallback: read from hive
@@ -182,7 +211,7 @@ class ActivityRepository {
     }
 
     if (localActivity == null) return null;
-    return _hydrateAndCacheTrailPath(localActivity);
+    return localActivity;
   }
 
   Future<Activity?> _findLocalActivity(String id) async {
@@ -192,51 +221,6 @@ class ActivityRepository {
     } catch (_) {
       return null;
     }
-  }
-
-  Future<Activity> _hydrateAndCacheTrailPath(Activity activity) async {
-    var hydratedActivity = activity;
-
-    if (!activity.hasTrailPath && activity.trailId.isNotEmpty) {
-      _logTrailDownload(
-        'Local path missing for activity=${activity.id}; '
-        'downloading trailId=${activity.trailId}',
-      );
-      try {
-        final trailPath = await _trailGeometrySource.fetchTrailPath(
-          activity.trailId,
-        );
-        if (trailPath.any((segment) => segment.isNotEmpty)) {
-          hydratedActivity = activity.copyWith(trailPath: trailPath);
-          _logTrailDownload(
-            'Path reconstructed for activity=${activity.id}',
-          );
-        } else {
-          _logTrailDownload(
-            'No geometry returned for activity=${activity.id}',
-          );
-        }
-      } catch (error) {
-        _logTrailDownload(
-          'Download failed for activity=${activity.id}: $error',
-        );
-        // Keep the activity available even if its geometry cannot be fetched.
-      }
-    } else if (activity.hasTrailPath) {
-      _logTrailDownload('Local cache hit for activity=${activity.id}');
-    } else {
-      _logTrailDownload(
-        'Cannot download activity=${activity.id}: trailId is empty',
-      );
-    }
-
-    await _localStore.upsertActivity(hydratedActivity);
-    _logTrailDownload('Activity=${activity.id} saved in the local cache');
-    return hydratedActivity;
-  }
-
-  void _logTrailDownload(String message) {
-    if (kDebugMode) debugPrint('[TrailDownload] $message');
   }
 
   Future<void> saveNote(Activity activity, ActivityNote note) async {
@@ -252,7 +236,8 @@ class ActivityRepository {
       updatedNotes[index] = note;
     }
 
-    await _localStore.upsertActivity(activity.copyWith(notes: updatedNotes));
+    activity.notes = updatedNotes;
+    await _localStore.upsertActivity(activity);
 
     final remote = _remoteOrNull();
     if (remote == null) return;
@@ -263,13 +248,6 @@ class ActivityRepository {
       imageUrls: note.imageUrls,
       createdAt: note.createdAt,
     );
-
-    if (isNewNote) {
-      updatedNotes[updatedNotes.length - 1] = noteToSaveRemotely;
-    } else {
-      updatedNotes[index] = noteToSaveRemotely;
-    }
-    await _localStore.upsertActivity(activity.copyWith(notes: updatedNotes));
 
     try {
       if (isNewNote) {
@@ -287,8 +265,8 @@ class ActivityRepository {
     List<ActivityNote> updatedNotes = List.from(activity.notes)
       ..removeWhere((n) => n.id == noteToDelete.id);
 
-    final localActivity = activity.copyWith(notes: updatedNotes);
-    await _localStore.upsertActivity(localActivity);
+    activity.notes = updatedNotes;
+    await _localStore.upsertActivity(activity);
 
     final remote = _remoteOrNull();
     if (remote != null) {

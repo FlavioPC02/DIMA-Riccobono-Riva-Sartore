@@ -4,7 +4,6 @@ import 'package:application/core/models/favorite_trail.dart';
 import 'package:application/services/favorite_trail_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/adapters.dart';
-import 'package:latlong2/latlong.dart';
 
 void main() {
   late Directory tempDir;
@@ -21,14 +20,12 @@ void main() {
     }
   });
 
-  test('persists only trail data and restores it as a trail map', () async {
+  test('persists trail metadata without offline geometry', () async {
     final store = FavoriteTrailStore();
     final trail = FavoriteTrail.fromTrail({
       'id': 12345,
       'name': 'Sentiero Test',
-      'subTrails': const [
-        [LatLng(45.1, 9.1), LatLng(45.2, 9.2)],
-      ],
+      'subTrails': const [],
     });
 
     await store.saveTrail(trail);
@@ -41,7 +38,7 @@ void main() {
     expect(favorites.single.name, 'Sentiero Test');
     expect(restoredTrail['id'], '12345');
     expect(restoredTrail['name'], 'Sentiero Test');
-    expect(restoredTrail['subTrails'].single.first, isA<LatLng>());
+    expect(restoredTrail['subTrails'], isEmpty);
   });
 
   test('reports favorite state and deletes a trail by id', () async {
@@ -49,9 +46,7 @@ void main() {
     final trail = FavoriteTrail.fromTrail({
       'id': 'trail-1',
       'name': 'Trail',
-      'subTrails': const [
-        [LatLng(45.1, 9.1)],
-      ],
+      'subTrails': const [],
     });
 
     await store.saveTrail(trail);

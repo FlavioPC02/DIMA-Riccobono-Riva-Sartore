@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-import 'package:application/core/models/trail_point.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 
 abstract interface class TrailGeometryDataSource {
-  Future<List<List<TrailPoint>>> fetchTrailPath(String trailId);
+  Future<List<List<LatLng>>> fetchTrailPath(String trailId);
 }
 
 class OverpassTrailGeometryService implements TrailGeometryDataSource {
@@ -28,7 +28,7 @@ class OverpassTrailGeometryService implements TrailGeometryDataSource {
        _timeout = timeout;
 
   @override
-  Future<List<List<TrailPoint>>> fetchTrailPath(String trailId) async {
+  Future<List<List<LatLng>>> fetchTrailPath(String trailId) async {
     final relationId = int.tryParse(trailId);
     if (relationId == null || relationId <= 0) {
       _log('Invalid trailId: $trailId');
@@ -87,14 +87,14 @@ out geom;
     );
   }
 
-  List<List<TrailPoint>> _decodeTrailPath(String responseBody) {
+  List<List<LatLng>> _decodeTrailPath(String responseBody) {
     final decoded = jsonDecode(responseBody);
     if (decoded is! Map) return const [];
 
     final elements = decoded['elements'];
     if (elements is! List) return const [];
 
-    final segments = <List<TrailPoint>>[];
+    final segments = <List<LatLng>>[];
 
     for (final element in elements.whereType<Map>()) {
       if (element['type'] != 'way') continue;
@@ -102,13 +102,13 @@ out geom;
       final geometry = element['geometry'];
       if (geometry is! List) continue;
 
-      final points = <TrailPoint>[];
+      final points = <LatLng>[];
       for (final coordinate in geometry.whereType<Map>()) {
         final lat = coordinate['lat'];
         final lng = coordinate['lon'];
         if (lat is! num || lng is! num) continue;
 
-        points.add(TrailPoint(lat: lat.toDouble(), lng: lng.toDouble()));
+        points.add(LatLng(lat.toDouble(), lng.toDouble()));
       }
 
       if (points.isNotEmpty) segments.add(points);

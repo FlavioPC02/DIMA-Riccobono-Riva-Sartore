@@ -6,15 +6,19 @@ import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/screens/activity_detail_page.dart';
+import 'package:application/services/trail_geometry_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockActivityCubit extends Mock implements ActivityCubit {}
+class MockTrailGeometryDataSource extends Mock
+    implements TrailGeometryDataSource {}
 
 class MockGeolocatorPlatform extends GeolocatorPlatform with MockPlatformInterfaceMixin {
   @override
@@ -195,11 +199,13 @@ void main() {
     ActivityDifficulty difficulty = ActivityDifficulty.moderate,
     int daysFromNow = 5, 
     String trailName = 'Sentiero 65',
+    String trailId = '12345',
   }) {
     return Activity(
       id: 'act_123',
       name: 'Escursione al Monte Baldo',
       trailName: trailName,
+      trailId: trailId,
       difficulty: difficulty,
       date: DateTime.now().add(Duration(days: daysFromNow)),
       durationMinutes: 120,
@@ -220,16 +226,47 @@ void main() {
     );
   }
 
-  Widget createWidgetUnderTest(Activity activity) {
+  Widget createWidgetUnderTest(
+    Activity activity, {
+    TrailGeometryDataSource? trailGeometrySource,
+  }) {
     return MaterialApp(
       home: BlocProvider<ActivityCubit>.value(
         value: mockActivityCubit,
-        child: ActivityDetailPage(activity: activity),
+        child: ActivityDetailPage(
+          activity: activity,
+          trailGeometrySource: trailGeometrySource,
+        ),
       ),
     );
   }
 
   group('ActivityDetailPage Widget Tests', () {
+    testWidgets('downloads geometry online when Start is pressed', (tester) async {
+      final geometrySource = MockTrailGeometryDataSource();
+      final completer = Completer<List<List<LatLng>>>();
+      when(
+        () => geometrySource.fetchTrailPath('12345'),
+      ).thenAnswer((_) => completer.future);
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(
+          createDummyActivity(daysFromNow: 20),
+          trailGeometrySource: geometrySource,
+        ),
+      );
+
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+      expect(find.text('Downloading...'), findsOneWidget);
+
+      completer.complete(const []);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Trail geometry is not available.'), findsOneWidget);
+      verify(() => geometrySource.fetchTrailPath('12345')).called(1);
+    });
+
     testWidgets('renders header and basic information correctly', (tester) async {
       final activity = createDummyActivity();
       await tester.pumpWidget(createWidgetUnderTest(activity));

@@ -12,7 +12,6 @@ import 'package:lottie/lottie.dart';
 import 'package:application/screens/navigator.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/favorite_trail.dart';
-import 'package:application/core/models/trail_point.dart';
 import 'package:application/screens/add_activity_page.dart';
 import 'package:application/services/favorite_trail_store.dart';
 
@@ -64,6 +63,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   double _distanceKm = 0.0;
   int _durationMinutes = 0;
   int _difficulty = 0;
+  List<List<LatLng>> _trailSegments = const [];
 
   List<Map<String, dynamic>>? _weatherForecast;
   bool _isLoadingWeather = true;
@@ -245,7 +245,12 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           }
         }
 
-        List<LatLng> allPoints = TrailDetailsScreenHelper.stitchSegments(segments);
+        final stitchedInput = segments
+            .map((segment) => List<LatLng>.from(segment))
+            .toList(growable: true);
+        List<LatLng> allPoints = TrailDetailsScreenHelper.stitchSegments(
+          stitchedInput,
+        );
 
         final calcMeters = meters;
         final calcDistKm = TrailDetailsScreenHelper.getDistanceKm(relTags?['distance'], meters);
@@ -271,6 +276,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             _relationTags = relTags;
             _surfaces = tempSurfaces;
             _maxIncline = tempMaxInclineStr;
+            _trailSegments = segments;
             _isLoading = false;
           });
         } else {
@@ -991,12 +997,12 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                         date: DateTime.now(),
                         trailName: widget.trail['name'],
                         trailId: widget.trail['id']?.toString() ?? '',
-                        trailPath: _trailPath(),
                         distanceKm: _distanceKm,
                         durationMinutes: _durationMinutes,
                         difficulty: difficulty,
                         xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty)
                       ),
+                      trailSegments: _trailSegments,
                     ),
                   ),
                 );
@@ -1020,19 +1026,22 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           const SizedBox(width: 16.0),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () {
+              onPressed: _trailSegments.isEmpty ? null : () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => NavigatorScreen(
-                      trail: widget.trail,
+                      trail: {
+                        'id': widget.trail['id'],
+                        'name': widget.trail['name'],
+                        'subTrails': _trailSegments,
+                      },
                       activity: Activity(
                         id: "",
                         name: 'Hike to ${widget.trail['name']}',
                         status: ActivityStatus.planned,
                         trailName: widget.trail['name'],
                         trailId: widget.trail['id']?.toString() ?? '',
-                        trailPath: _trailPath(),
                         distanceKm: _distanceKm,
                         durationMinutes: _durationMinutes,
                         date: DateTime.now(),
@@ -1129,28 +1138,5 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           ),
       ],
     );
-  }
-
-
-  List<List<TrailPoint>> _trailPath() {
-  final subTrails = widget.trail['subTrails'];
-  if (subTrails is! List) return const [];
-
-  return subTrails
-      .map<List<TrailPoint>>((segment) {
-        if (segment is! List) return const [];
-
-        return segment
-            .whereType<LatLng>()
-            .map(
-              (point) => TrailPoint(
-                lat: point.latitude,
-                lng: point.longitude,
-              ),
-            )
-            .toList(growable: false);
-      })
-      .where((segment) => segment.isNotEmpty)
-      .toList(growable: false);
   }
 }

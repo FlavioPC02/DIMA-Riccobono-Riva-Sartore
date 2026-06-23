@@ -4,11 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:hike_core/hike_core.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:application/core/models/trail_point.dart';
 
 class AddActivityPage extends StatefulWidget {
   final Activity activity;
+  final List<List<LatLng>> trailSegments;
 
-  const AddActivityPage({super.key, required this.activity});
+  const AddActivityPage({
+    super.key,
+    required this.activity,
+    required this.trailSegments,
+  });
 
   @override
   State<AddActivityPage> createState() => _AddActivityPageState();
@@ -66,7 +73,6 @@ class _AddActivityPageState extends State<AddActivityPage> {
       date: _selectedDate,
       trailName: widget.activity.trailName,
       trailId: widget.activity.trailId,
-      trailPath: widget.activity.trailPath,
       distanceKm: widget.activity.distanceKm,
       durationMinutes: widget.activity.durationMinutes,
       xpEarned: 0,
@@ -77,7 +83,16 @@ class _AddActivityPageState extends State<AddActivityPage> {
       trackedTime: Duration.zero,
     );
 
-    await context.read<ActivityCubit>().addActivity(activity);
+    final trailPoints = widget.trailSegments.map<List<TrailPoint>>((segment) {
+      return segment.map<TrailPoint>((point) {
+        return TrailPoint(
+          lat: point.latitude,
+          lng: point.longitude,
+          );
+      }).toList();
+    }).toList();
+
+    await context.read<ActivityCubit>().addPlannedActivity(activity, trailPoints);
 
     if (mounted) Navigator.pop(context);
   }

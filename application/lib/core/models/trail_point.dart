@@ -1,15 +1,23 @@
-class TrailPoint {
+class TrailPoint{
   final double lat;
   final double lng;
 
-  const TrailPoint({required this.lat, required this.lng});
+  const TrailPoint({
+    required this.lat,
+    required this.lng,
+  });
 
-  Map<String, dynamic> toJson() => {'lat': lat, 'lng': lng};
+  Map<String, dynamic> toMap() {
+    return {
+      'lat': lat,
+      'lng': lng,
+    };
+  }
 
-  factory TrailPoint.fromJson(Map<String, dynamic> json) {
+  static TrailPoint fromMap(Map<dynamic, dynamic> map) {
     return TrailPoint(
-      lat: (json['lat'] as num?)?.toDouble() ?? 0,
-      lng: (json['lng'] as num?)?.toDouble() ?? 0,
+      lat: (map['lat'] as num).toDouble(),
+      lng: (map['lng'] as num).toDouble(),
     );
   }
 }

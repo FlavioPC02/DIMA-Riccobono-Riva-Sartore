@@ -5,6 +5,7 @@ import 'package:application/widgets/note_image_gallery.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:application/core/models/weather_data.dart';
 import 'package:application/screens/navigator.dart';
+import 'package:application/services/trail_geometry_service.dart';
 import 'package:application/services/weather_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,19 +15,71 @@ import '../core/models/activity.dart';
 
 class ActivityDetailPage extends StatefulWidget {
   final Activity initialActivity;
+  final TrailGeometryDataSource? trailGeometrySource;
 
-  const ActivityDetailPage({super.key, required Activity activity}) : initialActivity = activity;
+  const ActivityDetailPage({
+    super.key,
+    required Activity activity,
+    this.trailGeometrySource,
+  }) : initialActivity = activity;
 
   @override
   State<ActivityDetailPage> createState() => _ActivityDetailPageState();
 }
 
 class _ActivityDetailPageState extends State<ActivityDetailPage> {
+  late final TrailGeometryDataSource _trailGeometrySource;
+  bool _isLoadingTrail = false;
   
   @override
   void initState() {
     super.initState();
+    _trailGeometrySource =
+        widget.trailGeometrySource ?? OverpassTrailGeometryService();
     context.read<ActivityCubit>().loadActivityDetails(widget.initialActivity.id);
+  }
+
+  Future<void> _startNavigation(Activity activity) async {
+    if (_isLoadingTrail || activity.trailId.isEmpty) return;
+
+    setState(() => _isLoadingTrail = true);
+    try {
+      final segments = await _trailGeometrySource.fetchTrailPath(
+        activity.trailId,
+      );
+      if (!mounted) return;
+
+      if (segments.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Trail geometry is not available.')),
+        );
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NavigatorScreen(
+            trail: {
+              'id': activity.trailId,
+              'name': activity.trailName.isNotEmpty
+                  ? activity.trailName
+                  : activity.name,
+              'subTrails': segments,
+            },
+            activity: activity,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to download trail: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingTrail = false);
+    }
   }
 
  @override
@@ -76,23 +129,24 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                     }
                     if (currentActivity.status == ActivityStatus.planned) {
                       return FloatingActionButton.extended(
-                        onPressed: currentActivity.hasTrailPath
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => NavigatorScreen(
-                                      trail: currentActivity.navigatorTrail,
-                                      activity: currentActivity,
-                                    ),
-                                  ),
-                                );
-                              }
-                            : null,
+                        onPressed:
+                            currentActivity.trailId.isEmpty || _isLoadingTrail
+                            ? null
+                            : () => _startNavigation(currentActivity),
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                        icon: const Icon(Icons.navigation),
-                        label: const Text('Start'),
+                        icon: _isLoadingTrail
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.navigation),
+                        label: Text(
+                          _isLoadingTrail ? 'Downloading...' : 'Start',
+                        ),
                       );
                     }
                     return const SizedBox.shrink();
@@ -295,16 +349,8 @@ class _OverviewTabState extends State<_OverviewTab> {
     final isPlanned = widget.activity.status == ActivityStatus.planned;
     final daysUntil = widget.activity.date.difference(DateTime.now()).inDays;
 
-    double? lat;
-    double? lon;
-    if (widget.activity.trailPath.isNotEmpty && widget.activity.trailPath.first.isNotEmpty) {
-      final startPoint = widget.activity.trailPath.first.first;
-      lat = startPoint.lat;
-      lon = startPoint.lng;
-    }
-
     _weatherFuture = isPlanned && daysUntil <= 13 && daysUntil >= 0
-        ? WeatherService().fetchWeather(widget.activity.date, lat, lon)
+        ? WeatherService().fetchWeather(widget.activity.date, null, null)
         : null;
   }
 
