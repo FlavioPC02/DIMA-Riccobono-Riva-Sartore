@@ -18,10 +18,17 @@ void main() {
 
   setUp(() {
     mockActivityCubit = MockActivityCubit();
-    
-    when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+
+    when(
+      () => mockActivityCubit.stream,
+    ).thenAnswer((_) => const Stream.empty());
     when(() => mockActivityCubit.state).thenReturn([]);
-    when(() => mockActivityCubit.loadActivityDetails(any())).thenAnswer((_) async {});
+    when(
+      () => mockActivityCubit.loadActivityDetails(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockActivityCubit.watchDownloadedTrailIds(),
+    ).thenAnswer((_) => Stream.value(const {'2'}));
   });
 
   final completedActivity = Activity(
@@ -39,7 +46,7 @@ void main() {
         text: 'Bella vista',
         imageUrls: const [],
         createdAt: DateTime(2026, 6, 10),
-      )
+      ),
     ],
     difficulty: ActivityDifficulty.moderate,
     trackedDistance: 10,
@@ -64,10 +71,7 @@ void main() {
   );
 
   Widget createWidgetUnderTest() {
-    return pumpApp(
-      activityCubit: mockActivityCubit,
-      child: const DiaryPage(),
-    );
+    return pumpApp(activityCubit: mockActivityCubit, child: const DiaryPage());
   }
 
   group('DiaryPage Widget Tests', () {
@@ -81,29 +85,41 @@ void main() {
       expect(find.text('Completed'), findsOneWidget);
       expect(find.text('Planned'), findsOneWidget);
 
-      expect(find.text('No planned hikes yet.\nSchedule your next adventure!'), findsOneWidget);
+      expect(
+        find.text('No planned hikes yet.\nSchedule your next adventure!'),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.event_note), findsOneWidget);
 
       await tester.tap(find.text('Completed'));
       await tester.pumpAndSettle();
 
-      expect(find.text('No completed hikes yet.\nStart exploring!'), findsOneWidget);
+      expect(
+        find.text('No completed hikes yet.\nStart exploring!'),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.terrain), findsOneWidget);
     });
 
     testWidgets('renders activities in correct tabs', (tester) async {
-      when(() => mockActivityCubit.state).thenReturn([completedActivity, plannedActivity]);
+      when(
+        () => mockActivityCubit.state,
+      ).thenReturn([completedActivity, plannedActivity]);
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();
 
       expect(find.text('Garda Planned'), findsOneWidget);
+      expect(find.byIcon(Icons.offline_pin), findsOneWidget);
+      expect(find.byIcon(Icons.cloud_off_outlined), findsNothing);
       expect(find.text('20/06/2026'), findsOneWidget);
 
       expect(find.text('Monte Baldo Completed'), findsNothing);
 
       await tester.tap(find.text('Completed'));
       await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.offline_pin), findsNothing);
+      expect(find.byIcon(Icons.cloud_off_outlined), findsNothing);
 
       expect(find.text('Monte Baldo Completed'), findsOneWidget);
       expect(find.text('10/06/2026'), findsOneWidget);
@@ -115,7 +131,9 @@ void main() {
     testWidgets('tapping an activity opens ActivityDetailPage', (tester) async {
       final activities = [completedActivity];
       when(() => mockActivityCubit.state).thenReturn(activities);
-      when(() => mockActivityCubit.stream).thenAnswer((_) => Stream.value(activities));
+      when(
+        () => mockActivityCubit.stream,
+      ).thenAnswer((_) => Stream.value(activities));
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();
@@ -124,7 +142,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Monte Baldo Completed'));
-      
+
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 

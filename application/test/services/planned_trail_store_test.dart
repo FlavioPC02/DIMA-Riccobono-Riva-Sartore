@@ -4,6 +4,7 @@ import 'package:application/core/models/trail_point.dart';
 import 'package:application/services/planned_trail_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/adapters.dart';
+import 'dart:async';
 
 void main() {
   late Directory tempDir;
@@ -46,5 +47,45 @@ void main() {
     await store.deleteTrail('activity_123');
 
     expect(await store.getTrail('activity_123'), isNull);
+  });
+
+  test('emits downloaded trail ids after save and delete', () async {
+    final store = PlannedTrailStore();
+    final iterator = StreamIterator(store.watchDownloadedTrailIds());
+
+    addTearDown(iterator.cancel);
+
+    await iterator.moveNext();
+    expect(iterator.current, isEmpty);
+
+    final trail = PlannedTrail(
+      activityId: 'activity_123',
+      trailId: 'trail_456',
+      segments: const [
+        [TrailPoint(lat: 45.1, lng: 9.1)],
+      ],
+    );
+
+    final savedEmission = iterator.moveNext();
+    await Future<void>.delayed(Duration.zero);
+    await store.saveTrail(trail);
+
+    expect(await savedEmission, isTrue);
+    expect(iterator.current, contains('activity_123'));
+
+    final deletedEmission = iterator.moveNext();
+    await Future<void>.delayed(Duration.zero);
+    await store.deleteTrail('activity_123');
+
+    expect(await deletedEmission, isTrue);
+    expect(iterator.current, isNot(contains('activity_123')));
+  });
+
+  test('allows the same stream to be listened to more than once', () async {
+    final store = PlannedTrailStore();
+    final stream = store.watchDownloadedTrailIds();
+
+    expect(await stream.first, isEmpty);
+    expect(await stream.first, isEmpty);
   });
 }

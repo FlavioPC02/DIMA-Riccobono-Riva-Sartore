@@ -7,8 +7,9 @@ abstract class PlannedTrailLocalDataSource {
   Future<PlannedTrail?> getTrail(String activityId);
 
   Future<void> deleteTrail(String activityId);
-}
 
+  Stream<Set<String>> watchDownloadedTrailIds();
+}
 
 class PlannedTrailStore implements PlannedTrailLocalDataSource {
   static const String _boxName = 'planned_trails';
@@ -23,13 +24,31 @@ class PlannedTrailStore implements PlannedTrailLocalDataSource {
   }
 
   @override
+  Stream<Set<String>> watchDownloadedTrailIds() {
+    return Stream<Set<String>>.multi((controller) async {
+      final box = await _plannedTrailBox();
+
+      Set<String> readIds() {
+        return box.keys.map((key) => key.toString()).toSet();
+      }
+
+      controller.add(readIds());
+
+      final subscription = box.watch().listen(
+        (_) => controller.add(readIds()),
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+
+      controller.onCancel = subscription.cancel;
+    });
+  }
+
+  @override
   Future<void> saveTrail(PlannedTrail trail) async {
     final box = await _plannedTrailBox();
 
-    await box.put(
-      trail.activityId,
-      trail.toMap(),
-      );
+    await box.put(trail.activityId, trail.toMap());
   }
 
   @override

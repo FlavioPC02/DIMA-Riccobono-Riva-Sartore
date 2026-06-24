@@ -75,6 +75,18 @@ void main() {
   });
 
   group('ActivityCubit Initialization & Stream', () {
+    test('forwards downloaded trail ids from repository', () async {
+      final repository = createMockRepo();
+
+      when(
+        () => repository.watchDownloadedTrailIds(),
+      ).thenAnswer((_) => Stream.value({'planned_1'}));
+
+      final cubit = ActivityCubit(repository);
+      addTearDown(cubit.close);
+
+      expect(cubit.watchDownloadedTrailIds(), emits({'planned_1'}));
+    });
     test('starts offline sync when repository emits activities', () async {
       final controller = StreamController<List<Activity>>();
       final repository = createMockRepo(remoteStream: controller.stream);

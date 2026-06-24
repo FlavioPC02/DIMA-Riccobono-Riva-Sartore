@@ -33,6 +33,10 @@ class ActivityCubit extends Cubit<List<Activity>> {
     return await _repository.getPlannedTrail(activityId);
   }
 
+  Stream<Set<String>> watchDownloadedTrailIds() {
+    return _repository.watchDownloadedTrailIds();
+  }
+
   Future<void> updateActivity(Activity activity) async {
     final previousState = state;
 

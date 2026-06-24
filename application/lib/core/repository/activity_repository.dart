@@ -58,6 +58,10 @@ class ActivityRepository {
     return await _plannedTrailStore.getTrail(activityId);
   }
 
+  Stream<Set<String>> watchDownloadedTrailIds() {
+    return _plannedTrailStore.watchDownloadedTrailIds();
+  }
+
   Future<void> cachePlannedTrail(
     String activityId,
     String trailId,
@@ -128,7 +132,7 @@ class ActivityRepository {
 
         await cachePlannedTrail(activity.id, activity.trailId, trailPoints);
       } catch (_) {
-        // Un errore non deve impedire il caricamento delle attività.
+        // ignore errors during sync
       } finally {
         _trailSyncInProgress.remove(activity.id);
       }

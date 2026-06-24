@@ -75,6 +75,24 @@ void main() {
   });
 
   group('ActivityRepository when no user is signed in', () {
+    test('forwards downloaded trail ids from local store', () async {
+      final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+
+      addTearDown(localStore.close);
+
+      when(
+        () => plannedTrailStore.watchDownloadedTrailIds(),
+      ).thenAnswer((_) => Stream.value({'activity_123'}));
+
+      final repository = ActivityRepository(
+        hasCurrentUser: () => false,
+        localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
+      );
+
+      expect(repository.watchDownloadedTrailIds(), emits({'activity_123'}));
+    });
     test('downloads missing geometry for a remote planned activity', () async {
       final localStore = FakeActivityLocalStore();
       final plannedTrailStore = MockPlannedTrailStore();
