@@ -7,20 +7,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:application/services/planned_trail_store.dart';
 import 'package:application/core/models/planned_trail.dart';
 import 'package:application/core/models/trail_point.dart';
+import 'package:application/services/trail_geometry_service.dart';
 
 class ActivityRepository {
   final bool Function()? hasCurrentUser;
   final DatabaseService Function()? databaseServiceFactory;
   final ActivityLocalDataSource _localStore;
   final PlannedTrailLocalDataSource _plannedTrailStore;
+  final TrailGeometryDataSource _trailGeometrySource;
+  final Set<String> _trailSyncInProgress = {};
 
   ActivityRepository({
     this.hasCurrentUser,
     this.databaseServiceFactory,
     ActivityLocalDataSource? localStore,
     PlannedTrailLocalDataSource? plannedTrailStore,
+    TrailGeometryDataSource? trailGeometrySource,
   }) : _localStore = localStore ?? HiveActivityStore(),
-       _plannedTrailStore = plannedTrailStore ?? PlannedTrailStore();
+       _plannedTrailStore = plannedTrailStore ?? PlannedTrailStore(),
+       _trailGeometrySource =
+           trailGeometrySource ?? OverpassTrailGeometryService();
 
   DatabaseService? _remoteOrNull() {
     final hasUser = hasCurrentUser != null
@@ -50,6 +56,83 @@ class ActivityRepository {
 
   Future<PlannedTrail?> getPlannedTrail(String activityId) async {
     return await _plannedTrailStore.getTrail(activityId);
+  }
+
+  Future<void> cachePlannedTrail(
+    String activityId,
+    String trailId,
+    List<List<TrailPoint>> trailPoints,
+  ) async {
+    final hasGeometry = trailPoints.any((segment) => segment.isNotEmpty);
+
+    if (activityId.isEmpty || !hasGeometry) {
+      return;
+    }
+
+    final plannedTrail = PlannedTrail(
+      activityId: activityId,
+      trailId: trailId,
+      segments: trailPoints,
+    );
+
+    await _plannedTrailStore.saveTrail(plannedTrail);
+  }
+
+  Future<void> syncPlannedActivitiesForOffline(
+    List<Activity> activities,
+  ) async {
+    for (final activity in activities) {
+      if (activity.status != ActivityStatus.planned ||
+          activity.id.isEmpty ||
+          activity.trailId.isEmpty) {
+        continue;
+      }
+
+      if (!_trailSyncInProgress.add(activity.id)) {
+        continue;
+      }
+
+      try {
+        final localActivity = await _findLocalActivity(activity.id);
+
+        if (localActivity == null) {
+          await _localStore.upsertActivity(activity);
+        }
+
+        final cachedTrail = await _plannedTrailStore.getTrail(activity.id);
+
+        final hasCachedGeometry =
+            cachedTrail?.segments.any((segment) => segment.isNotEmpty) ?? false;
+
+        if (hasCachedGeometry) {
+          continue;
+        }
+
+        final segments = await _trailGeometrySource.fetchTrailPath(
+          activity.trailId,
+        );
+
+        final hasDownloadedGeometry = segments.any(
+          (segment) => segment.isNotEmpty,
+        );
+
+        if (!hasDownloadedGeometry) {
+          continue;
+        }
+
+        final trailPoints = segments.map<List<TrailPoint>>((segment) {
+          return segment.map<TrailPoint>((point) {
+            return TrailPoint(lat: point.latitude, lng: point.longitude);
+          }).toList();
+        }).toList();
+
+        await cachePlannedTrail(activity.id, activity.trailId, trailPoints);
+      } catch (_) {
+        // Un errore non deve impedire il caricamento delle attività.
+      } finally {
+        _trailSyncInProgress.remove(activity.id);
+      }
+    }
   }
 
   Future<String> addPlannedActivity(

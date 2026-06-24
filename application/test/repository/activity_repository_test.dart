@@ -10,6 +10,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:application/services/planned_trail_store.dart';
 import 'package:application/core/models/planned_trail.dart';
 import 'package:application/core/models/trail_point.dart';
+import 'package:application/services/trail_geometry_service.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
@@ -62,6 +64,8 @@ class FakeActivityLocalStore implements ActivityLocalDataSource {
 class MockPlannedTrailStore extends Mock
     implements PlannedTrailLocalDataSource {}
 
+class MockTrailGeometrySource extends Mock implements TrailGeometryDataSource {}
+
 void main() {
   setUpAll(() {
     setupTest();
@@ -71,6 +75,94 @@ void main() {
   });
 
   group('ActivityRepository when no user is signed in', () {
+    test('downloads missing geometry for a remote planned activity', () async {
+      final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+      final geometrySource = MockTrailGeometrySource();
+
+      addTearDown(localStore.close);
+
+      when(
+        () => plannedTrailStore.getTrail('remote_1'),
+      ).thenAnswer((_) async => null);
+
+      when(() => plannedTrailStore.saveTrail(any())).thenAnswer((_) async {});
+
+      when(() => geometrySource.fetchTrailPath('12345')).thenAnswer(
+        (_) async => const [
+          [LatLng(45.1, 9.1), LatLng(45.2, 9.2)],
+        ],
+      );
+
+      final repository = ActivityRepository(
+        hasCurrentUser: () => true,
+        localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
+        trailGeometrySource: geometrySource,
+      );
+
+      final remoteActivity = Activity(
+        id: 'remote_1',
+        name: 'Remote planned hike',
+        status: ActivityStatus.planned,
+        date: DateTime(2026, 7, 1),
+        trailId: '12345',
+      );
+
+      await repository.syncPlannedActivitiesForOffline([remoteActivity]);
+
+      expect(localStore.activities.single.id, 'remote_1');
+
+      verify(() => geometrySource.fetchTrailPath('12345')).called(1);
+
+      final cachedTrail =
+          verify(
+                () => plannedTrailStore.saveTrail(captureAny()),
+              ).captured.single
+              as PlannedTrail;
+
+      expect(cachedTrail.activityId, 'remote_1');
+      expect(cachedTrail.segments.first.first.lat, 45.1);
+    });
+
+    test('does not download geometry when it is already cached', () async {
+      final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+      final geometrySource = MockTrailGeometrySource();
+
+      addTearDown(localStore.close);
+
+      when(() => plannedTrailStore.getTrail('cached_1')).thenAnswer(
+        (_) async => const PlannedTrail(
+          activityId: 'cached_1',
+          trailId: '12345',
+          segments: [
+            [TrailPoint(lat: 45.1, lng: 9.1)],
+          ],
+        ),
+      );
+
+      final repository = ActivityRepository(
+        hasCurrentUser: () => true,
+        localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
+        trailGeometrySource: geometrySource,
+      );
+
+      final activity = Activity(
+        id: 'cached_1',
+        name: 'Cached hike',
+        status: ActivityStatus.planned,
+        date: DateTime(2026, 7, 1),
+        trailId: '12345',
+      );
+
+      await repository.syncPlannedActivitiesForOffline([activity]);
+
+      verifyNever(() => geometrySource.fetchTrailPath(any()));
+
+      verifyNever(() => plannedTrailStore.saveTrail(any()));
+    });
     test('addPlannedActivity saves activity and geometry locally', () async {
       final localStore = FakeActivityLocalStore();
       final plannedTrailStore = MockPlannedTrailStore();

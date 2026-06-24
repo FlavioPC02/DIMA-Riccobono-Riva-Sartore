@@ -13,6 +13,8 @@ class ActivityCubit extends Cubit<List<Activity>> {
   ActivityCubit(this._repository) : super([]) {
     _subscription = _repository.streamActivities().listen((activities) {
       emit(activities);
+
+      unawaited(_repository.syncPlannedActivitiesForOffline(activities));
     });
   }
 
