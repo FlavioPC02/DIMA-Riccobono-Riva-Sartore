@@ -20,6 +20,7 @@ class Activity {
   double trackedDistance;
   double trackedElevationGap;
   Duration trackedTime;
+  bool pendingSync;
 
   Activity({
     this.id = '',
@@ -36,6 +37,7 @@ class Activity {
     this.trackedDistance = 0,
     this.trackedElevationGap = 0,
     this.trackedTime = Duration.zero,
+    this.pendingSync = false,
   }) : notes = List<ActivityNote>.from(notes);
 
   Map<String, dynamic> toJson() => {
@@ -80,6 +82,7 @@ class Activity {
       trackedDistance: (json['trackedDistance'] ?? 0).toDouble(),
       trackedElevationGap: json['trackedElevationGap'] ?? 0,
       trackedTime: Duration(seconds: json['trackedTime'] ?? 0),
+      pendingSync: false,
     );
   }
 }

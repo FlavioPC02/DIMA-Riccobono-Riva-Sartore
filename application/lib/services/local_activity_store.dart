@@ -83,6 +83,7 @@ class HiveActivityStore implements ActivityLocalDataSource {
       'tracked_distance': activity.trackedDistance,
       'tracked_elevation_gap': activity.trackedElevationGap,
       'tracked_time_seconds': activity.trackedTime.inSeconds,
+      'pending_sync': activity.pendingSync,
     };
   }
 
@@ -111,6 +112,7 @@ class HiveActivityStore implements ActivityLocalDataSource {
       trackedTime: Duration(
         seconds: (entry['tracked_time_seconds'] as num?)?.toInt() ?? 0,
       ),
+      pendingSync: entry['pending_sync'] == true,
     );
   }
 

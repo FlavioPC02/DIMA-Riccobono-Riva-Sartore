@@ -30,6 +30,9 @@ MockActivityRepository createMockRepo({Stream<List<Activity>>? remoteStream}) {
   when(
     () => repo.syncPlannedActivitiesForOffline(any()),
   ).thenAnswer((_) async {});
+  when(
+    () => repo.syncPendingCompletedActivities(any()),
+  ).thenAnswer((_) async {});
 
   return repo;
 }
@@ -101,6 +104,9 @@ void main() {
 
       verify(
         () => repository.syncPlannedActivitiesForOffline(activities),
+      ).called(1);
+      verify(
+        () => repository.syncPendingCompletedActivities(activities),
       ).called(1);
 
       await cubit.close();

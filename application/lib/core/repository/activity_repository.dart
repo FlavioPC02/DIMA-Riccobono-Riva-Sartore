@@ -139,6 +139,28 @@ class ActivityRepository {
     }
   }
 
+  Future<void> syncPendingCompletedActivities(List<Activity> activities) async {
+    final remote = _remoteOrNull();
+    if (remote == null) return;
+
+    for (final activity in activities) {
+      if (activity.status != ActivityStatus.completed ||
+          !activity.pendingSync) {
+        continue;
+      }
+
+      final savedRemotely = await _trySaveRemote(activity, remote);
+
+      if (!savedRemotely) {
+        continue;
+      }
+
+      activity.pendingSync = false;
+      await _localStore.deleteActivity(activity.id);
+      await _plannedTrailStore.deleteTrail(activity.id);
+    }
+  }
+
   Future<String> addPlannedActivity(
     Activity activity,
     List<List<TrailPoint>> trailPoints,
@@ -205,19 +227,26 @@ class ActivityRepository {
     final remote = _remoteOrNull();
 
     if (activity.status != ActivityStatus.completed) {
+      activity.pendingSync = false;
       await _localStore.upsertActivity(activity);
       await _trySaveRemote(activity, remote);
       return;
     }
 
+    activity.pendingSync = true;
+    await _localStore.upsertActivity(activity);
+
     if (remote == null) {
-      throw StateError(
-        'A completed activity requires an authenticated Firestore user',
-      );
+      return;
     }
 
-    await remote.updateActivity(activity.id, activity.toJson());
+    final savedRemotely = await _trySaveRemote(activity, remote);
 
+    if (!savedRemotely) {
+      return;
+    }
+
+    activity.pendingSync = false;
     await _localStore.deleteActivity(activity.id);
     await _plannedTrailStore.deleteTrail(activity.id);
   }

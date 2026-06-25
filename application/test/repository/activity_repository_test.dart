@@ -276,7 +276,7 @@ void main() {
     });
 
     test(
-      'addActivity rejects completed activities without a Firestore user',
+      'addActivity stores completed activities locally as pending sync without a Firestore user',
       () async {
         final localStore = FakeActivityLocalStore();
         addTearDown(localStore.close);
@@ -291,14 +291,16 @@ void main() {
           date: DateTime.now(),
         );
 
-        await expectLater(repo.addActivity(a), throwsA(isA<StateError>()));
+        final id = await repo.addActivity(a);
 
-        expect(localStore.activities, isEmpty);
+        expect(id, equals('local_1'));
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities.single.pendingSync, isTrue);
       },
     );
 
     test(
-      'updateActivity rejects completed activities without a Firestore user',
+      'updateActivity stores completed activities locally as pending sync without a Firestore user',
       () async {
         final localStore = FakeActivityLocalStore();
         addTearDown(localStore.close);
@@ -313,12 +315,11 @@ void main() {
           date: DateTime.now(),
         );
 
-        await expectLater(
-          repo.updateActivity(completed),
-          throwsA(isA<StateError>()),
-        );
+        await repo.updateActivity(completed);
 
-        expect(localStore.activities, isEmpty);
+        expect(localStore.activities.single.id, 'i');
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities.single.pendingSync, isTrue);
       },
     );
 
@@ -580,7 +581,7 @@ void main() {
     );
 
     test(
-      'updateActivity propagates Firestore failures without a local fallback',
+      'updateActivity keeps completed activities locally when Firestore fails',
       () async {
         final mockDb = MockDatabaseService();
         when(
@@ -601,12 +602,92 @@ void main() {
           date: DateTime.now(),
         );
 
-        await expectLater(
-          repo.updateActivity(completed),
-          throwsA(isA<Exception>()),
+        await repo.updateActivity(completed);
+
+        expect(localStore.activities.single.id, 'i1');
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities.single.pendingSync, isTrue);
+      },
+    );
+
+    test(
+      'syncPendingCompletedActivities uploads pending completed activities and clears local copies',
+      () async {
+        final mockDb = MockDatabaseService();
+        when(
+          () => mockDb.updateActivity(any(), any()),
+        ).thenAnswer((_) async {});
+
+        final localStore = FakeActivityLocalStore();
+        final plannedTrailStore = MockPlannedTrailStore();
+
+        when(
+          () => plannedTrailStore.deleteTrail(any()),
+        ).thenAnswer((_) async {});
+        addTearDown(localStore.close);
+
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          plannedTrailStore: plannedTrailStore,
         );
 
+        final pendingCompleted = Activity(
+          id: 'sync_me',
+          name: 'Local Done',
+          status: ActivityStatus.completed,
+          date: DateTime.now(),
+          pendingSync: true,
+        );
+        await localStore.upsertActivity(pendingCompleted);
+
+        await repo.syncPendingCompletedActivities([pendingCompleted]);
+
         expect(localStore.activities, isEmpty);
+        verify(() => mockDb.updateActivity('sync_me', any())).called(1);
+        verify(() => plannedTrailStore.deleteTrail('sync_me')).called(1);
+      },
+    );
+
+    test(
+      'syncPendingCompletedActivities keeps local copies when Firestore fails',
+      () async {
+        final mockDb = MockDatabaseService();
+        when(
+          () => mockDb.updateActivity(any(), any()),
+        ).thenThrow(Exception('offline'));
+
+        final localStore = FakeActivityLocalStore();
+        final plannedTrailStore = MockPlannedTrailStore();
+
+        when(
+          () => plannedTrailStore.deleteTrail(any()),
+        ).thenAnswer((_) async {});
+        addTearDown(localStore.close);
+
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          plannedTrailStore: plannedTrailStore,
+        );
+
+        final pendingCompleted = Activity(
+          id: 'sync_me',
+          name: 'Local Done',
+          status: ActivityStatus.completed,
+          date: DateTime.now(),
+          pendingSync: true,
+        );
+        await localStore.upsertActivity(pendingCompleted);
+
+        await repo.syncPendingCompletedActivities([pendingCompleted]);
+
+        expect(localStore.activities.single.id, 'sync_me');
+        expect(localStore.activities.single.pendingSync, isTrue);
+        verify(() => mockDb.updateActivity('sync_me', any())).called(1);
+        verifyNever(() => plannedTrailStore.deleteTrail(any()));
       },
     );
 
@@ -820,7 +901,7 @@ void main() {
     });
 
     test(
-      'streamActivities does not sync locally completed activities',
+      'streamActivities only merges local and remote completed activities',
       () async {
         final mockDb = MockDatabaseService();
         final controller = StreamController<List<Map<String, dynamic>>>();

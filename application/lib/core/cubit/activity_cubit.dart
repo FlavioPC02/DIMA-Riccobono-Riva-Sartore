@@ -15,6 +15,7 @@ class ActivityCubit extends Cubit<List<Activity>> {
       emit(activities);
 
       unawaited(_repository.syncPlannedActivitiesForOffline(activities));
+      unawaited(_repository.syncPendingCompletedActivities(activities));
     });
   }
 

@@ -48,6 +48,7 @@ void main() {
       trackedDistance: 4.2,
       trackedElevationGap: 120,
       trackedTime: const Duration(minutes: 70),
+      pendingSync: true,
     );
   }
 
@@ -69,6 +70,7 @@ void main() {
 
     expect(activities.map((a) => a.name), ['Newer', 'Older']);
     expect(activities.first.trackedTime, const Duration(minutes: 70));
+    expect(activities.first.pendingSync, isTrue);
   });
 
   test('updates and deletes activities by id', () async {
