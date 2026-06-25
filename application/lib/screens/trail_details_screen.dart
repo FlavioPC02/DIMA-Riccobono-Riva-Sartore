@@ -87,8 +87,8 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         _isFavorite = isFavorite;
       });
     } catch (_) {
-      // The app initializes Hive before this screen is shown; this keeps
-      // isolated widget tests from failing before they configure Hive.
+      // Keeps isolated widget tests from failing when they use lightweight
+      // favorite-store doubles.
     }
   }
 

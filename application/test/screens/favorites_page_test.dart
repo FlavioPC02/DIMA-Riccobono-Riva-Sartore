@@ -43,7 +43,7 @@ void main() {
       return MaterialApp(
         navigatorObservers: [mockNavigatorObserver],
         home: Scaffold(
-          body: const FavoritesPage(),
+          body: FavoritesPage(favoriteTrailStore: mockStore),
         ),
       );
     }

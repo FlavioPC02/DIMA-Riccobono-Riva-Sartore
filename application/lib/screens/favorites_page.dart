@@ -5,19 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:hike_core/hike_core.dart';
 
 class FavoritesPage extends StatefulWidget {
-  const FavoritesPage({super.key});
+  final FavoriteTrailStore? favoriteTrailStore;
+
+  const FavoritesPage({super.key, this.favoriteTrailStore});
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
-  final FavoriteTrailStore _favoriteTrailStore = FavoriteTrailStore();
+  late final FavoriteTrailStore _favoriteTrailStore;
   late final Stream<List<FavoriteTrail>> _favoriteTrailsStream;
 
   @override
   void initState() {
     super.initState();
+    _favoriteTrailStore = widget.favoriteTrailStore ?? FavoriteTrailStore();
     _favoriteTrailsStream = _favoriteTrailStore.streamFavoriteTrails();
   }
 
