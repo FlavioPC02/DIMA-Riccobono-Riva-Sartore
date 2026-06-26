@@ -82,7 +82,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                   : activity.name,
               'subTrails': segments,
             },
-            activity: activity,
+            activity: activity.copyWith(date: DateTime.now()),
           ),
         ),
       );
@@ -436,11 +436,11 @@ class _OverviewTabState extends State<_OverviewTab> {
           _StatRow(label: 'XP Earned', value: '${widget.activity.xpEarned}'),
           _StatRow(
             label: 'Elevation Gain',
-            value: '${widget.activity.trackedElevationGap} m',
+            value: '${widget.activity.trackedElevationGap.toStringAsFixed(1)} m',
           ),
           _StatRow(
             label: 'Tracked Distance',
-            value: '${widget.activity.trackedDistance} km',
+            value: '${widget.activity.trackedDistance.toStringAsFixed(1)} km',
           ),
           _StatRow(
             label: 'Tracked Time',
