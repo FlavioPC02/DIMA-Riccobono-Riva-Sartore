@@ -1,29 +1,26 @@
 import 'package:application/core/models/activity_note.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:latlong2/latlong.dart';
-
-import 'trail_point.dart';
 
 enum ActivityStatus { completed, planned }
 
 enum ActivityDifficulty { easy, moderate, hard }
 
 class Activity {
-  final String id;
-  final String name;
+  String id;
+  String name;
   ActivityStatus status;
-  final DateTime date;
-  final String trailName;
-  final double distanceKm;
-  final int durationMinutes;
-  final double xpEarned;
-  final List<ActivityNote> notes;
-  final ActivityDifficulty difficulty;
-  final String trailId;
-  final List<List<TrailPoint>> trailPath;
+  DateTime date;
+  String trailName;
+  double distanceKm;
+  int durationMinutes;
+  double xpEarned;
+  List<ActivityNote> notes;
+  ActivityDifficulty difficulty;
+  String trailId;
   double trackedDistance;
   double trackedElevationGap;
   Duration trackedTime;
+  bool pendingSync;
 
   Activity({
     this.id = '',
@@ -34,14 +31,14 @@ class Activity {
     this.distanceKm = 0,
     this.durationMinutes = 0,
     this.xpEarned = 0,
-    this.notes = const [],
+    List<ActivityNote> notes = const [],
     this.difficulty = ActivityDifficulty.easy,
     this.trailId = '',
-    this.trailPath = const [],
     this.trackedDistance = 0,
     this.trackedElevationGap = 0,
     this.trackedTime = Duration.zero,
-  });
+    this.pendingSync = false,
+  }) : notes = List<ActivityNote>.from(notes);
 
   Activity copyWith({
     String? id,
@@ -55,10 +52,10 @@ class Activity {
     List<ActivityNote>? notes,
     ActivityDifficulty? difficulty,
     String? trailId,
-    List<List<TrailPoint>>? trailPath,
     double? trackedDistance,
     double? trackedElevationGap,
     Duration? trackedTime,
+    bool? pendingSync,
   }) {
     return Activity(
       id: id ?? this.id,
@@ -72,31 +69,12 @@ class Activity {
       notes: notes ?? this.notes,
       difficulty: difficulty ?? this.difficulty,
       trailId: trailId ?? this.trailId,
-      trailPath: trailPath ?? this.trailPath,
       trackedDistance: trackedDistance ?? this.trackedDistance,
       trackedElevationGap: trackedElevationGap ?? this.trackedElevationGap,
       trackedTime: trackedTime ?? this.trackedTime,
+      pendingSync: pendingSync ?? this.pendingSync,
     );
   }
-
-  bool get hasTrailPath => trailPath.any((segment) => segment.isNotEmpty);
-
-  List<List<LatLng>> get trailSubTrails {
-    return trailPath
-        .map(
-          (segment) => segment
-              .map((point) => LatLng(point.lat, point.lng))
-              .toList(growable: false),
-        )
-        .where((segment) => segment.isNotEmpty)
-        .toList(growable: false);
-  }
-
-  Map<String, dynamic> get navigatorTrail => {
-    'id': trailId,
-    'name': trailName.isNotEmpty ? trailName : name,
-    'subTrails': trailSubTrails,
-  };
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -124,9 +102,14 @@ class Activity {
       distanceKm: (json['distanceKm'] ?? 0).toDouble(),
       durationMinutes: json['durationMinutes'] ?? 0,
       xpEarned: (json['xpEarned'] ?? 0).toDouble(),
-      notes: (json['notes'] as List<dynamic>?)
-              ?.map((noteJson) => ActivityNote.fromJson(Map<String, dynamic>.from(noteJson as Map)))
-              .toList() ?? 
+      notes:
+          (json['notes'] as List<dynamic>?)
+              ?.map(
+                (noteJson) => ActivityNote.fromJson(
+                  Map<String, dynamic>.from(noteJson as Map),
+                ),
+              )
+              .toList() ??
           const [],
       difficulty: ActivityDifficulty.values.byName(
         json['difficulty'] ?? 'easy',
@@ -135,6 +118,7 @@ class Activity {
       trackedDistance: (json['trackedDistance'] ?? 0).toDouble(),
       trackedElevationGap: json['trackedElevationGap'] ?? 0,
       trackedTime: Duration(seconds: json['trackedTime'] ?? 0),
+      pendingSync: false,
     );
   }
 }

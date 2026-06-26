@@ -1,47 +1,35 @@
-import 'dart:io';
-
 import 'package:application/core/models/favorite_trail.dart';
 import 'package:application/services/favorite_trail_store.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_ce_flutter/adapters.dart';
-import 'package:latlong2/latlong.dart';
 
 void main() {
-  late Directory tempDir;
-
-  setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('favorite_trails_test_');
-    Hive.init(tempDir.path);
+  setUp(() async {
+    await FavoriteTrailStore.clearForTesting();
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (tempDir.existsSync()) {
-      tempDir.deleteSync(recursive: true);
-    }
+    await FavoriteTrailStore.clearForTesting();
   });
 
-  test('persists only trail data and restores it as a trail map', () async {
+  test('keeps favorite trails in memory and returns them sorted by name', () async {
     final store = FavoriteTrailStore();
-    final trail = FavoriteTrail.fromTrail({
-      'id': 12345,
-      'name': 'Sentiero Test',
-      'subTrails': const [
-        [LatLng(45.1, 9.1), LatLng(45.2, 9.2)],
-      ],
-    });
 
-    await store.saveTrail(trail);
+    await store.saveTrail(
+      FavoriteTrail.fromTrail({
+        'id': 'beta',
+        'name': 'Trail Beta',
+      }),
+    );
+    await store.saveTrail(
+      FavoriteTrail.fromTrail({
+        'id': 'alpha',
+        'name': 'Trail Alpha',
+      }),
+    );
 
-    final restoredStore = FavoriteTrailStore();
-    final favorites = await restoredStore.fetchFavoriteTrails();
-    final restoredTrail = favorites.single.toTrailMap();
+    final favorites = await store.fetchFavoriteTrails();
 
-    expect(favorites.single.id, '12345');
-    expect(favorites.single.name, 'Sentiero Test');
-    expect(restoredTrail['id'], '12345');
-    expect(restoredTrail['name'], 'Sentiero Test');
-    expect(restoredTrail['subTrails'].single.first, isA<LatLng>());
+    expect(favorites.map((trail) => trail.name), ['Trail Alpha', 'Trail Beta']);
   });
 
   test('reports favorite state and deletes a trail by id', () async {
@@ -49,9 +37,6 @@ void main() {
     final trail = FavoriteTrail.fromTrail({
       'id': 'trail-1',
       'name': 'Trail',
-      'subTrails': const [
-        [LatLng(45.1, 9.1)],
-      ],
     });
 
     await store.saveTrail(trail);
@@ -61,5 +46,24 @@ void main() {
 
     expect(await store.isFavorite('trail-1'), isFalse);
     expect(await store.fetchFavoriteTrails(), isEmpty);
+  });
+
+  test('emits updates when favorite trails change', () async {
+    final store = FavoriteTrailStore();
+    final emissions = <List<FavoriteTrail>>[];
+    final subscription = store.streamFavoriteTrails().listen(emissions.add);
+    addTearDown(subscription.cancel);
+
+    await Future<void>.delayed(Duration.zero);
+    await store.saveTrail(
+      FavoriteTrail.fromTrail({
+        'id': 'trail-1',
+        'name': 'Trail',
+      }),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(emissions.first, isEmpty);
+    expect(emissions.last.single.id, 'trail-1');
   });
 }

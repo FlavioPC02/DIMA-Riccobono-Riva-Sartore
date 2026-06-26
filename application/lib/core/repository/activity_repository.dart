@@ -1,21 +1,32 @@
 import 'dart:async';
-
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/services/database_service.dart';
 import 'package:application/services/local_activity_store.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:application/services/planned_trail_store.dart';
+import 'package:application/core/models/planned_trail.dart';
+import 'package:application/core/models/trail_point.dart';
+import 'package:application/services/trail_geometry_service.dart';
 
 class ActivityRepository {
   final bool Function()? hasCurrentUser;
   final DatabaseService Function()? databaseServiceFactory;
   final ActivityLocalDataSource _localStore;
+  final PlannedTrailLocalDataSource _plannedTrailStore;
+  final TrailGeometryDataSource _trailGeometrySource;
+  final Set<String> _trailSyncInProgress = {};
 
   ActivityRepository({
     this.hasCurrentUser,
     this.databaseServiceFactory,
     ActivityLocalDataSource? localStore,
-  }) : _localStore = localStore ?? HiveActivityStore();
+    PlannedTrailLocalDataSource? plannedTrailStore,
+    TrailGeometryDataSource? trailGeometrySource,
+  }) : _localStore = localStore ?? HiveActivityStore(),
+       _plannedTrailStore = plannedTrailStore ?? PlannedTrailStore(),
+       _trailGeometrySource =
+           trailGeometrySource ?? OverpassTrailGeometryService();
 
   DatabaseService? _remoteOrNull() {
     final hasUser = hasCurrentUser != null
@@ -40,25 +51,172 @@ class ActivityRepository {
           .toList(),
     );
 
-    return _mergeActivityStreams(localStream, remoteStream, remote);
+    return _mergeActivityStreams(localStream, remoteStream);
+  }
+
+  Future<PlannedTrail?> getPlannedTrail(String activityId) async {
+    return await _plannedTrailStore.getTrail(activityId);
+  }
+
+  Stream<Set<String>> watchDownloadedTrailIds() {
+    return _plannedTrailStore.watchDownloadedTrailIds();
+  }
+
+  Future<void> cachePlannedTrail(
+    String activityId,
+    String trailId,
+    List<List<TrailPoint>> trailPoints,
+  ) async {
+    final hasGeometry = trailPoints.any((segment) => segment.isNotEmpty);
+
+    if (activityId.isEmpty || !hasGeometry) {
+      return;
+    }
+
+    final plannedTrail = PlannedTrail(
+      activityId: activityId,
+      trailId: trailId,
+      segments: trailPoints,
+    );
+
+    await _plannedTrailStore.saveTrail(plannedTrail);
+  }
+
+  Future<void> syncPlannedActivitiesForOffline(
+    List<Activity> activities,
+  ) async {
+    for (final activity in activities) {
+      if (activity.status != ActivityStatus.planned ||
+          activity.id.isEmpty ||
+          activity.trailId.isEmpty) {
+        continue;
+      }
+
+      if (!_trailSyncInProgress.add(activity.id)) {
+        continue;
+      }
+
+      try {
+        final localActivity = await _findLocalActivity(activity.id);
+
+        if (localActivity == null) {
+          await _localStore.upsertActivity(activity);
+        }
+
+        final cachedTrail = await _plannedTrailStore.getTrail(activity.id);
+
+        final hasCachedGeometry =
+            cachedTrail?.segments.any((segment) => segment.isNotEmpty) ?? false;
+
+        if (hasCachedGeometry) {
+          continue;
+        }
+
+        final segments = await _trailGeometrySource.fetchTrailPath(
+          activity.trailId,
+        );
+
+        final hasDownloadedGeometry = segments.any(
+          (segment) => segment.isNotEmpty,
+        );
+
+        if (!hasDownloadedGeometry) {
+          continue;
+        }
+
+        final trailPoints = segments.map<List<TrailPoint>>((segment) {
+          return segment.map<TrailPoint>((point) {
+            return TrailPoint(lat: point.latitude, lng: point.longitude);
+          }).toList();
+        }).toList();
+
+        await cachePlannedTrail(activity.id, activity.trailId, trailPoints);
+      } catch (_) {
+        // ignore errors during sync
+      } finally {
+        _trailSyncInProgress.remove(activity.id);
+      }
+    }
+  }
+
+  Future<void> syncPendingCompletedActivities(List<Activity> activities) async {
+    final remote = _remoteOrNull();
+    if (remote == null) return;
+
+    for (final activity in activities) {
+      if (activity.status != ActivityStatus.completed ||
+          !activity.pendingSync) {
+        continue;
+      }
+
+      final savedRemotely = await _trySaveRemote(activity, remote);
+
+      if (!savedRemotely) {
+        continue;
+      }
+
+      activity.pendingSync = false;
+      await _localStore.deleteActivity(activity.id);
+      await _plannedTrailStore.deleteTrail(activity.id);
+    }
+  }
+
+  Future<String> addPlannedActivity(
+    Activity activity,
+    List<List<TrailPoint>> trailPoints,
+  ) async {
+    if (activity.status != ActivityStatus.planned) {
+      throw ArgumentError('Activity must have status planned');
+    }
+
+    final hasGeometry = trailPoints.any((segment) => segment.isNotEmpty);
+
+    if (!hasGeometry) {
+      throw ArgumentError('Trail geometry is required');
+    }
+
+    if (activity.id.isEmpty) {
+      activity.id = _localStore.createId();
+    }
+
+    final plannedTrail = PlannedTrail(
+      activityId: activity.id,
+      trailId: activity.trailId,
+      segments: trailPoints,
+    );
+
+    try {
+      await _localStore.upsertActivity(activity);
+      await _plannedTrailStore.saveTrail(plannedTrail);
+    } catch (_) {
+      await _localStore.deleteActivity(activity.id);
+      await _plannedTrailStore.deleteTrail(activity.id);
+      rethrow;
+    }
+
+    await _trySaveRemote(activity, _remoteOrNull());
+    return activity.id;
   }
 
   Future<String?> addActivity(Activity activity) async {
-    final id = activity.id.isEmpty ? _localStore.createId() : activity.id;
-    final localActivity = activity.copyWith(id: id);
-    await _saveActivity(localActivity);
+    if (activity.id.isEmpty) {
+      activity.id = _localStore.createId();
+    }
+    await _saveActivity(activity);
 
-    return id;
+    return activity.id;
   }
 
   Future<void> updateActivity(Activity activity) async {
-    final id = activity.id.isEmpty ? _localStore.createId() : activity.id;
-    final localActivity = activity.copyWith(id: id);
-    await _saveActivity(localActivity);
+    if (activity.id.isEmpty) {
+      activity.id = _localStore.createId();
+    }
+    await _saveActivity(activity);
   }
 
   Future<void> deleteActivity(String id) async {
     await _localStore.deleteActivity(id);
+    await _plannedTrailStore.deleteTrail(id);
 
     final remote = _remoteOrNull();
     if (remote == null) return;
@@ -69,22 +227,15 @@ class ActivityRepository {
     final remote = _remoteOrNull();
 
     if (activity.status != ActivityStatus.completed) {
+      activity.pendingSync = false;
       await _localStore.upsertActivity(activity);
       await _trySaveRemote(activity, remote);
       return;
     }
 
-    if (remote == null) {
-      await _localStore.upsertActivity(activity);
-      return;
-    }
-
-    final savedRemotely = await _trySaveRemote(activity, remote);
-    if (savedRemotely) {
-      await _localStore.deleteActivity(activity.id);
-    } else {
-      await _localStore.upsertActivity(activity);
-    }
+    activity.pendingSync = true;
+    await _localStore.upsertActivity(activity);
+    return;
   }
 
   Future<bool> _trySaveRemote(
@@ -104,7 +255,6 @@ class ActivityRepository {
   Stream<List<Activity>> _mergeActivityStreams(
     Stream<List<Activity>> localStream,
     Stream<List<Activity>> remoteStream,
-    DatabaseService remote,
   ) {
     late StreamSubscription<List<Activity>> localSubscription;
     late StreamSubscription<List<Activity>> remoteSubscription;
@@ -122,7 +272,6 @@ class ActivityRepository {
     controller.onListen = () {
       localSubscription = localStream.listen((activities) {
         localActivities = activities;
-        _syncPendingCompletedActivities(activities, remote);
         emitMerged();
       }, onError: controller.addError);
 
@@ -138,27 +287,6 @@ class ActivityRepository {
     };
 
     return controller.stream;
-  }
-
-  void _syncPendingCompletedActivities(
-    List<Activity> activities,
-    DatabaseService remote,
-  ) {
-    for (final activity in activities) {
-      if (activity.status == ActivityStatus.completed) {
-        unawaited(_syncCompletedActivity(activity, remote));
-      }
-    }
-  }
-
-  Future<void> _syncCompletedActivity(
-    Activity activity,
-    DatabaseService remote,
-  ) async {
-    final savedRemotely = await _trySaveRemote(activity, remote);
-    if (savedRemotely) {
-      await _localStore.deleteActivity(activity.id);
-    }
   }
 
   List<Activity> _mergeActivities(
@@ -182,31 +310,34 @@ class ActivityRepository {
 
   Future<Activity?> fetchActivityDetails(String id) async {
     final remote = _remoteOrNull();
+    final localActivity = await _findLocalActivity(id);
 
     if (remote != null) {
       try {
         final docData = await remote.fetchActivity(id);
 
         if (docData != null) {
-          Activity remoteActivity = Activity.fromJson(id, docData);
-          
-          final localActivities = await _localStore.streamActivities().first;
-          try {
-             final localActivity = localActivities.firstWhere((a) => a.id == id);
-             remoteActivity = remoteActivity.copyWith(trailPath: localActivity.trailPath);
-          } catch (_) {
-            //activity non exisiting in local cache then ignore trailPath
+          final remoteActivity = Activity.fromJson(id, docData);
+
+          if (remoteActivity.status == ActivityStatus.planned) {
+            await _localStore.upsertActivity(remoteActivity);
+          } else {
+            await _localStore.deleteActivity(id);
+            await _plannedTrailStore.deleteTrail(id);
           }
 
-          await _localStore.upsertActivity(remoteActivity);
-          
           return remoteActivity;
         }
-      } catch (e) {
+      } catch (_) {
         // fallback: read from hive
       }
     }
 
+    if (localActivity == null) return null;
+    return localActivity;
+  }
+
+  Future<Activity?> _findLocalActivity(String id) async {
     final localActivities = await _localStore.streamActivities().first;
     try {
       return localActivities.firstWhere((a) => a.id == id);
@@ -219,7 +350,7 @@ class ActivityRepository {
     List<ActivityNote> updatedNotes = List.from(activity.notes);
     final index = updatedNotes.indexWhere((n) => n.id == note.id);
     final isNewNote = index == -1;
-    
+
     ActivityNote? oldNote = isNewNote ? null : updatedNotes[index];
 
     if (isNewNote) {
@@ -227,8 +358,11 @@ class ActivityRepository {
     } else {
       updatedNotes[index] = note;
     }
-    
-    await _localStore.upsertActivity(activity.copyWith(notes: updatedNotes));
+
+    activity.notes = updatedNotes;
+    if (activity.status == ActivityStatus.planned) {
+      await _localStore.upsertActivity(activity);
+    }
 
     final remote = _remoteOrNull();
     if (remote == null) return;
@@ -239,13 +373,6 @@ class ActivityRepository {
       imageUrls: note.imageUrls,
       createdAt: note.createdAt,
     );
-
-    if (isNewNote) {
-      updatedNotes[updatedNotes.length - 1] = noteToSaveRemotely;
-    } else {
-      updatedNotes[index] = noteToSaveRemotely;
-    }
-    await _localStore.upsertActivity(activity.copyWith(notes: updatedNotes));
 
     try {
       if (isNewNote) {
@@ -262,9 +389,11 @@ class ActivityRepository {
   Future<void> deleteNote(Activity activity, ActivityNote noteToDelete) async {
     List<ActivityNote> updatedNotes = List.from(activity.notes)
       ..removeWhere((n) => n.id == noteToDelete.id);
-    
-    final localActivity = activity.copyWith(notes: updatedNotes);
-    await _localStore.upsertActivity(localActivity);
+
+    activity.notes = updatedNotes;
+    if (activity.status == ActivityStatus.planned) {
+      await _localStore.upsertActivity(activity);
+    }
 
     final remote = _remoteOrNull();
     if (remote != null) {

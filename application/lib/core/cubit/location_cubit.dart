@@ -15,11 +15,12 @@ import 'package:latlong2/latlong.dart';
 part '../models/location_state.dart';
 
 //Signature for the callback that save activity on DB and cubit
-typedef OnActivitySaved = Future<void> Function({
-  required double distance,
-  required double elevationGap,
-  required Duration elapsed,
-});
+typedef OnActivitySaved =
+    Future<void> Function({
+      required double distance,
+      required double elevationGap,
+      required Duration elapsed,
+    });
 
 //Callback for screen navigation after stop
 typedef OnNavigateAfterStop = void Function();
@@ -42,19 +43,19 @@ class LocationCubit extends Cubit<LocationState> {
        _onNavigateAfterStop = onNavigateAfterStop,
        _remainingEta = initialEta ?? Duration.zero,
        super(const LocationState.idle()) {
-         _wearSync.initialize();
-         _wearSync.onPauseFromWatch = pauseTracking;
-         _wearSync.onResumeFromWatch = resumeTracking;
-         
-         //Disable screen navigation because stop triggered from watch. The phone may be in their pockets.
-         _wearSync.onStopFromWatch = () {
-           _pendingNavigation = true;
-           stopAndSave(navigate: false);
-           // If we're already in foreground, consume it immediately. 
-           // If background, WidgetsBindingObserver in NavigatorScreen will catch it.
-           consumeNavigation();
-         };
-       }
+    _wearSync.initialize();
+    _wearSync.onPauseFromWatch = pauseTracking;
+    _wearSync.onResumeFromWatch = resumeTracking;
+
+    //Disable screen navigation because stop triggered from watch. The phone may be in their pockets.
+    _wearSync.onStopFromWatch = () {
+      _pendingNavigation = true;
+      stopAndSave(navigate: false);
+      // If we're already in foreground, consume it immediately.
+      // If background, WidgetsBindingObserver in NavigatorScreen will catch it.
+      consumeNavigation();
+    };
+  }
 
   final ILocationRepository _repository;
   final BackgroundTrackingService _backgroundTrackingService;
@@ -78,8 +79,9 @@ class LocationCubit extends Cubit<LocationState> {
   //Trail geometry
   List<List<LatLng>> _trailSegments = [];
   OnOffTrail? _onOffTrail;
-  DateTime _lastOffTrailNotificationTime =
-      DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastOffTrailNotificationTime = DateTime.fromMillisecondsSinceEpoch(
+    0,
+  );
 
   static const double _offTrailThresholdMeters = 50.0;
   static const double _earthRadiusMeters = 6371000;
@@ -159,8 +161,10 @@ class LocationCubit extends Cubit<LocationState> {
     //listen for points coming from the background isolate
     _locationSub = _backgroundTrackingService.watchLocation().listen(
       (point) async {
-        debugPrint('[LocationCubit] GPS point received: '
-            'lat=${point.lat} lng=${point.lng} alt=${point.altitude}');
+        debugPrint(
+          '[LocationCubit] GPS point received: '
+          'lat=${point.lat} lng=${point.lng} alt=${point.altitude}',
+        );
         if (isClosed) return;
         if (point.positionAccuracy > 50 || point.altitudeAccuracy > 50) return;
 
@@ -230,10 +234,10 @@ class LocationCubit extends Cubit<LocationState> {
 
         _wearSync.sendStats(
           HikeLiveStats(
-            elapsedTime: elapsed, 
+            elapsedTime: elapsed,
             distanceMeters: newDistance,
             totalDistanceMeters: _totalDistance,
-            elevationGapMeters: newGap, 
+            elevationGapMeters: newGap,
             eta: eta,
             isOffTrail: isOffTrail,
             offTrailDirection: offTrailDirection,
@@ -258,7 +262,9 @@ class LocationCubit extends Cubit<LocationState> {
     );
 
     await _backgroundTrackingService.startTracking();
-    debugPrint('[LocationCubit] startTracking() completed, isTracking=${state.isTracking}');
+    debugPrint(
+      '[LocationCubit] startTracking() completed, isTracking=${state.isTracking}',
+    );
     _wearSync.sendStatus(HikeRecordingStatus.recording);
   }
 
@@ -277,7 +283,7 @@ class LocationCubit extends Cubit<LocationState> {
       ),
     );
     _wearSync.sendStatus(HikeRecordingStatus.paused);
-    
+
     emit(
       LocationState.paused(
         points: state.points,
@@ -318,9 +324,19 @@ class LocationCubit extends Cubit<LocationState> {
     _stopWatch.stop();
     final elapsed = _stopWatch.elapsed;
 
-    await _locationSub?.cancel();
-    _locationSub = null;
-    await _backgroundTrackingService.stopTracking();
+    try {
+      await _locationSub?.cancel();
+    } catch (e) {
+      debugPrint('[LocationCubit] GPS subscription cancel failed: $e');
+    } finally {
+      _locationSub = null;
+    }
+
+    try {
+      await _backgroundTrackingService.stopTracking();
+    } catch (e) {
+      debugPrint('[LocationCubit] background tracking stop failed: $e');
+    }
 
     _wearSync.sendStatus(HikeRecordingStatus.stopped);
 
@@ -330,7 +346,11 @@ class LocationCubit extends Cubit<LocationState> {
       elapsed: elapsed,
     );
 
-    await clearHistory();
+    try {
+      await clearHistory();
+    } catch (e) {
+      debugPrint('[LocationCubit] location history clear failed: $e');
+    }
     if (!isClosed) emit(const LocationState.idle());
 
     if (navigate) {
@@ -357,7 +377,6 @@ class LocationCubit extends Cubit<LocationState> {
     return super.close();
   }
 
-
   ({int distance, String direction})? _checkOffTrail(LatLng position) {
     if (_trailSegments.isEmpty) return null;
 
@@ -367,8 +386,11 @@ class LocationCubit extends Cubit<LocationState> {
     for (final segment in _trailSegments) {
       if (segment.length < 2) continue;
       for (int i = 0; i < segment.length - 1; i++) {
-        final result =
-            _distanceAndSideToSegment(position, segment[i], segment[i + 1]);
+        final result = _distanceAndSideToSegment(
+          position,
+          segment[i],
+          segment[i + 1],
+        );
         if (result.distance < minDistance) {
           minDistance = result.distance;
           sideForMin = result.side;
@@ -394,9 +416,11 @@ class LocationCubit extends Cubit<LocationState> {
 
   // Flat-Earth approximation for short distances.
   ({double distance, double side}) _distanceAndSideToSegment(
-      LatLng p, LatLng v, LatLng w) {
-    final double latRef =
-        _degToRad((v.latitude + w.latitude) / 2.0);
+    LatLng p,
+    LatLng v,
+    LatLng w,
+  ) {
+    final double latRef = _degToRad((v.latitude + w.latitude) / 2.0);
     double xFor(LatLng a) =>
         _degToRad(a.longitude) * _earthRadiusMeters * math.cos(latRef);
     double yFor(LatLng a) => _degToRad(a.latitude) * _earthRadiusMeters;
@@ -409,7 +433,7 @@ class LocationCubit extends Cubit<LocationState> {
     if (dx == 0 && dy == 0) {
       return (
         distance: math.sqrt((px - vx) * (px - vx) + (py - vy) * (py - vy)),
-        side: 0.0
+        side: 0.0,
       );
     }
 
@@ -419,7 +443,8 @@ class LocationCubit extends Cubit<LocationState> {
     final projy = vy + tt * dy;
     return (
       distance: math.sqrt(
-          (px - projx) * (px - projx) + (py - projy) * (py - projy)),
+        (px - projx) * (px - projx) + (py - projy) * (py - projy),
+      ),
       side: dx * (py - projy) - dy * (px - projx),
     );
   }
@@ -429,7 +454,7 @@ class LocationCubit extends Cubit<LocationState> {
   DateTime _computeEta(List<LocationPoint> points) {
     final now = DateTime.now();
 
-    if(!_isUserMoving(points)) {
+    if (!_isUserMoving(points)) {
       _lastEtaUpdateAt = now;
       return now.add(_remainingEta);
     }
@@ -454,8 +479,8 @@ class LocationCubit extends Cubit<LocationState> {
     if (sampleAge > _movementSampleMaxAge) return false;
 
     final elapsedSeconds = latest.timestamp
-      .difference(previous.timestamp)
-      .inSeconds;
+        .difference(previous.timestamp)
+        .inSeconds;
     if (elapsedSeconds <= 0) return false;
 
     final traveledMeters = _haversine(previous, latest);

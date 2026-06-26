@@ -43,7 +43,7 @@ void main() {
       return MaterialApp(
         navigatorObservers: [mockNavigatorObserver],
         home: Scaffold(
-          body: const FavoritesPage(),
+          body: FavoritesPage(favoriteTrailStore: mockStore),
         ),
       );
     }
@@ -73,7 +73,6 @@ void main() {
         FavoriteTrail(
           id: '1', 
           name: 'Trail Alpha', 
-          trailPath: const [],
           distance: '10', 
           duration: '120', 
           difficulty: 1, 
@@ -83,7 +82,6 @@ void main() {
         FavoriteTrail(
           id: '2', 
           name: 'Trail Beta', 
-          trailPath: const [],
           distance: '15', 
           duration: '180', 
           difficulty: 3, 
@@ -109,7 +107,6 @@ void main() {
         FavoriteTrail(
           id: '1', 
           name: 'Trail Alpha', 
-          trailPath: const [],
           distance: '10', 
           duration: '120', 
           difficulty: 1, 

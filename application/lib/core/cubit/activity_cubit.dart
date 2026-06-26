@@ -3,6 +3,8 @@ import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:application/core/models/trail_point.dart';
+import 'package:application/core/models/planned_trail.dart';
 
 class ActivityCubit extends Cubit<List<Activity>> {
   final ActivityRepository _repository;
@@ -11,6 +13,9 @@ class ActivityCubit extends Cubit<List<Activity>> {
   ActivityCubit(this._repository) : super([]) {
     _subscription = _repository.streamActivities().listen((activities) {
       emit(activities);
+
+      unawaited(_repository.syncPlannedActivitiesForOffline(activities));
+      unawaited(_repository.syncPendingCompletedActivities(activities));
     });
   }
 
@@ -18,8 +23,36 @@ class ActivityCubit extends Cubit<List<Activity>> {
     await _repository.addActivity(activity);
   }
 
+  Future<void> addPlannedActivity(
+    Activity activity,
+    List<List<TrailPoint>> trailPoints,
+  ) async {
+    await _repository.addPlannedActivity(activity, trailPoints);
+  }
+
+  Future<PlannedTrail?> getPlannedTrail(String activityId) async {
+    return await _repository.getPlannedTrail(activityId);
+  }
+
+  Stream<Set<String>> watchDownloadedTrailIds() {
+    return _repository.watchDownloadedTrailIds();
+  }
+
   Future<void> updateActivity(Activity activity) async {
-    await _repository.updateActivity(activity);
+    final previousState = state;
+
+    emit(
+      state
+          .map((current) => current.id == activity.id ? activity : current)
+          .toList(growable: false),
+    );
+
+    try {
+      await _repository.updateActivity(activity);
+    } catch (_) {
+      emit(previousState);
+      rethrow;
+    }
   }
 
   Future<void> deleteActivity(String id) async {
@@ -34,42 +67,40 @@ class ActivityCubit extends Cubit<List<Activity>> {
 
   Future<void> loadActivityDetails(String id) async {
     final fetchedActivity = await _repository.fetchActivityDetails(id);
-    
+
     if (fetchedActivity != null) {
       final newState = state.map((a) {
         return a.id == id ? fetchedActivity : a;
       }).toList();
-      
+
       emit(newState);
     }
   }
 
   Future<void> addOrUpdateNote(Activity activity, ActivityNote note) async {
-    final noteId = note.id.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : note.id;
+    final noteId = note.id.isEmpty
+        ? DateTime.now().millisecondsSinceEpoch.toString()
+        : note.id;
     final finalNote = ActivityNote(
-        id: noteId,
-        text: note.text,
-        imageUrls: note.imageUrls,
-        createdAt: note.createdAt,
+      id: noteId,
+      text: note.text,
+      imageUrls: note.imageUrls,
+      createdAt: note.createdAt,
     );
 
     List<ActivityNote> updatedNotes = List.from(activity.notes);
     final index = updatedNotes.indexWhere((n) => n.id == finalNote.id);
-    
+
     if (index >= 0) {
       updatedNotes[index] = finalNote;
     } else {
       updatedNotes.add(finalNote);
     }
 
-    final updatedActivity = activity.copyWith(notes: updatedNotes);
-    final newState = state.map((a) {
-      return a.id == updatedActivity.id ? updatedActivity : a;
-    }).toList();
-
-    emit(newState); 
-
     await _repository.saveNote(activity, finalNote);
+
+    activity.notes = updatedNotes;
+    emit(List<Activity>.from(state));
   }
 
   Future<void> deleteNote(Activity activity, String noteId) async {
@@ -80,11 +111,7 @@ class ActivityCubit extends Cubit<List<Activity>> {
     List<ActivityNote> updatedNotes = List.from(activity.notes)
       ..removeWhere((n) => n.id == noteId);
 
-    final updatedActivity = activity.copyWith(notes: updatedNotes);
-    final newState = state.map((a) {
-      return a.id == updatedActivity.id ? updatedActivity : a;
-    }).toList();
-    
-    emit(newState);
+    activity.notes = updatedNotes;
+    emit(List<Activity>.from(state));
   }
 }

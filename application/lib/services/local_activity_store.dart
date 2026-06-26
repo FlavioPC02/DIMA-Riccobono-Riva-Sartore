@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
-import 'package:application/core/models/trail_point.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 
 abstract class ActivityLocalDataSource {
@@ -47,11 +46,13 @@ class HiveActivityStore implements ActivityLocalDataSource {
 
   @override
   Future<String> upsertActivity(Activity activity) async {
-    final id = activity.id.isEmpty ? createId() : activity.id;
+    if (activity.id.isEmpty) {
+      activity.id = createId();
+    }
     final box = await _activityBox;
-    await box.put(id, _activityToEntry(activity.copyWith(id: id)));
+    await box.put(activity.id, _activityToEntry(activity));
     await _emitUpdates();
-    return id;
+    return activity.id;
   }
 
   @override
@@ -82,7 +83,7 @@ class HiveActivityStore implements ActivityLocalDataSource {
       'tracked_distance': activity.trackedDistance,
       'tracked_elevation_gap': activity.trackedElevationGap,
       'tracked_time_seconds': activity.trackedTime.inSeconds,
-      'trail_path_json': _encodeTrailPath(activity.trailPath),
+      'pending_sync': activity.pendingSync,
     };
   }
 
@@ -111,42 +112,12 @@ class HiveActivityStore implements ActivityLocalDataSource {
       trackedTime: Duration(
         seconds: (entry['tracked_time_seconds'] as num?)?.toInt() ?? 0,
       ),
-      trailPath: _decodeTrailPath(entry['trail_path_json']?.toString()),
+      pendingSync: entry['pending_sync'] == true,
     );
   }
 
   Map<String, Object?> _normalizeEntry(Map entry) {
     return entry.map((key, value) => MapEntry(key.toString(), value));
-  }
-
-  String _encodeTrailPath(List<List<TrailPoint>> trailPath) {
-    return jsonEncode(
-      trailPath
-          .map((segment) => segment.map((point) => point.toJson()).toList())
-          .toList(),
-    );
-  }
-
-  List<List<TrailPoint>> _decodeTrailPath(String? encoded) {
-    if (encoded == null || encoded.isEmpty) return const [];
-
-    final decoded = jsonDecode(encoded);
-    if (decoded is! List) return const [];
-
-    return decoded
-        .whereType<List>()
-        .map(
-          (segment) => segment
-              .whereType<Map>()
-              .map(
-                (point) => TrailPoint.fromJson(
-                  point.map((key, value) => MapEntry(key.toString(), value)),
-                ),
-              )
-              .toList(growable: false),
-        )
-        .where((segment) => segment.isNotEmpty)
-        .toList(growable: false);
   }
 
   String _encodeNotes(List<ActivityNote> notes) {
@@ -162,12 +133,13 @@ class HiveActivityStore implements ActivityLocalDataSource {
 
       return decoded
           .whereType<Map>()
-          .map((noteMap) => ActivityNote.fromJson(
-                Map<String, dynamic>.from(noteMap), 
-              ))
+          .map(
+            (noteMap) =>
+                ActivityNote.fromJson(Map<String, dynamic>.from(noteMap)),
+          )
           .toList(growable: false);
     } catch (e) {
-      return const []; 
+      return const [];
     }
   }
 }

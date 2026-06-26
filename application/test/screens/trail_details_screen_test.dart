@@ -286,6 +286,10 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       final planButton = find.text('Start');
       await tester.ensureVisible(planButton);
+      final startButton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Start'),
+      );
+      expect(startButton.onPressed, isNotNull);
       await tester.tap(planButton);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));

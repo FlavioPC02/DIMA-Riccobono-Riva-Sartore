@@ -44,11 +44,23 @@ class DiaryPage extends StatelessWidget {
 
             return TabBarView(
               children: [
-                _ActivityList(
-                  activities: planned,
-                  emptyIcon: Icons.event_note,
-                  emptyMessage:
-                      'No planned hikes yet.\nSchedule your next adventure!',
+                StreamBuilder<Set<String>>(
+                  stream: context
+                      .read<ActivityCubit>()
+                      .watchDownloadedTrailIds(),
+                  initialData: const <String>{},
+                  builder: (context, snapshot) {
+                    final downloadedIds = snapshot.data ?? const <String>{};
+
+                    return _ActivityList(
+                      activities: planned,
+                      emptyIcon: Icons.event_note,
+                      emptyMessage:
+                          'No planned hikes yet.\nSchedule your next adventure!',
+                      downloadedTrailIds: downloadedIds,
+                      showOfflineStatus: true,
+                    );
+                  },
                 ),
                 _ActivityList(
                   activities: completed,
@@ -59,7 +71,7 @@ class DiaryPage extends StatelessWidget {
             );
           },
         ),
-    ),
+      ),
     );
   }
 }
@@ -68,11 +80,15 @@ class _ActivityList extends StatelessWidget {
   final List<Activity> activities;
   final IconData emptyIcon;
   final String emptyMessage;
+  final Set<String> downloadedTrailIds;
+  final bool showOfflineStatus;
 
   const _ActivityList({
     required this.activities,
     required this.emptyIcon,
     required this.emptyMessage,
+    this.downloadedTrailIds = const <String>{},
+    this.showOfflineStatus = false,
   });
 
   @override
@@ -85,8 +101,11 @@ class _ActivityList extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: activities.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) =>
-          _ActivityCard(activity: activities[index]),
+      itemBuilder: (context, index) => _ActivityCard(
+        activity: activities[index],
+        showOfflineStatus: showOfflineStatus,
+        isDownloaded: downloadedTrailIds.contains(activities[index].id),
+      ),
     );
   }
 }
@@ -121,8 +140,14 @@ class _EmptyState extends StatelessWidget {
 
 class _ActivityCard extends StatelessWidget {
   final Activity activity;
+  final bool showOfflineStatus;
+  final bool isDownloaded;
 
-  const _ActivityCard({required this.activity});
+  const _ActivityCard({
+    required this.activity,
+    this.showOfflineStatus = false,
+    this.isDownloaded = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +156,24 @@ class _ActivityCard extends StatelessWidget {
         leading: const Icon(Icons.hiking),
         title: Text(activity.name),
         subtitle: Text(DateFormat('dd/MM/yyyy').format(activity.date)),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showOfflineStatus) ...[
+              Tooltip(
+                message: isDownloaded
+                    ? 'Available offline'
+                    : 'Not available offline',
+                child: Icon(
+                  isDownloaded ? Icons.offline_pin : Icons.cloud_off_outlined,
+                  color: isDownloaded ? Colors.green : AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            const Icon(Icons.chevron_right),
+          ],
+        ),
         onTap: () {
           Navigator.push(
             context,

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:intl/intl.dart';
+import 'package:application/core/models/trail_point.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../mocks/mocks_manual.dart';
 import '../utils/pump_app.dart';
@@ -29,15 +31,20 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(FakeActivity());
+    registerFallbackValue(<List<TrailPoint>>[]);
   });
 
   setUp(() {
     mockActivityCubit = MockActivityCubit();
-    
-    when(() => mockActivityCubit.stream).thenAnswer((_) => const Stream.empty());
+
+    when(
+      () => mockActivityCubit.stream,
+    ).thenAnswer((_) => const Stream.empty());
     when(() => mockActivityCubit.state).thenReturn([]);
 
-    when(() => mockActivityCubit.addActivity(any())).thenAnswer((_) async => '');
+    when(
+      () => mockActivityCubit.addPlannedActivity(any(), any()),
+    ).thenAnswer((_) async {});
   });
 
   Widget createWidgetUnderTest() {
@@ -52,7 +59,12 @@ void main() {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AddActivityPage(activity: dummyActivity),
+                      builder: (_) => AddActivityPage(
+                        activity: dummyActivity,
+                        trailSegments: const [
+                          [LatLng(45.1, 9.1), LatLng(45.2, 9.2)],
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -97,15 +109,19 @@ void main() {
 
       expect(find.text('Required'), findsOneWidget);
 
-      verifyNever(() => mockActivityCubit.addActivity(any()));
+      verifyNever(() => mockActivityCubit.addPlannedActivity(any(), any()));
     });
 
-    testWidgets('opens DatePicker and updates date on selection', (tester) async {
+    testWidgets('opens DatePicker and updates date on selection', (
+      tester,
+    ) async {
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.tap(find.text('Open Page'));
       await tester.pumpAndSettle();
 
-      final initialDateStr = DateFormat('dd/MM/yyyy').format(dummyActivity.date);
+      final initialDateStr = DateFormat(
+        'dd/MM/yyyy',
+      ).format(dummyActivity.date);
       expect(find.text(initialDateStr), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.calendar_today));
@@ -117,7 +133,9 @@ void main() {
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
 
-      final updatedDateStr = DateFormat('dd/MM/yyyy').format(DateTime(2026, 6, 20));
+      final updatedDateStr = DateFormat(
+        'dd/MM/yyyy',
+      ).format(DateTime(2026, 6, 20));
       expect(find.text(updatedDateStr), findsOneWidget);
     });
 
@@ -137,13 +155,32 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pump();
 
-      verify(() => mockActivityCubit.addActivity(any(
+      verify(
+        () => mockActivityCubit.addPlannedActivity(
+          any(
             that: isA<Activity>()
                 .having((a) => a.name, 'name', 'My Planned Hike')
                 .having((a) => a.status, 'status', ActivityStatus.planned)
                 .having((a) => a.trailName, 'trailName', 'Sentiero 65')
                 .having((a) => a.distanceKm, 'distanceKm', 12.5),
-          ))).called(1);
+          ),
+          any(
+            that: isA<List<List<TrailPoint>>>()
+                .having((segments) => segments.length, 'segments', 1)
+                .having((segments) => segments.first.length, 'points', 2)
+                .having(
+                  (segments) => segments.first.first.lat,
+                  'first latitude',
+                  45.1,
+                )
+                .having(
+                  (segments) => segments.first.first.lng,
+                  'first longitude',
+                  9.1,
+                ),
+          ),
+        ),
+      ).called(1);
 
       await tester.pumpAndSettle();
 

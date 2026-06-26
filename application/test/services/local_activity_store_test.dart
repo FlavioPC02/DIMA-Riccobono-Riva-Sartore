@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
-import 'package:application/core/models/trail_point.dart';
 import 'package:application/services/local_activity_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/adapters.dart';
@@ -43,15 +42,13 @@ void main() {
           text: 'Bring water',
           imageUrls: const [],
           createdAt: date,
-        )
+        ),
       ],
       difficulty: ActivityDifficulty.moderate,
       trackedDistance: 4.2,
       trackedElevationGap: 120,
       trackedTime: const Duration(minutes: 70),
-      trailPath: const [
-        [TrailPoint(lat: 45.1, lng: 9.1), TrailPoint(lat: 45.2, lng: 9.2)],
-      ],
+      pendingSync: true,
     );
   }
 
@@ -72,8 +69,8 @@ void main() {
     final activities = await restoredStore.fetchActivities();
 
     expect(activities.map((a) => a.name), ['Newer', 'Older']);
-    expect(activities.first.trailPath.single.first.lat, 45.1);
     expect(activities.first.trackedTime, const Duration(minutes: 70));
+    expect(activities.first.pendingSync, isTrue);
   });
 
   test('updates and deletes activities by id', () async {
@@ -85,7 +82,8 @@ void main() {
     );
 
     await store.upsertActivity(activity);
-    await store.upsertActivity(activity.copyWith(name: 'Updated'));
+    activity.name = 'Updated';
+    await store.upsertActivity(activity);
 
     var activities = await store.fetchActivities();
     expect(activities, hasLength(1));
