@@ -41,7 +41,7 @@ class FavoriteTrail {
 
   factory FavoriteTrail.fromJson(String id, Map<String, dynamic> json) {
     return FavoriteTrail(
-      id: id,
+      id: json['id']?.toString() ?? id,
       name: json['name']?.toString() ?? 'Trail',
       distance: json['distance']?.toString(),
       duration: json['duration']?.toString(),
@@ -53,6 +53,7 @@ class FavoriteTrail {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'distance': distance,
       'duration': duration,
