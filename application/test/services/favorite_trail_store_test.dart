@@ -3,14 +3,6 @@ import 'package:application/services/favorite_trail_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  setUp(() async {
-    await FavoriteTrailStore.clearForTesting();
-  });
-
-  tearDown(() async {
-    await FavoriteTrailStore.clearForTesting();
-  });
-
   test('keeps favorite trails in memory and returns them sorted by name', () async {
     final store = FavoriteTrailStore();
 

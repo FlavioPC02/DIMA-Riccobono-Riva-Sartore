@@ -16,7 +16,7 @@ import 'package:latlong2/latlong.dart';
 import '../mocks/mocks_manual.dart';
 import '../utils/test_config.dart';
 
-class FakeActivityLocalStore implements ActivityLocalDataSource {
+class FakeActivityLocalStore extends Fake implements ActivityLocalDataSource {
   final _controller = StreamController<List<Activity>>.broadcast();
   final List<Activity> _activities = [];
   int _nextId = 0;
