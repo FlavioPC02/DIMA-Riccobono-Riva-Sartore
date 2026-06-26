@@ -80,7 +80,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
   Future<void> _loadFavoriteState() async {
     try {
-      final isFavorite = await _favoriteTrailStore.isFavorite(widget.trail['id']?.toString() ?? '');
+      final isFavorite = await _favoriteTrailStore.isFavorite(
+        widget.trail['id']?.toString() ?? '',
+      );
       if (!mounted) return;
 
       setState(() {
@@ -102,10 +104,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       if (_isFavorite) {
-        await _favoriteTrailStore.deleteTrail(widget.trail['id']?.toString() ?? '');
+        await _favoriteTrailStore.deleteTrail(
+          widget.trail['id']?.toString() ?? '',
+        );
       } else {
         final String? distanceStr = _relationTags != null
-            ? TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters)
+            ? TrailDetailsScreenHelper.getFormattedDistance(
+                _relationTags?['distance'],
+                _calculatedMeters,
+              )
             : widget.offlineDistance;
 
         final String? durationStr = _relationTags != null
@@ -113,7 +120,10 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             : widget.offlineDuration;
 
         final String? ascentStr = _relationTags != null
-            ? TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent)
+            ? TrailDetailsScreenHelper.getFormattedAscent(
+                _relationTags?['ascent'],
+                _estimatedAscent,
+              )
             : widget.offlineAscent;
 
         final int difficultyLvl = _relationTags != null
@@ -121,7 +131,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
             : (widget.offlineDifficulty ?? 0);
 
         final bool isFerrata = _relationTags != null
-            ? ((_relationTags?['cai_scale']?.toString().toUpperCase().contains('EEA') ?? false) || (_relationTags?.containsKey('via_ferrata_scale') ?? false))
+            ? ((_relationTags?['cai_scale']?.toString().toUpperCase().contains(
+                        'EEA',
+                      ) ??
+                      false) ||
+                  (_relationTags?.containsKey('via_ferrata_scale') ?? false))
             : (widget.offlineIsFerrata ?? false);
 
         await _favoriteTrailStore.saveTrail(
@@ -253,9 +267,16 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         );
 
         final calcMeters = meters;
-        final calcDistKm = TrailDetailsScreenHelper.getDistanceKm(relTags?['distance'], meters);
-        final calcDurMins = TrailDetailsScreenHelper.getDurationMinutes(relTags?['duration'], relTags?['time'], calcDistKm);
-        
+        final calcDistKm = TrailDetailsScreenHelper.getDistanceKm(
+          relTags?['distance'],
+          meters,
+        );
+        final calcDurMins = TrailDetailsScreenHelper.getDurationMinutes(
+          relTags?['duration'],
+          relTags?['time'],
+          calcDistKm,
+        );
+
         if (allPoints.isNotEmpty) {
           _fetchElevations(allPoints);
           _fetchWeather(allPoints.first);
@@ -312,7 +333,10 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
     }
 
     const int maxPoints = 50;
-    final sampledData = TrailDetailsScreenHelper.samplePoints(points, maxPoints);
+    final sampledData = TrailDetailsScreenHelper.samplePoints(
+      points,
+      maxPoints,
+    );
 
     List<LatLng> sampledPoints = sampledData['points'];
     List<double> sampledDistances = sampledData['distances'];
@@ -327,15 +351,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       });
 
       final response = await http
-        .post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: body,
-        )
-        .timeout(const Duration(seconds: 15));
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: body,
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
 
@@ -391,7 +415,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
   int _updateDifficulty() {
     int level = TrailDetailsScreenHelper.calculateDifficultyLevel(
-      _relationTags, _distanceKm, double.tryParse(_estimatedAscent ?? '0') ?? 0.0
+      _relationTags,
+      _distanceKm,
+      double.tryParse(_estimatedAscent ?? '0') ?? 0.0,
     );
     if (level == 1) {
       difficulty = ActivityDifficulty.easy;
@@ -416,6 +442,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         actions: [
           IconButton(
+            key: const ValueKey('favorites_button'),
             icon: _isFavorite
                 ? const Icon(Icons.star)
                 : const Icon(Icons.star_border),
@@ -427,9 +454,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: _buildBody(),
-            ),
+            Expanded(child: _buildBody()),
             if (!_isLoading) _buildFloatingButtons(),
           ],
         ),
@@ -444,11 +469,7 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
     if (_errorMessage != null) {
       if (widget.offlineDistance != null) {
-        return Column(
-          children: [
-            _buildHighlightedStats(),
-          ],
-        );
+        return Column(children: [_buildHighlightedStats()]);
       }
 
       return Center(
@@ -473,10 +494,15 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
       children: [
         _buildHighlightedStats(),
         const Divider(height: 1, thickness: 2),
-        
+
         Expanded(
           child: ListView(
-            padding: EdgeInsets.fromLTRB(16.0, MediaQuery.textScalerOf(context).scale(20), 16.0, 16.0),
+            padding: EdgeInsets.fromLTRB(
+              16.0,
+              MediaQuery.textScalerOf(context).scale(20),
+              16.0,
+              16.0,
+            ),
             children: [
               _buildWeatherBox(),
               _buildElevationChart(),
@@ -499,22 +525,41 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
   }
 
   Widget _buildHighlightedStats() {
-    final String distanceStr = widget.offlineDistance ?? TrailDetailsScreenHelper.getFormattedDistance(_relationTags?['distance'], _calculatedMeters);
-    final String durationStr = widget.offlineDuration ?? TrailDetailsScreenHelper.formatDuration(_durationMinutes);
-    final String ascentStr = widget.offlineAscent ?? TrailDetailsScreenHelper.getFormattedAscent(_relationTags?['ascent'], _estimatedAscent);
+    final String distanceStr =
+        widget.offlineDistance ??
+        TrailDetailsScreenHelper.getFormattedDistance(
+          _relationTags?['distance'],
+          _calculatedMeters,
+        );
+    final String durationStr =
+        widget.offlineDuration ??
+        TrailDetailsScreenHelper.formatDuration(_durationMinutes);
+    final String ascentStr =
+        widget.offlineAscent ??
+        TrailDetailsScreenHelper.getFormattedAscent(
+          _relationTags?['ascent'],
+          _estimatedAscent,
+        );
 
     _difficulty = widget.offlineDifficulty ?? _updateDifficulty();
 
     bool isFerrata = false;
-    final caiScale = _relationTags?['cai_scale']?.toString().toUpperCase() ?? '';
-    final hasViaFerrata = _relationTags?.containsKey('via_ferrata_scale') ?? false;
+    final caiScale =
+        _relationTags?['cai_scale']?.toString().toUpperCase() ?? '';
+    final hasViaFerrata =
+        _relationTags?.containsKey('via_ferrata_scale') ?? false;
 
     if (caiScale.contains('EEA') || hasViaFerrata) {
       isFerrata = true;
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0, bottom: 16.0),
+      padding: const EdgeInsets.only(
+        top: 16.0,
+        left: 16.0,
+        right: 16.0,
+        bottom: 16.0,
+      ),
       child: GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -527,8 +572,19 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
         children: [
           _buildStatCard(Icons.route, 'Distance', value: distanceStr),
           _buildStatCard(Icons.timer_outlined, 'Duration', value: durationStr),
-          _buildStatCard(Icons.hiking, 'Difficulty', valueWidget: _buildDifficultyIcons(_difficulty)),
-          _buildStatCard(Icons.height, 'Ascent', valueWidget: _buildAscentAndFerrata(ascentStr, widget.offlineIsFerrata ?? isFerrata)),
+          _buildStatCard(
+            Icons.hiking,
+            'Difficulty',
+            valueWidget: _buildDifficultyIcons(_difficulty),
+          ),
+          _buildStatCard(
+            Icons.height,
+            'Ascent',
+            valueWidget: _buildAscentAndFerrata(
+              ascentStr,
+              widget.offlineIsFerrata ?? isFerrata,
+            ),
+          ),
         ],
       ),
     );
@@ -809,7 +865,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: MediaQuery.textScalerOf(context).scale(55),
+                        reservedSize: MediaQuery.textScalerOf(
+                          context,
+                        ).scale(55),
                         interval: yInterval,
                         getTitlesWidget: (value, meta) {
                           if (value == meta.max || value == meta.min) {
@@ -828,7 +886,9 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: MediaQuery.textScalerOf(context).scale(35),
+                        reservedSize: MediaQuery.textScalerOf(
+                          context,
+                        ).scale(35),
                         interval: xInterval,
                         getTitlesWidget: (value, meta) {
                           if (value == meta.max ||
@@ -980,35 +1040,43 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
 
   Widget _buildFloatingButtons() {
     return Padding(
-      padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 16.0, top: 8.0),
+      padding: const EdgeInsets.only(
+        left: 20.0,
+        right: 20.0,
+        bottom: 16.0,
+        top: 8.0,
+      ),
       child: Row(
         children: [
           Expanded(
             child: ElevatedButton.icon(
+              key: const ValueKey('plan_trail'),
               onPressed: _trailSegments.isEmpty
-              ? null
-              : () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddActivityPage(
-                      activity: Activity(
-                        id: "",
-                        name: widget.trail['name'],
-                        status: ActivityStatus.planned,
-                        date: DateTime.now(),
-                        trailName: widget.trail['name'],
-                        trailId: widget.trail['id']?.toString() ?? '',
-                        distanceKm: _distanceKm,
-                        durationMinutes: _durationMinutes,
-                        difficulty: difficulty,
-                        xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty)
-                      ),
-                      trailSegments: _trailSegments,
-                    ),
-                  ),
-                );
-              },
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddActivityPage(
+                            activity: Activity(
+                              id: "",
+                              name: widget.trail['name'],
+                              status: ActivityStatus.planned,
+                              date: DateTime.now(),
+                              trailName: widget.trail['name'],
+                              trailId: widget.trail['id']?.toString() ?? '',
+                              distanceKm: _distanceKm,
+                              durationMinutes: _durationMinutes,
+                              difficulty: difficulty,
+                              xpEarned: TrailDetailsScreenHelper.calculateXp(
+                                difficulty,
+                              ),
+                            ),
+                            trailSegments: _trailSegments,
+                          ),
+                        ),
+                      );
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 foregroundColor: Theme.of(context).colorScheme.primary,
@@ -1028,32 +1096,37 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
           const SizedBox(width: 16.0),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: _trailSegments.isEmpty ? null : () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NavigatorScreen(
-                      trail: {
-                        'id': widget.trail['id'],
-                        'name': widget.trail['name'],
-                        'subTrails': _trailSegments,
-                      },
-                      activity: Activity(
-                        id: "",
-                        name: 'Hike to ${widget.trail['name']}',
-                        status: ActivityStatus.planned,
-                        trailName: widget.trail['name'],
-                        trailId: widget.trail['id']?.toString() ?? '',
-                        distanceKm: _distanceKm,
-                        durationMinutes: _durationMinutes,
-                        date: DateTime.now(),
-                        difficulty: difficulty,
-                        xpEarned: TrailDetailsScreenHelper.calculateXp(difficulty),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              key: const ValueKey('start_tracking_trail'),
+              onPressed: _trailSegments.isEmpty
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NavigatorScreen(
+                            trail: {
+                              'id': widget.trail['id'],
+                              'name': widget.trail['name'],
+                              'subTrails': _trailSegments,
+                            },
+                            activity: Activity(
+                              id: "",
+                              name: 'Hike to ${widget.trail['name']}',
+                              status: ActivityStatus.planned,
+                              trailName: widget.trail['name'],
+                              trailId: widget.trail['id']?.toString() ?? '',
+                              distanceKm: _distanceKm,
+                              durationMinutes: _durationMinutes,
+                              date: DateTime.now(),
+                              difficulty: difficulty,
+                              xpEarned: TrailDetailsScreenHelper.calculateXp(
+                                difficulty,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Theme.of(context).colorScheme.secondary,
@@ -1134,7 +1207,11 @@ class _TrailDetailsPageState extends State<TrailDetailsScreen> {
               const SizedBox(height: 3.0),
               Text(
                 '(Ferrata)',
-                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),

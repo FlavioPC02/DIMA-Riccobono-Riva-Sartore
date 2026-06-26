@@ -79,13 +79,9 @@ class _SignupScreenState extends State<SignupScreen> {
         _nicknameController.text.trim(),
       );
 
-      // When user created close dialogue and load homepage
-      //if (context.mounted) {
-      //  Navigator.of(
-      //    context,
-      //    rootNavigator: true,
-      //  ).push(MaterialPageRoute(builder: (_) => const Navigation()));
-      //}
+      if (context.mounted) {
+        Navigator.of(context).pop(); //go back to login screen so that AuthGate handles navigation
+      }
     } catch (e) {
       setState(() {
         _authError = e.toString().replaceFirst('Exception: ', '');

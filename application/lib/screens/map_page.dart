@@ -1030,6 +1030,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: TextField(
+                        key: const ValueKey('search_field'),
                         controller: _searchController,
                         textInputAction: TextInputAction.search,
                         enabled: !_isSearchingLocation,
@@ -1237,6 +1238,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                         padding: const EdgeInsets.symmetric(horizontal: 90.0),
                         child: Center(
                           child: ElevatedButton.icon(
+                            key: const ValueKey('search_trail_button'),
                             onPressed: (_isLoadingTrails || !_isZoomedInEnough)
                                 ? null
                                 : _fetchTrails,
@@ -1368,6 +1370,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                       bottom: isSelected ? 4.0 : 16.0,
                                     ),
                                     child: Card(
+                                      key: const ValueKey('found_trail'),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(15),
                                       ),

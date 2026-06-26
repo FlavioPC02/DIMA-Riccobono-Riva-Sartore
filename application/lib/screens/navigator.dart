@@ -1,5 +1,6 @@
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/services/phone_wear_sync.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:application/widgets/stats_recording_card.dart';
@@ -7,7 +8,6 @@ import 'package:hike_core/hike_core.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
-import 'package:application/screens/homepage.dart';
 import 'package:application/services/map_management_service.dart';
 import 'package:application/services/notification_service.dart';
 import 'package:flutter/material.dart';
@@ -154,10 +154,10 @@ class _NavigatorScreenState extends State<NavigatorScreen>
           },
 
       onNavigateAfterStop: () {
-        debugPrint("Sto uscendo");
         if (!mounted) return;
-        Navigator.of(context, rootNavigator: true).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Navigation()),
+        context.read<NavigationIndexCubit>().setIndex(0); //Go back to map page
+        Navigator.of(context).popUntil(
+          (route) => route.isFirst,
         );
       },
     );

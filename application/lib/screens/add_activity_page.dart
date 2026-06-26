@@ -1,4 +1,5 @@
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,23 +19,25 @@ class AddActivityPage extends StatefulWidget {
   });
 
   @override
-  State<AddActivityPage> createState() => _AddActivityPageState();
+  State<AddActivityPage> createState() => AddActivityPageState();
 }
 
-class _AddActivityPageState extends State<AddActivityPage> {
+@visibleForTesting
+class AddActivityPageState extends State<AddActivityPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
   
   final _nameFocus = FocusNode();
 
-  DateTime _selectedDate = DateTime.now();
+  @visibleForTesting
+  DateTime selectedDate = DateTime.now();
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.activity.date;
+    selectedDate = widget.activity.date;
     _nameFocus.addListener(() {
       if (_nameFocus.hasFocus && _nameController.text.isEmpty) {
         _nameController.text = 'Hike to ${widget.activity.name}';
@@ -55,11 +58,11 @@ class _AddActivityPageState extends State<AddActivityPage> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => _selectedDate = picked);
+    if (picked != null) setState(() => selectedDate = picked);
   }
 
   Future<void> _save() async {
@@ -70,7 +73,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
       id: '',
       name: _nameController.text.trim(),
       status: ActivityStatus.planned,
-      date: _selectedDate,
+      date: selectedDate,
       trailName: widget.activity.trailName,
       trailId: widget.activity.trailId,
       distanceKm: widget.activity.distanceKm,
@@ -94,7 +97,10 @@ class _AddActivityPageState extends State<AddActivityPage> {
 
     await context.read<ActivityCubit>().addPlannedActivity(activity, trailPoints);
 
-    if (mounted) Navigator.pop(context);
+    if (mounted) {
+      context.read<NavigationIndexCubit>().setIndex(1); // go to diary page
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 
   @override
@@ -115,6 +121,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
             _SectionLabel('Activity'),
             const SizedBox(height: 8),
             TextFormField(
+              key: const ValueKey('name_field'),
               controller: _nameController,
               focusNode: _nameFocus,
               decoration: InputDecoration(
@@ -138,6 +145,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
             _SectionLabel('Date'),
             const SizedBox(height: 8),
             InkWell(
+              key: const ValueKey('date_field'),
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(4),
               child: InputDecorator(
@@ -145,7 +153,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
                   border: OutlineInputBorder(),
                   suffixIcon: Icon(Icons.calendar_today),
                 ),
-                child: Text(DateFormat('dd/MM/yyyy').format(_selectedDate)),
+                child: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
               ),
             ),
             const SizedBox(height: 24),
@@ -189,6 +197,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey('save_button'),
         heroTag: 'save_button',
         onPressed: _saving ? null : _save,
         backgroundColor: Theme.of(context).colorScheme.primary,

@@ -1,12 +1,18 @@
 import 'package:application/core/models/profile.dart';
 import 'package:application/services/database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rxdart/rxdart.dart';
 
 class ProfileRepository {
   final bool Function()? hasCurrentUser;
   final DatabaseService Function()? databaseServiceFactory;
+  final Stream<User?> Function()? authChanges;
 
-  ProfileRepository({this.hasCurrentUser, this.databaseServiceFactory});
+  ProfileRepository({
+    this.hasCurrentUser, 
+    this.databaseServiceFactory,
+    this.authChanges,
+  });
 
   DatabaseService? _remoteOrNull() {
     final hasUser = hasCurrentUser != null
@@ -46,16 +52,23 @@ class ProfileRepository {
   }
 
   Stream<Profile?> streamRemote() {
-    final remote = _remoteOrNull();
-    if (remote == null) {
-      return const Stream.empty();
-    }
+    final authStream = authChanges != null
+      ? authChanges!()
+      : FirebaseAuth.instance.authStateChanges();
 
-    return remote.streamProfile().map((data) {
-      if (data == null) {
-        return null;
+    return authStream.switchMap((user) {
+      if (user == null) {
+        return Stream<Profile?>.value(null);
       }
-      return Profile.fromJson(data);
+
+      final remote = databaseServiceFactory != null
+        ? databaseServiceFactory!()
+        : DatabaseService();
+
+      return remote.streamProfile().map((data) {
+        if (data == null) return null;
+        return Profile.fromJson(data);
+      });
     });
   }
 }

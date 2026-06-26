@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:application/core/models/trail_point.dart';
 import 'package:application/core/models/planned_trail.dart';
@@ -9,8 +10,26 @@ import 'package:application/core/models/planned_trail.dart';
 class ActivityCubit extends Cubit<List<Activity>> {
   final ActivityRepository _repository;
   StreamSubscription<List<Activity>>? _subscription;
+  StreamSubscription<User?>? _authSubscription;
 
   ActivityCubit(this._repository) : super([]) {
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) {
+        _onLoggedOut();
+      } else {
+        _onLoggedIn();
+      }
+    });
+  }
+
+  void _onLoggedOut() {
+    _subscription?.cancel();
+    _subscription = null;
+    emit([]);
+  }
+
+  void _onLoggedIn() {
+    _subscription?.cancel();
     _subscription = _repository.streamActivities().listen((activities) {
       emit(activities);
 
@@ -62,6 +81,9 @@ class ActivityCubit extends Cubit<List<Activity>> {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    await _authSubscription?.cancel();
+    _subscription = null;
+    _authSubscription = null;
     return super.close();
   }
 
@@ -97,6 +119,13 @@ class ActivityCubit extends Cubit<List<Activity>> {
       updatedNotes.add(finalNote);
     }
 
+//    final updatedActivity = activity.copyWith(notes: updatedNotes);
+//    final newState = state.map((a) {
+//      return a.id == updatedActivity.id ? updatedActivity : a;
+//    }).toList();
+//
+//    emit(newState);
+
     await _repository.saveNote(activity, finalNote);
 
     activity.notes = updatedNotes;
@@ -113,5 +142,12 @@ class ActivityCubit extends Cubit<List<Activity>> {
 
     activity.notes = updatedNotes;
     emit(List<Activity>.from(state));
+
+//    final updatedActivity = activity.copyWith(notes: updatedNotes);
+//    final newState = state.map((a) {
+//      return a.id == updatedActivity.id ? updatedActivity : a;
+//    }).toList();
+//
+//    emit(newState);
   }
 }

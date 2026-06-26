@@ -8,10 +8,12 @@ import 'package:application/services/planned_trail_store.dart';
 import 'package:application/core/models/planned_trail.dart';
 import 'package:application/core/models/trail_point.dart';
 import 'package:application/services/trail_geometry_service.dart';
+import 'package:rxdart/rxdart.dart';
 
 class ActivityRepository {
   final bool Function()? hasCurrentUser;
   final DatabaseService Function()? databaseServiceFactory;
+  final Stream<User?> Function()? authChanges;
   final ActivityLocalDataSource _localStore;
   final PlannedTrailLocalDataSource _plannedTrailStore;
   final TrailGeometryDataSource _trailGeometrySource;
@@ -20,6 +22,7 @@ class ActivityRepository {
   ActivityRepository({
     this.hasCurrentUser,
     this.databaseServiceFactory,
+    this.authChanges,
     ActivityLocalDataSource? localStore,
     PlannedTrailLocalDataSource? plannedTrailStore,
     TrailGeometryDataSource? trailGeometrySource,
@@ -42,16 +45,27 @@ class ActivityRepository {
 
   Stream<List<Activity>> streamActivities() {
     final localStream = _localStore.streamActivities();
-    final remote = _remoteOrNull();
-    if (remote == null) return localStream;
+    final authStream = authChanges != null
+      ? authChanges!()
+      : FirebaseAuth.instance.authStateChanges();
 
-    final remoteStream = remote.streamActivities().map(
-      (list) => list
+    final remoteStream = authStream.switchMap((user) {
+      if (user == null) {
+        return Stream<List<Activity>>.value(const []);
+      }
+
+      final remote = databaseServiceFactory != null
+        ? databaseServiceFactory!()
+        : DatabaseService();
+
+      return remote.streamActivities().map(
+        (list) => list
           .map((data) => Activity.fromJson(data['id'] as String, data))
           .toList(),
-    );
+      );
+    });
 
-    return _mergeActivityStreams(localStream, remoteStream);
+    return _mergeActivityStreams(localStream, authStream, remoteStream);
   }
 
   Future<PlannedTrail?> getPlannedTrail(String activityId) async {
@@ -254,13 +268,16 @@ class ActivityRepository {
 
   Stream<List<Activity>> _mergeActivityStreams(
     Stream<List<Activity>> localStream,
+    Stream<User?> authStream,
     Stream<List<Activity>> remoteStream,
   ) {
     late StreamSubscription<List<Activity>> localSubscription;
     late StreamSubscription<List<Activity>> remoteSubscription;
+    late StreamSubscription<User?> authSubscription;
 
     List<Activity> localActivities = const [];
     List<Activity> remoteActivities = const [];
+    User? currentUser;
 
     final controller = StreamController<List<Activity>>();
 
@@ -272,18 +289,33 @@ class ActivityRepository {
     controller.onListen = () {
       localSubscription = localStream.listen((activities) {
         localActivities = activities;
+        if (currentUser != null) {
+          final remote = databaseServiceFactory != null
+            ? databaseServiceFactory!()
+            : DatabaseService();
+          _syncPendingActivities(activities, remote);
+        }
         emitMerged();
       }, onError: controller.addError);
+
+      authSubscription = authStream.listen((user) {
+        currentUser = user;
+        if (user == null) {
+          remoteActivities = const [];
+          emitMerged();
+        }
+      });
 
       remoteSubscription = remoteStream.listen((activities) {
         remoteActivities = activities;
         emitMerged();
-      }, onError: (_) {});
+      }, onError: controller.addError);
     };
 
     controller.onCancel = () async {
       await localSubscription.cancel();
       await remoteSubscription.cancel();
+      await authSubscription.cancel();
     };
 
     return controller.stream;
@@ -306,6 +338,17 @@ class ActivityRepository {
     final merged = byId.values.toList();
     merged.sort((a, b) => b.date.compareTo(a.date));
     return merged;
+  }
+
+  void _syncPendingActivities(
+    List<Activity> activities,
+    DatabaseService remote,
+  ) {
+    for (final activity in activities) {
+      if (activity.status == ActivityStatus.completed) {
+        unawaited(_trySaveRemote(activity, remote));
+      }
+    }
   }
 
   Future<Activity?> fetchActivityDetails(String id) async {

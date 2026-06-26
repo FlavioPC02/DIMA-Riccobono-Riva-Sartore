@@ -51,6 +51,7 @@ class _NoteDialogState extends State<NoteDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
+                key: const ValueKey('note_text_field'),
                 controller: _controller,
                 maxLines: 5,
                 decoration: InputDecoration(
@@ -120,6 +121,7 @@ class _NoteDialogState extends State<NoteDialog> {
           child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         ),
         FilledButton(
+          key: const ValueKey('save_note_button'),
           onPressed: () {
             if (_controller.text.trim().isNotEmpty || _imageUrls.isNotEmpty) {
               Navigator.pop(context, {

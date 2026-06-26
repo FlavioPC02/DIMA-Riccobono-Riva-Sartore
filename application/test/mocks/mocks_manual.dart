@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
@@ -18,6 +19,7 @@ import 'package:application/services/auth_service.dart';
 import 'package:application/services/database_service.dart';
 import 'package:application/services/favorite_trail_store.dart';
 import 'package:application/services/phone_wear_sync.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:hike_core/hike_core.dart';
@@ -29,6 +31,7 @@ class MockSettingsCubit extends Mock implements SettingsCubit {}
 class MockProfileCubit extends Mock implements ProfileCubit {}
 class MockActivityCubit extends Mock implements ActivityCubit {}
 class MockLocationCubit extends Mock implements LocationCubit {}
+class MockNavigationIndexCubit extends Mock implements NavigationIndexCubit {}
 class MockAuthService extends Mock implements AuthService {}
 class MockDatabaseService extends Mock implements DatabaseService {}
 class MockActivityRepository extends Mock implements ActivityRepository {}
@@ -61,6 +64,7 @@ class FakeUri extends Fake implements Uri {}
 class FakeNotificationDetails extends Fake implements NotificationDetails {}
 class FakeHikeLiveStats extends Fake implements HikeLiveStats {}
 class FakeFavoriteTrail extends Fake implements FavoriteTrail {}
+class FakeUser extends Fake implements User{}
 
 // Hive mocks
 class MockBox extends Mock implements Box<LocationPoint> {}
@@ -78,6 +82,7 @@ void registerAllFallbacks() {
   registerFallbackValue(FakeHikeLiveStats());
   registerFallbackValue(HikeRecordingStatus.recording);
   registerFallbackValue(FakeFavoriteTrail());
+  registerFallbackValue(FakeUser());
 }
 
 // Helper to mock NotificationPermissionHelper static methods

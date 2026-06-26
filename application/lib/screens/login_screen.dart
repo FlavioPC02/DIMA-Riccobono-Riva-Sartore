@@ -1,6 +1,5 @@
 import 'package:application/screens/signup.dart';
 import 'package:flutter/material.dart';
-import 'package:application/screens/homepage.dart';
 import 'package:hike_core/hike_core.dart';
 import '../services/auth_service.dart';
 
@@ -58,13 +57,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user == null) throw Exception('Login failed');
-
-      if (!mounted) return;
-
-      Navigator.of(
-        context,
-        rootNavigator: true,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const Navigation()));
     } catch (e) {
       if (!mounted) return;
 

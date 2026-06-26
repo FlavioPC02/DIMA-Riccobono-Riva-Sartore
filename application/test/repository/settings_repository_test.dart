@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:application/core/models/settings.dart';
 import 'package:application/core/repository/settings_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -13,17 +14,22 @@ SettingsRepository createRepository({
   Settings? initialSettings,
   Stream<Map<String, dynamic>?>? stream,
   MockDatabaseService? databaseService,
+  StreamController<User?>? authStreamController,
 }) {
   final db = databaseService ?? MockDatabaseService();
 
-  when(() => db.fetchSettings())
-      .thenAnswer((_) async => initialSettings?.toJson());
+  when(
+    () => db.fetchSettings(),
+  ).thenAnswer((_) async => initialSettings?.toJson());
   when(() => db.saveSettings(any())).thenAnswer((_) async {});
   when(() => db.streamSettings()).thenAnswer((_) => stream ?? Stream.empty());
+
+  final authController = authStreamController ?? StreamController<User?>();
 
   return SettingsRepository(
     hasCurrentUser: () => authenticated,
     databaseServiceFactory: () => db,
+    authChanges: () => authController.stream,
   );
 }
 
@@ -51,7 +57,11 @@ void main() {
   test('fetchRemote maps remote document to Settings', () async {
     final repository = createRepository(
       authenticated: true,
-      initialSettings: Settings(notifications: true, ferrata: false, difficulty: 2.5),
+      initialSettings: Settings(
+        notifications: true,
+        ferrata: false,
+        difficulty: 2.5,
+      ),
     );
 
     final result = await repository.fetchRemote();
@@ -66,9 +76,14 @@ void main() {
     final db = MockDatabaseService();
     when(() => db.saveSettings(any())).thenAnswer((_) async {});
 
-    final repository = createRepository(authenticated: false, databaseService: db);
+    final repository = createRepository(
+      authenticated: false,
+      databaseService: db,
+    );
 
-    await repository.saveRemote(Settings(notifications: true, ferrata: false, difficulty: 1.0));
+    await repository.saveRemote(
+      Settings(notifications: true, ferrata: false, difficulty: 1.0),
+    );
 
     verifyNever(() => db.saveSettings(any()));
   });
@@ -77,57 +92,102 @@ void main() {
     final db = MockDatabaseService();
     when(() => db.saveSettings(any())).thenAnswer((_) async {});
 
-    final repository = createRepository(authenticated: true, databaseService: db);
+    final repository = createRepository(
+      authenticated: true,
+      databaseService: db,
+    );
 
-    final settings = Settings(notifications: false, ferrata: true, difficulty: 3.3);
+    final settings = Settings(
+      notifications: false,
+      ferrata: true,
+      difficulty: 3.3,
+    );
 
     await repository.saveRemote(settings);
 
     verify(() => db.saveSettings(settings.toJson())).called(1);
   });
 
-  test('streamRemote returns empty stream when user is not authenticated', () async {
-    final repository = createRepository(authenticated: false);
+  test(
+    'streamRemote returns empty stream when user is not authenticated',
+    () async {
+      final authController = StreamController<User?>();
 
-    expect(repository.streamRemote(), emitsDone);
-  });
+      final repository = createRepository(
+        authenticated: false,
+        authStreamController: authController,
+      );
 
-  test('streamRemote maps remote values to Settings and ignores null', () async {
-    final controller = StreamController<Map<String, dynamic>?>();
-    final repository = createRepository(
-      authenticated: true,
-      stream: controller.stream,
-    );
+      final stream = repository.streamRemote();
 
-    final emitted = <Settings?>[];
-    final sub = repository.streamRemote().listen(emitted.add);
+      final expectation = expectLater(stream, emits(null));
 
-    controller.add({'notifications': false, 'ferrata': true, 'difficulty': 4.0});
-    controller.add(null);
-    await controller.close();
-    await Future<void>.delayed(Duration.zero);
+      authController.add(null);
 
-    expect(emitted, hasLength(2));
-    expect(emitted.first, isA<Settings>());
-    expect(emitted.first!.notifications, false);
-    expect(emitted.first!.ferrata, true);
-    expect(emitted.first!.difficulty, 4.0);
-    expect(emitted.last, isNull);
+      await expectation;
 
-    await sub.cancel();
-  });
+      await authController.close();
+    },
+  );
 
-  test('uses default DatabaseService when databaseServiceFactory is null', () async {
-    
-    final repository = SettingsRepository(
-      hasCurrentUser: () => true,
-      databaseServiceFactory: null,
-    );
+  test(
+    'streamRemote maps remote values to Settings and ignores null',
+    () async {
+      final controller = StreamController<Map<String, dynamic>?>.broadcast();
+      final authController = StreamController<User?>();
+      final databaseService = MockDatabaseService();
 
-    try {
-      await repository.fetchRemote();
-    } catch (e) {
-      // exception ignored
-    }
-  });
+      final repository = createRepository(
+        authenticated: true,
+        stream: controller.stream,
+        authStreamController: authController,
+        databaseService: databaseService,
+      );
+
+      final expectation = expectLater(
+        repository.streamRemote(),
+        emitsInOrder([
+          isA<Settings>()
+              .having((s) => s.notifications, 'notifications', false)
+              .having((s) => s.ferrata, 'ferrata', true)
+              .having((s) => s.difficulty, 'difficulty', 2.0),
+          isNull,
+        ]),
+      );
+
+      authController.add(FakeUser());
+
+      //wait for switchMap subscription
+      await untilCalled(() => databaseService.streamSettings());
+
+      controller.add({
+        'notifications': false,
+        'ferrata': true,
+        'difficulty': 2.0,
+      });
+
+      controller.add(null);
+
+      await expectation;
+
+      await authController.close();
+      await controller.close();
+    },
+  );
+
+  test(
+    'uses default DatabaseService when databaseServiceFactory is null',
+    () async {
+      final repository = SettingsRepository(
+        hasCurrentUser: () => true,
+        databaseServiceFactory: null,
+      );
+
+      try {
+        await repository.fetchRemote();
+      } catch (e) {
+        // exception ignored
+      }
+    },
+  );
 }

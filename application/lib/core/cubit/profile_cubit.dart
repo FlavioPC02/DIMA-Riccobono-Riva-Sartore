@@ -1,23 +1,64 @@
 import 'package:application/core/models/profile.dart';
 import 'package:application/core/repository/profile_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
 class ProfileCubit extends HydratedCubit<Profile> {
   final ProfileRepository _repository;
+  final Stream<User?> Function()? authChanges; //injectable for test
   StreamSubscription<Profile?>? _remoteSubscription;
+  StreamSubscription<User?>? _authSubscription;
 
-  ProfileCubit(this._repository)
-    : super(Profile(
-        nickname: 'name', 
-        mail: 'placeholder@mail.com', 
-        xp: 0.0,
-        level: 0,
-      )
-    ) {
-      _bootstrapSync();
+  ProfileCubit(this._repository, {this.authChanges})
+    : super(
+        Profile(
+          nickname: 'name',
+          mail: 'placeholder@mail.com',
+          xp: 0.0,
+          level: 0,
+        ),
+      ) {
+    final stream = authChanges != null
+        ? authChanges!()
+        : FirebaseAuth.instance.authStateChanges();
+    _authSubscription = stream.listen((user) {
+      if (user == null) {
+        _onLoggedOut();
+      } else {
+        _onLoggedIn();
+      }
+    });
+  }
+
+  void _onLoggedOut() {
+    _remoteSubscription?.cancel();
+    _remoteSubscription = null;
+    clear();
+    emit(Profile(nickname: '', mail: '', xp: 0, level: 0));
+  }
+
+  Future<void> _onLoggedIn() async {
+    await _remoteSubscription?.cancel();
+    _remoteSubscription = null;
+
+    if (isClosed) return;
+
+    final remoteProfile = await _repository.fetchRemote();
+
+    if (isClosed) return;
+
+    if (remoteProfile != null) {
+      emit(remoteProfile);
     }
+
+    _remoteSubscription = _repository.streamRemote().listen((remote) {
+      if (remote != null && remote != state) {
+        emit(remote);
+      }
+    });
+  }
 
   void updateNickname(String value) {
     _emitAndSync(state.copyWith(nickname: value));
@@ -28,7 +69,11 @@ class ProfileCubit extends HydratedCubit<Profile> {
     _emitAndSync(state.copyWith(xp: value, level: newLevel));
   }
 
-  int _levelFromTotalXp(double totalXp, {int baseXp = 100, double growth = 1.2}) {
+  int _levelFromTotalXp(
+    double totalXp, {
+    int baseXp = 100,
+    double growth = 1.2,
+  }) {
     double cumulative = 0.0;
     int level = 0;
 
@@ -44,19 +89,6 @@ class ProfileCubit extends HydratedCubit<Profile> {
     }
 
     return level;
-  }
-
-  Future<void> _bootstrapSync() async {
-    final remoteProfile = await _repository.fetchRemote();
-    if (remoteProfile != null) {
-      emit(remoteProfile);
-    }
-
-    _remoteSubscription = _repository.streamRemote().listen((remote) {
-      if (remote != null && remote != state) {
-        emit(remote);
-      }
-    });
   }
 
   void _emitAndSync(Profile next) {
@@ -78,6 +110,9 @@ class ProfileCubit extends HydratedCubit<Profile> {
   @override
   Future<void> close() async {
     await _remoteSubscription?.cancel();
+    await _authSubscription?.cancel();
+    _remoteSubscription = null;
+    _authSubscription = null;
     return super.close();
   }
 }
