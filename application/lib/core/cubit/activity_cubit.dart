@@ -78,6 +78,11 @@ class ActivityCubit extends Cubit<List<Activity>> {
     await _repository.deleteActivity(id);
   }
 
+  Future<void> clearLocalData() async {
+    await _repository.clearLocalData();
+    emit([]);
+  }
+
   @override
   Future<void> close() async {
     await _subscription?.cancel();
@@ -119,12 +124,12 @@ class ActivityCubit extends Cubit<List<Activity>> {
       updatedNotes.add(finalNote);
     }
 
-//    final updatedActivity = activity.copyWith(notes: updatedNotes);
-//    final newState = state.map((a) {
-//      return a.id == updatedActivity.id ? updatedActivity : a;
-//    }).toList();
-//
-//    emit(newState);
+    //    final updatedActivity = activity.copyWith(notes: updatedNotes);
+    //    final newState = state.map((a) {
+    //      return a.id == updatedActivity.id ? updatedActivity : a;
+    //    }).toList();
+    //
+    //    emit(newState);
 
     await _repository.saveNote(activity, finalNote);
 
@@ -143,11 +148,11 @@ class ActivityCubit extends Cubit<List<Activity>> {
     activity.notes = updatedNotes;
     emit(List<Activity>.from(state));
 
-//    final updatedActivity = activity.copyWith(notes: updatedNotes);
-//    final newState = state.map((a) {
-//      return a.id == updatedActivity.id ? updatedActivity : a;
-//    }).toList();
-//
-//    emit(newState);
+    //    final updatedActivity = activity.copyWith(notes: updatedNotes);
+    //    final newState = state.map((a) {
+    //      return a.id == updatedActivity.id ? updatedActivity : a;
+    //    }).toList();
+    //
+    //    emit(newState);
   }
 }

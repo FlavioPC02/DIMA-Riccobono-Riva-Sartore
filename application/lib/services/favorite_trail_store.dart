@@ -36,10 +36,12 @@ class FavoriteTrailStore {
     _emit();
   }
 
-  static Future<void> clearForTesting() async {
+  static Future<void> clear() async {
     _favorites.clear();
     _emit();
   }
+
+  static Future<void> clearForTesting() => clear();
 
   static void _emit() {
     if (!_updates.isClosed) {

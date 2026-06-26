@@ -46,8 +46,8 @@ class ActivityRepository {
   Stream<List<Activity>> streamActivities() {
     final localStream = _localStore.streamActivities();
     final authStream = authChanges != null
-      ? authChanges!()
-      : FirebaseAuth.instance.authStateChanges();
+        ? authChanges!()
+        : FirebaseAuth.instance.authStateChanges();
 
     final remoteStream = authStream.switchMap((user) {
       if (user == null) {
@@ -55,13 +55,13 @@ class ActivityRepository {
       }
 
       final remote = databaseServiceFactory != null
-        ? databaseServiceFactory!()
-        : DatabaseService();
+          ? databaseServiceFactory!()
+          : DatabaseService();
 
       return remote.streamActivities().map(
         (list) => list
-          .map((data) => Activity.fromJson(data['id'] as String, data))
-          .toList(),
+            .map((data) => Activity.fromJson(data['id'] as String, data))
+            .toList(),
       );
     });
 
@@ -237,6 +237,12 @@ class ActivityRepository {
     await remote.deleteActivity(id);
   }
 
+  Future<void> clearLocalData() async {
+    await _localStore.clear();
+    await _plannedTrailStore.clear();
+    _trailSyncInProgress.clear();
+  }
+
   Future<void> _saveActivity(Activity activity) async {
     final remote = _remoteOrNull();
 
@@ -291,8 +297,8 @@ class ActivityRepository {
         localActivities = activities;
         if (currentUser != null) {
           final remote = databaseServiceFactory != null
-            ? databaseServiceFactory!()
-            : DatabaseService();
+              ? databaseServiceFactory!()
+              : DatabaseService();
           _syncPendingActivities(activities, remote);
         }
         emitMerged();

@@ -9,6 +9,7 @@ abstract class ActivityLocalDataSource {
   Stream<List<Activity>> streamActivities();
   Future<String> upsertActivity(Activity activity);
   Future<void> deleteActivity(String id);
+  Future<void> clear();
   String createId();
 }
 
@@ -59,6 +60,13 @@ class HiveActivityStore implements ActivityLocalDataSource {
   Future<void> deleteActivity(String id) async {
     final box = await _activityBox;
     await box.delete(id);
+    await _emitUpdates();
+  }
+
+  @override
+  Future<void> clear() async {
+    final box = await _activityBox;
+    await box.clear();
     await _emitUpdates();
   }
 

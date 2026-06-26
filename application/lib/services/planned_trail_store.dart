@@ -8,6 +8,8 @@ abstract class PlannedTrailLocalDataSource {
 
   Future<void> deleteTrail(String activityId);
 
+  Future<void> clear();
+
   Stream<Set<String>> watchDownloadedTrailIds();
 }
 
@@ -66,5 +68,11 @@ class PlannedTrailStore implements PlannedTrailLocalDataSource {
     final box = await _plannedTrailBox();
 
     await box.delete(activityId);
+  }
+
+  @override
+  Future<void> clear() async {
+    final box = await _plannedTrailBox();
+    await box.clear();
   }
 }
