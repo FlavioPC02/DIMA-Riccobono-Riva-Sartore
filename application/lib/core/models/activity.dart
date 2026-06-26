@@ -40,6 +40,42 @@ class Activity {
     this.pendingSync = false,
   }) : notes = List<ActivityNote>.from(notes);
 
+  Activity copyWith({
+    String? id,
+    String? name,
+    ActivityStatus? status,
+    DateTime? date,
+    String? trailName,
+    double? distanceKm,
+    int? durationMinutes,
+    double? xpEarned,
+    List<ActivityNote>? notes,
+    ActivityDifficulty? difficulty,
+    String? trailId,
+    double? trackedDistance,
+    double? trackedElevationGap,
+    Duration? trackedTime,
+    bool? pendingSync,
+  }) {
+    return Activity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      status: status ?? this.status,
+      date: date ?? this.date,
+      trailName: trailName ?? this.trailName,
+      distanceKm: distanceKm ?? this.distanceKm,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      xpEarned: xpEarned ?? this.xpEarned,
+      notes: notes ?? this.notes,
+      difficulty: difficulty ?? this.difficulty,
+      trailId: trailId ?? this.trailId,
+      trackedDistance: trackedDistance ?? this.trackedDistance,
+      trackedElevationGap: trackedElevationGap ?? this.trackedElevationGap,
+      trackedTime: trackedTime ?? this.trackedTime,
+      pendingSync: pendingSync ?? this.pendingSync,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'name': name,
     'status': status.name,

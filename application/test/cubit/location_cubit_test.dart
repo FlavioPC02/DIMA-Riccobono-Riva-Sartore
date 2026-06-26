@@ -66,19 +66,25 @@ void main() {
     when(
       () => wearSync.sendOffTrailNotification(any()),
     ).thenAnswer((_) async {});
-    when(() => wearSync.onPauseFromWatch).thenAnswer((_) => capturedPauseCallback);
+    when(
+      () => wearSync.onPauseFromWatch,
+    ).thenAnswer((_) => capturedPauseCallback);
     when(() => wearSync.onPauseFromWatch = any()).thenAnswer((invocation) {
       capturedPauseCallback =
           invocation.positionalArguments.first as VoidCallback?;
       return null;
     });
-    when(() => wearSync.onResumeFromWatch).thenAnswer((_) => capturedResumeCallback);
+    when(
+      () => wearSync.onResumeFromWatch,
+    ).thenAnswer((_) => capturedResumeCallback);
     when(() => wearSync.onResumeFromWatch = any()).thenAnswer((invocation) {
       capturedResumeCallback =
           invocation.positionalArguments.first as VoidCallback?;
       return null;
     });
-    when(() => wearSync.onStopFromWatch).thenAnswer((_) => capturedStopCallback);
+    when(
+      () => wearSync.onStopFromWatch,
+    ).thenAnswer((_) => capturedStopCallback);
     when(() => wearSync.onStopFromWatch = any()).thenAnswer((invocation) {
       capturedStopCallback =
           invocation.positionalArguments.first as VoidCallback?;
@@ -516,6 +522,37 @@ void main() {
         await cubit.stopAndSave(navigate: true);
 
         expect(navigated, isTrue);
+      },
+    );
+
+    test(
+      'does not clear history or navigate when first-local save fails',
+      () async {
+        final cubit = buildCubit();
+        var navigated = false;
+        cubit.registerStopCallbacks(
+          onActivitySaved:
+              ({
+                required double distance,
+                required double elevationGap,
+                required Duration elapsed,
+              }) async {
+                throw Exception('local save failed');
+              },
+          onNavigateAfterStop: () => navigated = true,
+        );
+
+        await cubit.startTracking();
+
+        await expectLater(
+          cubit.stopAndSave(navigate: true),
+          throwsA(isA<Exception>()),
+        );
+
+        expect(navigated, isFalse);
+        verifyNever(() => repository.clear());
+
+        await cubit.close();
       },
     );
 

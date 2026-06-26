@@ -235,20 +235,7 @@ class ActivityRepository {
 
     activity.pendingSync = true;
     await _localStore.upsertActivity(activity);
-
-    if (remote == null) {
-      return;
-    }
-
-    final savedRemotely = await _trySaveRemote(activity, remote);
-
-    if (!savedRemotely) {
-      return;
-    }
-
-    activity.pendingSync = false;
-    await _localStore.deleteActivity(activity.id);
-    await _plannedTrailStore.deleteTrail(activity.id);
+    return;
   }
 
   Future<bool> _trySaveRemote(

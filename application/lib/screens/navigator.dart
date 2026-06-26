@@ -37,7 +37,8 @@ class NavigatorScreen extends StatefulWidget {
   }
 }
 
-class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingObserver {
+class _NavigatorScreenState extends State<NavigatorScreen>
+    with WidgetsBindingObserver {
   static const double _offsetBound = 32;
   static const double _offsetBoundTop = 37;
 
@@ -75,7 +76,9 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
       });
     }
 
-    _locationCubit.setInitialEta(Duration(minutes: widget.activity.durationMinutes));
+    _locationCubit.setInitialEta(
+      Duration(minutes: widget.activity.durationMinutes),
+    );
     _locationCubit.setTotalDistance(widget.activity.distanceKm * 1000);
     _locationCubit.setTrailData(
       segments: (widget.trail['subTrails'] as List).cast<List<LatLng>>(),
@@ -129,20 +132,25 @@ class _NavigatorScreenState extends State<NavigatorScreen> with WidgetsBindingOb
             required double elevationGap,
             required Duration elapsed,
           }) async {
-            activity.trackedDistance = distance;
-            activity.trackedElevationGap = elevationGap;
-            activity.trackedTime = elapsed;
-            activity.status = ActivityStatus.completed;
+            final completedActivity = activity.copyWith(
+              trackedDistance: distance,
+              trackedElevationGap: elevationGap,
+              trackedTime: elapsed,
+              status: ActivityStatus.completed,
+            );
 
-            if (activity.id.isEmpty) {
-              await activityCubit.addActivity(activity);
+            if (completedActivity.id.isEmpty) {
+              await activityCubit.addActivity(completedActivity);
             } else {
-              await activityCubit.updateActivity(activity);
+              await activityCubit.updateActivity(completedActivity);
             }
 
-            // Profile XP update — also safe to call without context
-            final profile = profileCubit.state;
-            profileCubit.updateXp(profile.xp + activity.xpEarned);
+            try {
+              final profile = profileCubit.state;
+              profileCubit.updateXp(profile.xp + completedActivity.xpEarned);
+            } catch (e) {
+              debugPrint('[NavigatorScreen] profile XP update failed: $e');
+            }
           },
 
       onNavigateAfterStop: () {

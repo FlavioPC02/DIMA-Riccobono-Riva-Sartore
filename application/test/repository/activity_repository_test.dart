@@ -484,7 +484,7 @@ void main() {
     });
 
     test(
-      'updateActivity removes completed activity after Firestore save',
+      'updateActivity keeps completed activity locally for pending sync',
       () async {
         final mockDb = MockDatabaseService();
         when(
@@ -517,15 +517,17 @@ void main() {
         planned.status = ActivityStatus.completed;
         await repo.updateActivity(planned);
 
-        expect(localStore.activities, isEmpty);
+        expect(localStore.activities.single.id, 'i1');
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities.single.pendingSync, isTrue);
 
-        verify(() => plannedTrailStore.deleteTrail('i1')).called(1);
-        verify(() => mockDb.updateActivity('i1', any())).called(2);
+        verifyNever(() => plannedTrailStore.deleteTrail('i1'));
+        verify(() => mockDb.updateActivity('i1', any())).called(1);
       },
     );
 
     test(
-      'completed activity is removed locally while Firestore stream updates',
+      'completed activity stays local while waiting for pending sync',
       () async {
         final mockDb = MockDatabaseService();
         final remoteController = StreamController<List<Map<String, dynamic>>>();
@@ -576,7 +578,9 @@ void main() {
         await repo.updateActivity(planned);
         await Future<void>.delayed(Duration.zero);
 
-        expect(localStore.activities, isEmpty);
+        expect(localStore.activities.single.id, 'i1');
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities.single.pendingSync, isTrue);
       },
     );
 
@@ -607,6 +611,54 @@ void main() {
         expect(localStore.activities.single.id, 'i1');
         expect(localStore.activities.single.status, ActivityStatus.completed);
         expect(localStore.activities.single.pendingSync, isTrue);
+      },
+    );
+
+    test(
+      'updateActivity returns after local save even when Firestore is still pending',
+      () async {
+        final mockDb = MockDatabaseService();
+        final remoteSave = Completer<void>();
+        addTearDown(() {
+          if (!remoteSave.isCompleted) {
+            remoteSave.complete();
+          }
+        });
+
+        when(
+          () => mockDb.updateActivity(any(), any()),
+        ).thenAnswer((_) => remoteSave.future);
+
+        final localStore = FakeActivityLocalStore();
+        final plannedTrailStore = MockPlannedTrailStore();
+        when(
+          () => plannedTrailStore.deleteTrail(any()),
+        ).thenAnswer((_) async {});
+        addTearDown(localStore.close);
+
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          plannedTrailStore: plannedTrailStore,
+        );
+        final completed = Activity(
+          id: 'i1',
+          name: 'X',
+          status: ActivityStatus.completed,
+          date: DateTime.now(),
+        );
+
+        final save = repo.updateActivity(completed);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(localStore.activities.single.id, 'i1');
+        expect(localStore.activities.single.status, ActivityStatus.completed);
+        expect(localStore.activities.single.pendingSync, isTrue);
+        await expectLater(
+          save.timeout(const Duration(milliseconds: 100)),
+          completes,
+        );
       },
     );
 
