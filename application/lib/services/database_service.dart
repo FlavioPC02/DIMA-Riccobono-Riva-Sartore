@@ -26,6 +26,9 @@ class DatabaseService {
   CollectionReference<Map<String, dynamic>> get _activitiesCollection =>
       _remoteUserDoc.collection('activities');
 
+  CollectionReference<Map<String, dynamic>> get _favoriteTrailsCollection =>
+      _remoteUserDoc.collection('favoriteTrails');
+
   Future<void> createUser(String email, String nickname) async {
     try {
       await _remoteUserDoc.set({
@@ -36,7 +39,7 @@ class DatabaseService {
         'level': 0,
         'xp': 0,
       });
-    } on FirebaseException catch(_) {
+    } on FirebaseException catch (_) {
       throw Exception('Unable to reach the server');
     }
   }
@@ -103,36 +106,62 @@ class DatabaseService {
     return _activitiesCollection
         .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data()})
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => {'id': doc.id, ...doc.data()})
+              .toList(),
+        );
   }
 
   Future<Map<String, dynamic>?> fetchActivity(String id) async {
-    final snapshot = await _activitiesCollection.doc(id).get(const GetOptions(source: Source.server));
+    final snapshot = await _activitiesCollection
+        .doc(id)
+        .get(const GetOptions(source: Source.server));
     if (snapshot.exists && snapshot.data() != null) {
       return snapshot.data();
     }
     return null;
   }
 
-  Future<void> addNoteToArray(String activityId, Map<String, dynamic> noteJson) async {
+  Future<void> addNoteToArray(
+    String activityId,
+    Map<String, dynamic> noteJson,
+  ) async {
     try {
-      await _activitiesCollection
-          .doc(activityId)
-          .set({
-            'notes': FieldValue.arrayUnion([noteJson]),
-          }, SetOptions(merge: true));
+      await _activitiesCollection.doc(activityId).set({
+        'notes': FieldValue.arrayUnion([noteJson]),
+      }, SetOptions(merge: true));
     } catch (e) {
-      rethrow; 
+      rethrow;
     }
   }
 
-  Future<void> removeNoteFromArray(String activityId, Map<String, dynamic> noteJson) async {
-    await _activitiesCollection
-        .doc(activityId)
-        .set({
-          'notes': FieldValue.arrayRemove([noteJson]),
-        }, SetOptions(merge: true));
+  Future<void> removeNoteFromArray(
+    String activityId,
+    Map<String, dynamic> noteJson,
+  ) async {
+    await _activitiesCollection.doc(activityId).set({
+      'notes': FieldValue.arrayRemove([noteJson]),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> saveFavoriteTrail(String id, Map<String, dynamic> data) {
+    return _favoriteTrailsCollection.doc(id).set(data, SetOptions(merge: true));
+  }
+
+  Future<void> deleteFavoriteTrail(String id) {
+    return _favoriteTrailsCollection.doc(id).delete();
+  }
+
+  Future<bool> isFavoriteTrail(String id) async {
+    final snapshot = await _favoriteTrailsCollection.doc(id).get();
+    return snapshot.exists;
+  }
+
+  Stream<List<Map<String, dynamic>>> streamFavoriteTrails() {
+    return _favoriteTrailsCollection.snapshots().map(
+      (snapshot) =>
+          snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+    );
   }
 }

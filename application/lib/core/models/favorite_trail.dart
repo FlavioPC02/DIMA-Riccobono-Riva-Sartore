@@ -39,11 +39,30 @@ class FavoriteTrail {
     );
   }
 
-  Map<String, dynamic> toTrailMap() {
+  factory FavoriteTrail.fromJson(String id, Map<String, dynamic> json) {
+    return FavoriteTrail(
+      id: id,
+      name: json['name']?.toString() ?? 'Trail',
+      distance: json['distance']?.toString(),
+      duration: json['duration']?.toString(),
+      difficulty: json['difficulty'] as int?,
+      ascent: json['ascent']?.toString(),
+      isFerrata: json['isFerrata'] as bool?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'name': name,
-      'subTrails': const <List<LatLng>>[],
+      'distance': distance,
+      'duration': duration,
+      'difficulty': difficulty,
+      'ascent': ascent,
+      'isFerrata': isFerrata,
     };
+  }
+
+  Map<String, dynamic> toTrailMap() {
+    return {'id': id, 'name': name, 'subTrails': const <List<LatLng>>[]};
   }
 }

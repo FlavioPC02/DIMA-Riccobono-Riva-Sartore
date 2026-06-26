@@ -8,11 +8,8 @@ import 'package:hike_core/hike_core.dart';
 import 'package:application/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/repository/location_repository.dart';
-import 'package:application/services/favorite_trail_store.dart';
 import 'package:application/services/service_locator.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 int totalXpTillNextLevel(int level, {int baseXp = 100, double growth = 1.2}) {
   int totalXp = 0;
@@ -69,7 +66,6 @@ class _ProfilePageState extends State<ProfilePage> {
       await AuthService().signOut();
       await activityCubit.clearLocalData();
       await locationRepository.clear();
-      await FavoriteTrailStore.clear();
     } catch (e) {
       if (!mounted) {
         return;

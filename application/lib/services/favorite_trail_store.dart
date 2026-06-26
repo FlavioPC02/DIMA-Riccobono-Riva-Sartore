@@ -1,57 +1,67 @@
-import 'dart:async';
-
 import 'package:application/core/models/favorite_trail.dart';
+import 'package:application/services/database_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FavoriteTrailStore {
-  static final Map<String, FavoriteTrail> _favorites = {};
-  static final StreamController<List<FavoriteTrail>> _updates =
-      StreamController<List<FavoriteTrail>>.broadcast();
+  final bool Function()? hasCurrentUser;
+  final DatabaseService Function()? databaseServiceFactory;
 
-  Stream<List<FavoriteTrail>> streamFavoriteTrails() async* {
-    yield _readFavoriteTrails();
-    yield* _updates.stream;
+  FavoriteTrailStore({
+    this.hasCurrentUser,
+    this.databaseServiceFactory,
+  });
+
+  DatabaseService? _remoteOrNull() {
+    final hasUser = hasCurrentUser != null
+        ? hasCurrentUser!()
+        : FirebaseAuth.instance.currentUser != null;
+
+    if (!hasUser) return null;
+
+    return databaseServiceFactory != null
+        ? databaseServiceFactory!()
+        : DatabaseService();
+  }
+
+  Stream<List<FavoriteTrail>> streamFavoriteTrails() {
+    final remote = _remoteOrNull();
+    if (remote == null) return Stream.value([]);
+
+    return remote.streamFavoriteTrails().map(
+      (list) => list
+          .map((data) => FavoriteTrail.fromJson(data['id'] as String, data))
+          .toList(),
+    );
   }
 
   Future<List<FavoriteTrail>> fetchFavoriteTrails() async {
-    return _readFavoriteTrails();
+    return streamFavoriteTrails().first;
   }
 
   Future<bool> isFavorite(String trailId) async {
     if (trailId.isEmpty) return false;
 
-    return _favorites.containsKey(trailId);
+    final remote = _remoteOrNull();
+    if (remote == null) return false;
+
+    return remote.isFavoriteTrail(trailId);
   }
 
   Future<void> saveTrail(FavoriteTrail trail) async {
     if (trail.id.isEmpty) return;
 
-    _favorites[trail.id] = trail;
-    _emit();
+    final remote = _remoteOrNull();
+    if (remote == null) return;
+
+    await remote.saveFavoriteTrail(trail.id, trail.toJson());
   }
 
   Future<void> deleteTrail(String trailId) async {
     if (trailId.isEmpty) return;
 
-    _favorites.remove(trailId);
-    _emit();
-  }
+    final remote = _remoteOrNull();
+    if (remote == null) return;
 
-  static Future<void> clear() async {
-    _favorites.clear();
-    _emit();
-  }
-
-  static Future<void> clearForTesting() => clear();
-
-  static void _emit() {
-    if (!_updates.isClosed) {
-      _updates.add(_readFavoriteTrails());
-    }
-  }
-
-  static List<FavoriteTrail> _readFavoriteTrails() {
-    final trails = _favorites.values.toList(growable: false);
-    trails.sort((a, b) => a.name.compareTo(b.name));
-    return trails;
+    await remote.deleteFavoriteTrail(trailId);
   }
 }
