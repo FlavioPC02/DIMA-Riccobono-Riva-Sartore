@@ -7,15 +7,21 @@ import 'package:latlong2/latlong.dart';
 
 const LatLng defaultMapCenter = LatLng(41.8967, 12.4822);
 
-Future<bool> checkLocationPermissions() async {  
+Future<bool> checkLocationPermissions({BuildContext? context}) async {  
   bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
   if (!serviceEnabled) {
+    if (context != null && context.mounted) {
+      showLocationServiceDialog(context);
+    }
     return false;
   }
 
   geo.LocationPermission permission = await geo.Geolocator.checkPermission();
   if (permission == geo.LocationPermission.denied ||
       permission == geo.LocationPermission.deniedForever) {
+      if (context != null && context.mounted) {
+        showLocationPermissionDialog(context);
+      }
       return false;
   }
 
@@ -128,7 +134,7 @@ Future<LatLng> checkInitialLocation(
   double mapZoom = 12,
 }) async {
 
-  final permissions = await checkLocationPermissions();
+  final permissions = await checkLocationPermissions(context: context);
   if (!permissions) {
     return defaultMapCenter;
   }

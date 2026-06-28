@@ -86,6 +86,7 @@ void main() {
       mockGeolocator.locationServiceEnabled = false;
 
       await pumpMapPage(tester);
+      
 
       expect(find.text('Location service required'), findsOneWidget);
       expect(find.text('Enable location permission'), findsOneWidget);

@@ -1,4 +1,5 @@
 import 'package:application/core/cubit/activity_cubit.dart';
+import 'package:application/core/cubit/map_cubit.dart';
 import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
@@ -13,6 +14,7 @@ Widget pumpApp({
   ProfileCubit? profileCubit,
   ActivityCubit? activityCubit,
   NavigationIndexCubit? navigationIndexCubit,
+  MapCubit? mapCubit,
 }) {
   return MultiBlocProvider(
     providers: [
@@ -20,6 +22,7 @@ Widget pumpApp({
       BlocProvider<ProfileCubit>.value(value: profileCubit ?? MockProfileCubit(),),
       BlocProvider<ActivityCubit>.value(value: activityCubit ?? MockActivityCubit(),),
       BlocProvider<NavigationIndexCubit>.value(value: navigationIndexCubit ?? MockNavigationIndexCubit(),),
+      BlocProvider<MapCubit>.value(value: mapCubit ?? MockMapCubit(),),
     ],
     child: MaterialApp(
       theme: ThemeData(

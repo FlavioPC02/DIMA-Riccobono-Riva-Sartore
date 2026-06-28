@@ -1,4 +1,5 @@
 import 'package:application/core/cubit/navigation_index_cubit.dart';
+import 'package:application/services/favorite_trail_store.dart';
 import 'package:application/services/map_management_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hike_core/hike_core.dart';
@@ -10,7 +11,9 @@ import 'diary_page.dart';
 import 'map_page.dart';
 
 class Navigation extends StatefulWidget {
-  const Navigation({super.key});
+  const Navigation({super.key, this.favoriteTrailStore});
+
+  final FavoriteTrailStore? favoriteTrailStore;
 
   @override
   State<Navigation> createState() => _NavigationState();
@@ -99,7 +102,7 @@ class _NavigationState extends State<Navigation> {
             children: <Widget>[
               MapPage(),
               DiaryPage(),
-              FavoritesPage(),
+              FavoritesPage(favoriteTrailStore: widget.favoriteTrailStore,),
               SettingsPage(),
             ],
           ),
