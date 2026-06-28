@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/map_cubit.dart';
 import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
@@ -32,6 +33,7 @@ class MockProfileCubit extends Mock implements ProfileCubit {}
 class MockActivityCubit extends Mock implements ActivityCubit {}
 class MockLocationCubit extends Mock implements LocationCubit {}
 class MockNavigationIndexCubit extends Mock implements NavigationIndexCubit {}
+class MockMapCubit extends Mock implements MapCubit {}
 class MockAuthService extends Mock implements AuthService {}
 class MockDatabaseService extends Mock implements DatabaseService {}
 class MockActivityRepository extends Mock implements ActivityRepository {}
