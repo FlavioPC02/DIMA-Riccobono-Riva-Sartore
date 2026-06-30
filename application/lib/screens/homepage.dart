@@ -105,29 +105,36 @@ class _NavigationState extends State<Navigation> {
           ),
           bottomNavigationBar: NavigationBar(
             backgroundColor: Theme.of(context).colorScheme.secondary,
-            indicatorColor: Theme.of(
-              context,
-            ).colorScheme.primary.withValues(alpha: 0.3),
+            indicatorColor: Colors.transparent,
+            overlayColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
             onDestinationSelected: (i) => context.read<NavigationIndexCubit>().setIndex(i),
             selectedIndex: index,
             destinations: const <Widget>[
               NavigationDestination(
-                selectedIcon: Icon(Icons.map),
+                selectedIcon: Icon(
+                  Icons.map,
+                  color: Color(0xFFE95F2A),),
                 icon: Icon(Icons.map_outlined),
                 label: 'Map',
               ),
               NavigationDestination(
-                selectedIcon: Icon(Icons.book),
+                selectedIcon: Icon(
+                  Icons.book,
+                  color: Color(0xFFE95F2A),),
                 icon: Icon(Icons.book_outlined),
                 label: 'Diary',
               ),
               NavigationDestination(
-                selectedIcon: Icon(Icons.star),
+                selectedIcon: Icon(
+                  Icons.star,
+                  color: Color(0xFFE95F2A),),
                 icon: Icon(Icons.star_border),
                 label: 'Favorites',
               ),
               NavigationDestination(
-                selectedIcon: Icon(Icons.person),
+                selectedIcon: Icon(
+                  Icons.person,
+                  color: Color(0xFFE95F2A),),
                 icon: Icon(Icons.person_outlined),
                 label: 'Profile',
               ),
