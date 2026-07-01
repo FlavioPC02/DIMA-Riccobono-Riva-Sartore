@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/map_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/core/models/location_point.dart';
 import 'package:application/core/models/profile.dart';
@@ -54,6 +55,8 @@ void main() {
   late MockSettingsCubit mockSettingsCubit;
   late MockGeolocatorPlatform mockGeolocator;
   late MockPhoneWearSyncService mockPhoneWearSyncService;
+  late MockNavigationIndexCubit mockNavigationIndexCubit;
+  late MockMapCubit mockMapCubit;
 
   final Map<String, dynamic> dummyTrail = {
     'name': 'Sentiero Test Navigator',
@@ -100,6 +103,8 @@ void main() {
     mockSettingsCubit = MockSettingsCubit();
     mockGeolocator = MockGeolocatorPlatform();
     mockPhoneWearSyncService = MockPhoneWearSyncService();
+    mockNavigationIndexCubit = MockNavigationIndexCubit();
+    mockMapCubit = MockMapCubit();
 
     GeolocatorPlatform.instance = mockGeolocator;
     when(
@@ -226,6 +231,14 @@ void main() {
       () => mockPhoneWearSyncService.sendNavigationPrompt(),
     ).thenAnswer((_) async {});
 
+    when(() => mockNavigationIndexCubit.state).thenReturn(0);
+    when(
+      () => mockNavigationIndexCubit.stream,
+    ).thenAnswer((_) => Stream<int>.value(0));
+
+    when(() => mockMapCubit.state).thenReturn(MapState.initial);
+    when(() => mockMapCubit.stream).thenAnswer((_) => const Stream.empty());
+
     //Register mocks in service locator
     if (getIt.isRegistered<LocationCubit>()) getIt.unregister<LocationCubit>();
     if (getIt.isRegistered<PhoneWearSyncService>()) {
@@ -245,6 +258,8 @@ void main() {
       activityCubit: mockActivityCubit,
       profileCubit: mockProfileCubit,
       settingsCubit: mockSettingsCubit,
+      navigationIndexCubit: mockNavigationIndexCubit,
+      mapCubit: mockMapCubit,
       child: MaterialApp(
         home: Scaffold(
           body: SizedBox(
@@ -387,9 +402,7 @@ void main() {
   });
 
   group('NavigatorScreen Recording Controls', () {
-    testWidgets('tapping pause button pauses tracking', (
-      tester,
-    ) async {
+    testWidgets('tapping pause button pauses tracking', (tester) async {
       when(() => mockLocationCubit.isRunning).thenReturn(true);
 
       await tester.pumpWidget(createWidgetUnderTest(createDummyActivity()));
@@ -407,9 +420,7 @@ void main() {
       verify(() => mockLocationCubit.pauseTracking()).called(1);
     });
 
-    testWidgets('tapping resume button resumes tracking', (
-      tester,
-    ) async {
+    testWidgets('tapping resume button resumes tracking', (tester) async {
       await tester.pumpWidget(createWidgetUnderTest(createDummyActivity()));
       await tester.pumpAndSettle();
 
@@ -449,14 +460,18 @@ void main() {
   });
 
   group('NavigatorScreen on stop callbacks', () {
-    testWidgets('onActivitySaved updates and persists activity', (tester) async {
+    testWidgets('onActivitySaved updates and persists activity', (
+      tester,
+    ) async {
       await tester.pumpWidget(createWidgetUnderTest(createDummyActivity()));
       await tester.pump();
 
-      final captured = verify(() => mockLocationCubit.registerStopCallbacks(
-        onActivitySaved: captureAny(named: 'onActivitySaved'), 
-        onNavigateAfterStop: any(named: 'onNavigateAfterStop'),
-      )).captured;
+      final captured = verify(
+        () => mockLocationCubit.registerStopCallbacks(
+          onActivitySaved: captureAny(named: 'onActivitySaved'),
+          onNavigateAfterStop: any(named: 'onNavigateAfterStop'),
+        ),
+      ).captured;
 
       final onActivitySaved = captured.first as OnActivitySaved;
       await onActivitySaved(
@@ -480,10 +495,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      final captured = verify(() => mockLocationCubit.registerStopCallbacks(
-        onActivitySaved: captureAny(named: 'onActivitySaved'), 
-        onNavigateAfterStop: any(named: 'onNavigateAfterStop'),
-      )).captured;
+      final captured = verify(
+        () => mockLocationCubit.registerStopCallbacks(
+          onActivitySaved: captureAny(named: 'onActivitySaved'),
+          onNavigateAfterStop: any(named: 'onNavigateAfterStop'),
+        ),
+      ).captured;
 
       final onActivitySaved = captured.first as OnActivitySaved;
       await onActivitySaved(
@@ -493,9 +510,11 @@ void main() {
       );
 
       //existing activity => call updateActivity
-      final savedActivity = verify(
-        () => mockActivityCubit.updateActivity(captureAny()),
-      ).captured.single as Activity;
+      final savedActivity =
+          verify(
+                () => mockActivityCubit.updateActivity(captureAny()),
+              ).captured.single
+              as Activity;
       verifyNever(() => mockActivityCubit.addActivity(any()));
 
       expect(savedActivity.status, ActivityStatus.completed);
@@ -508,13 +527,43 @@ void main() {
     });
 
     testWidgets('onNavigateAfterStops pops NavigatorScreen', (tester) async {
-      await tester.pumpWidget(createWidgetUnderTest(createDummyActivity()));
+      //Push navigator page onto a stack
+      await tester.pumpWidget(
+        pumpApp(
+          activityCubit: mockActivityCubit,
+          profileCubit: mockProfileCubit,
+          settingsCubit: mockSettingsCubit,
+          navigationIndexCubit: mockNavigationIndexCubit,
+          mapCubit: mockMapCubit,
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => NavigatorScreen(
+                      trail: dummyTrail,
+                      activity: createDummyActivity(),
+                    ),
+                  ),
+                ),
+                child: const Text('open navigator'),
+              ),
+            ),
+          ),
+        ),
+      );
       await tester.pump();
 
-      final captured = verify(() => mockLocationCubit.registerStopCallbacks(
-        onActivitySaved: any(named: 'onActivitySaved'), 
-        onNavigateAfterStop: captureAny(named: 'onNavigateAfterStop'),
-      )).captured;
+      await tester.tap(find.text('open navigator'));
+      await tester.pumpAndSettle();
+      expect(find.byType(NavigatorScreen), findsOneWidget);
+
+      final captured = verify(
+        () => mockLocationCubit.registerStopCallbacks(
+          onActivitySaved: any(named: 'onActivitySaved'),
+          onNavigateAfterStop: captureAny(named: 'onNavigateAfterStop'),
+        ),
+      ).captured;
 
       final onNavigateAfterStop = captured.first as OnNavigateAfterStop;
 

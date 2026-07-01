@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:application/core/cubit/map_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,24 +19,28 @@ import '../utils/test_config.dart';
 
 class DelayedMockGeolocatorPlatform extends MockGeolocatorPlatform {
   @override
-  Future<Position> getCurrentPosition({LocationSettings? locationSettings}) async {
+  Future<Position> getCurrentPosition({
+    LocationSettings? locationSettings,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     return super.getCurrentPosition(locationSettings: locationSettings);
   }
 }
 
-
 void main() {
   late DelayedMockGeolocatorPlatform mockGeolocator;
   late MockSettingsCubit mockSettingsCubit;
+  late MockMapCubit mockMapCubit;
 
   setUpAll(() async {
     setupTest();
     const envString = '''MAPBOX_ACCESS_TOKEN=test_token_123''';
     dotenv.loadFromString(envString: envString);
-    
+
     HttpOverrides.global = FakeHttpOverrides();
-    registerFallbackValue(Settings(notifications: true, ferrata: false, difficulty: 0.0));
+    registerFallbackValue(
+      Settings(notifications: true, ferrata: false, difficulty: 0.0),
+    );
   });
 
   setUp(() {
@@ -47,21 +52,27 @@ void main() {
     FakeHttpOverrides.returnServerError = false;
 
     mockSettingsCubit = MockSettingsCubit();
-    when(() => mockSettingsCubit.stream).thenAnswer((_) => const Stream.empty());
+    mockMapCubit = MockMapCubit();
+
+    when(
+      () => mockSettingsCubit.stream,
+    ).thenAnswer((_) => const Stream.empty());
     when(() => mockSettingsCubit.state).thenReturn(
-      Settings(
-        notifications: true,
-        ferrata: false,
-        difficulty: 0.0,
-      ),
+      Settings(notifications: true, ferrata: false, difficulty: 0.0),
     );
+
+    when(() => mockMapCubit.state).thenReturn(MapState.initial);
+    when(() => mockMapCubit.stream).thenAnswer((_) => const Stream.empty());
   });
 
   Future<void> pumpMapPage(WidgetTester tester) async {
     await tester.pumpWidget(
       BlocProvider<SettingsCubit>.value(
         value: mockSettingsCubit,
-        child: const MaterialApp(home: MapPage()),
+        child: BlocProvider<MapCubit>.value(
+          value: mockMapCubit,
+          child: const MaterialApp(home: MapPage()),
+        ),
       ),
     );
 
@@ -71,70 +82,80 @@ void main() {
   }
 
   group('MapPage Widget Tests', () {
-
-    testWidgets('Renders MapPage correctly with search bar and buttons', (WidgetTester tester) async {
+    testWidgets('Renders MapPage correctly with search bar and buttons', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       expect(find.byType(TextField), findsOneWidget);
       expect(find.text('Search for a location...'), findsOneWidget);
       expect(find.byIcon(Icons.my_location), findsOneWidget);
-      
-      await tearDownMap(tester); 
+
+      await tearDownMap(tester);
     });
 
-    testWidgets('Shows location service dialog if GPS is disabled', (WidgetTester tester) async {
+    testWidgets('Shows location service dialog if GPS is disabled', (
+      WidgetTester tester,
+    ) async {
       mockGeolocator.locationServiceEnabled = false;
 
       await pumpMapPage(tester);
-      
 
       expect(find.text('Location service required'), findsOneWidget);
       expect(find.text('Enable location permission'), findsOneWidget);
-      
-      await tearDownMap(tester); 
+
+      await tearDownMap(tester);
     });
 
-    testWidgets('Shows location permission dialog if permission is denied', (WidgetTester tester) async {
+    testWidgets('Shows location permission dialog if permission is denied', (
+      WidgetTester tester,
+    ) async {
       mockGeolocator.permission = LocationPermission.denied;
 
       await pumpMapPage(tester);
 
       expect(find.text('Location permission required'), findsOneWidget);
       expect(find.text('Enable location permission'), findsOneWidget);
-      
-      await tearDownMap(tester); 
+
+      await tearDownMap(tester);
     });
 
-    testWidgets('Search input triggers debounce and updates UI', (WidgetTester tester) async {
+    testWidgets('Search input triggers debounce and updates UI', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       await tester.enterText(find.byType(TextField), 'Milano');
-      await tester.pump(); 
+      await tester.pump();
       expect(find.byIcon(Icons.close), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 2));
 
       await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
-      
+
       TextField textField = tester.widget(find.byType(TextField));
       expect(textField.controller!.text, isEmpty);
-      
-      await tearDownMap(tester); 
+
+      await tearDownMap(tester);
     });
 
     testWidgets('Center map on user button works', (WidgetTester tester) async {
       await pumpMapPage(tester);
 
-      await tester.tap(find.widgetWithIcon(FloatingActionButton, Icons.my_location));
+      await tester.tap(
+        find.widgetWithIcon(FloatingActionButton, Icons.my_location),
+      );
       await tester.pump(const Duration(seconds: 3));
 
       expect(tester.takeException(), isNull);
-      
-      await tearDownMap(tester); 
+
+      await tearDownMap(tester);
     });
 
-    testWidgets('Search location network failure shows snackbar', (WidgetTester tester) async {
+    testWidgets('Search location network failure shows snackbar', (
+      WidgetTester tester,
+    ) async {
       FakeHttpOverrides.shouldFailConnections = true;
       await pumpMapPage(tester);
 
@@ -143,11 +164,16 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
 
-      expect(find.text('Error occurred while searching for the location.'), findsOneWidget);
+      expect(
+        find.text('Error occurred while searching for the location.'),
+        findsOneWidget,
+      );
       await tearDownMap(tester);
     });
 
-    testWidgets('Trail search network failure shows snackbar', (WidgetTester tester) async {
+    testWidgets('Trail search network failure shows snackbar', (
+      WidgetTester tester,
+    ) async {
       FakeHttpOverrides.shouldFailConnections = true;
       await pumpMapPage(tester);
 
@@ -158,92 +184,124 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
 
-      expect(find.text('Network error. Check your connection and try again.'), findsOneWidget);
-      await tearDownMap(tester);
-    });
-
-    testWidgets('SettingsCubit listener updates filter labels on state change', (WidgetTester tester) async {
-      final settingsController = StreamController<Settings>.broadcast();
-      when(() => mockSettingsCubit.stream).thenAnswer((_) => settingsController.stream);
-      when(() => mockSettingsCubit.state).thenReturn(
-        Settings(notifications: true, ferrata: true, difficulty: 1.0),
+      expect(
+        find.text('Network error. Check your connection and try again.'),
+        findsOneWidget,
       );
-
-      await pumpMapPage(tester);
-      expect(find.text('Intermediate'), findsOneWidget);
-
-      settingsController.add(Settings(notifications: true, ferrata: true, difficulty: 2.0));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Expert'), findsOneWidget);
-      await settingsController.close();
       await tearDownMap(tester);
     });
 
-    testWidgets('Fetches trails from Overpass API and shows/closes PageView', (WidgetTester tester) async {
+    testWidgets(
+      'SettingsCubit listener updates filter labels on state change',
+      (WidgetTester tester) async {
+        final settingsController = StreamController<Settings>.broadcast();
+        when(
+          () => mockSettingsCubit.stream,
+        ).thenAnswer((_) => settingsController.stream);
+        when(() => mockSettingsCubit.state).thenReturn(
+          Settings(notifications: true, ferrata: true, difficulty: 1.0),
+        );
+
+        await pumpMapPage(tester);
+        expect(find.text('Intermediate'), findsOneWidget);
+
+        settingsController.add(
+          Settings(notifications: true, ferrata: true, difficulty: 2.0),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Expert'), findsOneWidget);
+        await settingsController.close();
+        await tearDownMap(tester);
+      },
+    );
+
+    testWidgets('Fetches trails from Overpass API and shows/closes PageView', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       final searchButton = find.text('Search for hiking trails in this area');
       expect(searchButton, findsOneWidget);
       await tester.tap(searchButton);
-      
+
       await tester.pump(const Duration(seconds: 2));
 
       expect(find.byType(PageView), findsOneWidget);
       expect(find.text('Sentiero Facile'), findsOneWidget);
 
-      final closeTrailsButton = find.widgetWithIcon(FloatingActionButton, Icons.close);
+      final closeTrailsButton = find.widgetWithIcon(
+        FloatingActionButton,
+        Icons.close,
+      );
       await tester.tap(closeTrailsButton);
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.byType(PageView), findsNothing);
-      expect(find.text('Search for hiking trails in this area'), findsOneWidget);
+      expect(
+        find.text('Search for hiking trails in this area'),
+        findsOneWidget,
+      );
 
       await tearDownMap(tester);
     });
 
-    testWidgets('Nominatim search yields suggestions and tapping one fetches trails', (WidgetTester tester) async {
-      await pumpMapPage(tester);
+    testWidgets(
+      'Nominatim search yields suggestions and tapping one fetches trails',
+      (WidgetTester tester) async {
+        await pumpMapPage(tester);
 
-      await tester.enterText(find.byType(TextField), 'Mil');
-      
-      await tester.pump(const Duration(seconds: 2));
+        await tester.enterText(find.byType(TextField), 'Mil');
 
-      final suggestionFinder = find.text('Milano, Italia');
-      expect(suggestionFinder, findsOneWidget);
+        await tester.pump(const Duration(seconds: 2));
 
-      await tester.tap(suggestionFinder);
-      
-      await tester.pump(const Duration(seconds: 2));
+        final suggestionFinder = find.text('Milano, Italia');
+        expect(suggestionFinder, findsOneWidget);
 
-      TextField textField = tester.widget(find.byType(TextField));
-      expect(textField.controller!.text, 'Milano, Italia');
+        await tester.tap(suggestionFinder);
 
-      expect(find.byType(PageView), findsOneWidget);
-      expect(find.text('Sentiero Facile'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 2));
 
-      await tearDownMap(tester);
-    });
+        TextField textField = tester.widget(find.byType(TextField));
+        expect(textField.controller!.text, 'Milano, Italia');
 
-    testWidgets('Close button clears search results and returns to initial state', (WidgetTester tester) async {
-      await pumpMapPage(tester);
+        expect(find.byType(PageView), findsOneWidget);
+        expect(find.text('Sentiero Facile'), findsOneWidget);
 
-      final searchButton = find.text('Search for hiking trails in this area');
-      await tester.tap(searchButton);
-      await tester.pump(const Duration(seconds: 2));
+        await tearDownMap(tester);
+      },
+    );
 
-      final closeTrailsButton = find.widgetWithIcon(FloatingActionButton, Icons.close);
-      expect(closeTrailsButton, findsOneWidget);
-      await tester.tap(closeTrailsButton);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Close button clears search results and returns to initial state',
+      (WidgetTester tester) async {
+        await pumpMapPage(tester);
 
-      expect(find.byType(PageView), findsNothing);
-      expect(find.text('Search for hiking trails in this area'), findsOneWidget);
+        final searchButton = find.text('Search for hiking trails in this area');
+        await tester.tap(searchButton);
+        await tester.pump(const Duration(seconds: 2));
 
-      await tearDownMap(tester);
-    });
+        final closeTrailsButton = find.widgetWithIcon(
+          FloatingActionButton,
+          Icons.close,
+        );
+        expect(closeTrailsButton, findsOneWidget);
+        await tester.tap(closeTrailsButton);
+        await tester.pumpAndSettle();
 
-    testWidgets('Tapping selected trail opens TrailDetailsScreen', (WidgetTester tester) async {
+        expect(find.byType(PageView), findsNothing);
+        expect(
+          find.text('Search for hiking trails in this area'),
+          findsOneWidget,
+        );
+
+        await tearDownMap(tester);
+      },
+    );
+
+    testWidgets('Tapping selected trail opens TrailDetailsScreen', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       final searchButton = find.text('Search for hiking trails in this area');
@@ -260,70 +318,85 @@ void main() {
       await tearDownMap(tester);
     });
 
-    testWidgets('Shows Reload map button on tile error and successfully retries', (WidgetTester tester) async {
-      await pumpMapPage(tester);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Shows Reload map button on tile error and successfully retries',
+      (WidgetTester tester) async {
+        await pumpMapPage(tester);
+        await tester.pumpAndSettle();
 
-      await tester.pump(const Duration(seconds: 6));
+        await tester.pump(const Duration(seconds: 6));
 
-      final tileLayerFinder = find.byType(TileLayer);
-      final tileLayer = tester.widget<TileLayer>(tileLayerFinder);
-      tileLayer.errorTileCallback?.call(MockTileImage(), Exception('Test'), StackTrace.empty);
-      
-      tester.binding.scheduleFrame(); 
-      
-      await tester.pump(); 
-      await tester.pumpAndSettle();
+        final tileLayerFinder = find.byType(TileLayer);
+        final tileLayer = tester.widget<TileLayer>(tileLayerFinder);
+        tileLayer.errorTileCallback?.call(
+          MockTileImage(),
+          Exception('Test'),
+          StackTrace.empty,
+        );
 
-      expect(find.text('Reload map'), findsOneWidget);
-      expect(find.byIcon(Icons.refresh), findsOneWidget);
+        tester.binding.scheduleFrame();
 
-      FakeHttpOverrides.shouldFailConnections = false;
-      await tester.tap(find.text('Reload map'));
-      
-      await tester.pump();
-      await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.refresh), findsNothing);
-      await tearDownMap(tester);
-    });
+        expect(find.text('Reload map'), findsOneWidget);
+        expect(find.byIcon(Icons.refresh), findsOneWidget);
 
-    testWidgets('Shows error snackbar if map retry fails again', (WidgetTester tester) async {
+        FakeHttpOverrides.shouldFailConnections = false;
+        await tester.tap(find.text('Reload map'));
+
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.refresh), findsNothing);
+        await tearDownMap(tester);
+      },
+    );
+
+    testWidgets('Shows error snackbar if map retry fails again', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
       await tester.pumpAndSettle();
 
       await tester.pump(const Duration(seconds: 6));
 
       final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer));
-      tileLayer.errorTileCallback?.call(MockTileImage(), Exception('Test'), StackTrace.empty);
-      
-      tester.binding.scheduleFrame(); 
-      
-      await tester.pump(); 
+      tileLayer.errorTileCallback?.call(
+        MockTileImage(),
+        Exception('Test'),
+        StackTrace.empty,
+      );
+
+      tester.binding.scheduleFrame();
+
+      await tester.pump();
       await tester.pumpAndSettle();
 
       expect(find.text('Reload map'), findsOneWidget);
 
       FakeHttpOverrides.shouldFailConnections = true;
-      
+
       await tester.tap(find.text('Reload map'));
-      
-      await tester.pump(); 
-      await tester.pump(const Duration(seconds: 4)); 
+
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.refresh), findsOneWidget);
-      
+
       await tearDownMap(tester);
     });
 
-    testWidgets('Trail card is interactive and selectable', (WidgetTester tester) async {
+    testWidgets('Trail card is interactive and selectable', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       final searchButton = find.text('Search for hiking trails in this area');
       expect(searchButton, findsOneWidget);
       await tester.tap(searchButton);
-      
+
       await tester.pumpAndSettle(const Duration(seconds: 3));
 
       expect(find.byType(PageView), findsOneWidget);
@@ -337,12 +410,14 @@ void main() {
       await tearDownMap(tester);
     });
 
-    testWidgets('Filter menus update state correctly', (WidgetTester tester) async {
+    testWidgets('Filter menus update state correctly', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       await tester.tap(find.text('Distance'));
       await tester.pumpAndSettle();
-      
+
       await tester.tap(find.text('<5km').last);
       await tester.pumpAndSettle();
       expect(find.text('<5km'), findsOneWidget);
@@ -359,7 +434,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('>4h'), findsOneWidget);
 
-      await tester.tap(find.text('Beginner')); 
+      await tester.tap(find.text('Beginner'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Expert').last);
       await tester.pumpAndSettle();
@@ -369,23 +444,28 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ferrata').last);
       await tester.pumpAndSettle();
-      
+
       await tearDownMap(tester);
     });
 
-    testWidgets('Submitting an empty or whitespace-only search does not trigger APIs', (WidgetTester tester) async {
-      await pumpMapPage(tester);
+    testWidgets(
+      'Submitting an empty or whitespace-only search does not trigger APIs',
+      (WidgetTester tester) async {
+        await pumpMapPage(tester);
 
-      await tester.enterText(find.byType(TextField), '   ');
-      await tester.testTextInput.receiveAction(TextInputAction.search);
-      await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), '   ');
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await tester.pumpAndSettle();
 
-      expect(find.byType(PageView), findsNothing);
-      
-      await tearDownMap(tester);
-    });
+        expect(find.byType(PageView), findsNothing);
 
-    testWidgets('Tapping an unselected trail card scrolls the PageView', (WidgetTester tester) async {
+        await tearDownMap(tester);
+      },
+    );
+
+    testWidgets('Tapping an unselected trail card scrolls the PageView', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       final searchButton = find.text('Search for hiking trails in this area');
@@ -393,25 +473,29 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
       final trailCards = find.byType(Card);
-      
+
       if (tester.widgetList(trailCards).length > 1) {
         await tester.tap(trailCards.at(1));
         await tester.pumpAndSettle();
       }
-      
+
       await tearDownMap(tester);
     });
 
-    testWidgets('Reload map button is not visible by default', (WidgetTester tester) async {
+    testWidgets('Reload map button is not visible by default', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
-      
+
       expect(find.text('Reload map'), findsNothing);
       expect(find.byIcon(Icons.refresh), findsNothing);
-      
+
       await tearDownMap(tester);
     });
 
-    testWidgets('Shows snackbar when Nominatim search returns no results', (WidgetTester tester) async {
+    testWidgets('Shows snackbar when Nominatim search returns no results', (
+      WidgetTester tester,
+    ) async {
       FakeHttpOverrides.returnEmptyNominatim = true;
       await pumpMapPage(tester);
 
@@ -419,12 +503,17 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      expect(find.text('Location not found. Please try a different search term.'), findsOneWidget);
-      
+      expect(
+        find.text('Location not found. Please try a different search term.'),
+        findsOneWidget,
+      );
+
       await tearDownMap(tester);
     });
 
-    testWidgets('Shows snackbar when Overpass API returns no trails', (WidgetTester tester) async {
+    testWidgets('Shows snackbar when Overpass API returns no trails', (
+      WidgetTester tester,
+    ) async {
       FakeHttpOverrides.returnEmptyOverpass = true;
       await pumpMapPage(tester);
 
@@ -432,34 +521,44 @@ void main() {
       await tester.tap(searchButton);
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      expect(find.text('No hiking trails found near the searched location. Try searching in a different area.'), findsOneWidget);
-      
-      await tearDownMap(tester);
-    });
-
-    testWidgets('Filters correctly parse complex scales and keep Expert/Ferrata trails', (WidgetTester tester) async {
-      await pumpMapPage(tester);
-
-      await tester.tap(find.text('Beginner'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Expert').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Expert'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Ferrata').last);
-      await tester.pumpAndSettle();
-
-      final searchButton = find.text('Search for hiking trails in this area');
-      await tester.tap(searchButton);
-      await tester.pumpAndSettle(const Duration(seconds: 3));
-
-      expect(find.text('Sentiero Difficile'), findsOneWidget);
-      expect(find.text('Sentiero Facile'), findsOneWidget);
+      expect(
+        find.text(
+          'No hiking trails found near the searched location. Try searching in a different area.',
+        ),
+        findsOneWidget,
+      );
 
       await tearDownMap(tester);
     });
 
-    testWidgets('Shows snackbar when trails are found but filtered out', (WidgetTester tester) async {
+    testWidgets(
+      'Filters correctly parse complex scales and keep Expert/Ferrata trails',
+      (WidgetTester tester) async {
+        await pumpMapPage(tester);
+
+        await tester.tap(find.text('Beginner'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Expert').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Expert'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ferrata').last);
+        await tester.pumpAndSettle();
+
+        final searchButton = find.text('Search for hiking trails in this area');
+        await tester.tap(searchButton);
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        expect(find.text('Sentiero Difficile'), findsOneWidget);
+        expect(find.text('Sentiero Facile'), findsOneWidget);
+
+        await tearDownMap(tester);
+      },
+    );
+
+    testWidgets('Shows snackbar when trails are found but filtered out', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       await tester.tap(find.text('Duration'));
@@ -472,24 +571,32 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
       expect(find.byType(PageView), findsNothing);
-      expect(find.text('No hiking trails found. Try refining your filters.'), findsOneWidget);
-      
+      expect(
+        find.text('No hiking trails found. Try refining your filters.'),
+        findsOneWidget,
+      );
+
       await tearDownMap(tester);
     });
 
-    testWidgets('Shows snackbar when Overpass API returns server error', (WidgetTester tester) async {
+    testWidgets('Shows snackbar when Overpass API returns server error', (
+      WidgetTester tester,
+    ) async {
       await pumpMapPage(tester);
 
       FakeHttpOverrides.returnServerError = true;
 
       final searchButton = find.text('Search for hiking trails in this area');
       await tester.tap(searchButton);
-      
+
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Impossible to fetch trails. Automatically retrying'), findsWidgets);
-      
+      expect(
+        find.text('Impossible to fetch trails. Automatically retrying'),
+        findsWidgets,
+      );
+
       await tearDownMap(tester);
     });
   });
