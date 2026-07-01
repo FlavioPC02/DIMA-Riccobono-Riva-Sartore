@@ -140,6 +140,33 @@ void main() {
       await tearDownMap(tester);
     });
 
+    testWidgets(
+      'MapCubit clearSearchAndTrails clears search field and suggestions',
+      (WidgetTester tester) async {
+        final mapStateController = StreamController<MapState>.broadcast();
+        when(
+          () => mockMapCubit.stream,
+        ).thenAnswer((_) => mapStateController.stream);
+
+        await pumpMapPage(tester);
+
+        await tester.enterText(find.byType(TextField), 'Milano');
+        await tester.pump();
+
+        expect(find.byIcon(Icons.close), findsOneWidget);
+
+        mapStateController.add(MapState.clearSearchAndTrails);
+        await tester.pumpAndSettle();
+
+        final textField = tester.widget<TextField>(find.byType(TextField));
+        expect(textField.controller!.text, isEmpty);
+        expect(find.byIcon(Icons.close), findsNothing);
+
+        await mapStateController.close();
+        await tearDownMap(tester);
+      },
+    );
+
     testWidgets('Center map on user button works', (WidgetTester tester) async {
       await pumpMapPage(tester);
 

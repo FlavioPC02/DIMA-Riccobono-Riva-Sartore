@@ -7,6 +7,7 @@ import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/models/favorite_trail.dart';
 import 'package:application/core/models/location_point.dart';
 import 'package:application/core/models/profile.dart';
@@ -66,6 +67,7 @@ class FakeUri extends Fake implements Uri {}
 class FakeNotificationDetails extends Fake implements NotificationDetails {}
 class FakeHikeLiveStats extends Fake implements HikeLiveStats {}
 class FakeFavoriteTrail extends Fake implements FavoriteTrail {}
+class FakeActivityNote extends Fake implements ActivityNote {}
 class FakeUser extends Fake implements User{}
 
 // Hive mocks
@@ -85,6 +87,7 @@ void registerAllFallbacks() {
   registerFallbackValue(HikeRecordingStatus.recording);
   registerFallbackValue(FakeFavoriteTrail());
   registerFallbackValue(FakeUser());
+  registerFallbackValue(FakeActivityNote());
 }
 
 // Helper to mock NotificationPermissionHelper static methods

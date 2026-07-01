@@ -80,6 +80,9 @@ void main() {
       expect(parsed.notes, isEmpty);
       expect(parsed.difficulty, ActivityDifficulty.easy);
       expect(parsed.trackedTime, Duration.zero);
+      expect(parsed.trackedDistance, 0);
+      expect(parsed.trackedElevationGap, 0);
+      expect(parsed.trackedTime, Duration.zero);
     });
 
     test(

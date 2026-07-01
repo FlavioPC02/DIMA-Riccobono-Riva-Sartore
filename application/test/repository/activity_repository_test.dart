@@ -51,6 +51,12 @@ class FakeActivityLocalStore extends Fake implements ActivityLocalDataSource {
     _emit();
   }
 
+  @override
+  Future<void> clear() async {
+    _activities.clear();
+    _emit();
+  }
+
   List<Activity> get activities => List<Activity>.from(_activities);
 
   Future<void> close() => _controller.close();
@@ -223,6 +229,42 @@ void main() {
       expect(savedTrail.segments.first.length, 2);
       expect(savedTrail.segments.first.first.lat, 45.1);
     });
+
+    test('addPlannedActivity rolls back local data when planned trail save fails', () async {
+      final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+
+      addTearDown(localStore.close);
+
+      when(() => plannedTrailStore.saveTrail(any())).thenThrow(Exception('offline'));
+      when(() => plannedTrailStore.deleteTrail(any())).thenAnswer((_) async {});
+
+      final repository = ActivityRepository(
+        hasCurrentUser: () => false,
+        localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
+      );
+
+      final activity = Activity(
+        name: 'Offline hike',
+        status: ActivityStatus.planned,
+        date: DateTime(2026, 7, 1),
+        trailId: '12345',
+      );
+
+      const trailPoints = [
+        [TrailPoint(lat: 45.1, lng: 9.1), TrailPoint(lat: 45.2, lng: 9.2)],
+      ];
+
+      await expectLater(
+        repository.addPlannedActivity(activity, trailPoints),
+        throwsException,
+      );
+
+      expect(localStore.activities, isEmpty);
+      verify(() => plannedTrailStore.deleteTrail('local_1')).called(1);
+    });
+
     test('streamActivities returns an empty stream', () async {
       final localStore = FakeActivityLocalStore();
       final StreamController<User?> authController = StreamController<User?>.broadcast();
@@ -343,6 +385,35 @@ void main() {
       await repo.deleteActivity('any-id');
 
       verify(() => plannedTrailStore.deleteTrail('any-id')).called(1);
+    });
+
+    test('clearLocalData clears local activities and planned trails', () async {
+      final localStore = FakeActivityLocalStore();
+      final plannedTrailStore = MockPlannedTrailStore();
+
+      addTearDown(localStore.close);
+
+      when(() => plannedTrailStore.clear()).thenAnswer((_) async {});
+
+      final repo = ActivityRepository(
+        hasCurrentUser: () => false,
+        localStore: localStore,
+        plannedTrailStore: plannedTrailStore,
+      );
+
+      await localStore.upsertActivity(
+        Activity(
+          id: 'a1',
+          name: 'x',
+          status: ActivityStatus.planned,
+          date: DateTime.now(),
+        ),
+      );
+
+      await repo.clearLocalData();
+
+      expect(localStore.activities, isEmpty);
+      verify(() => plannedTrailStore.clear()).called(1);
     });
 
     test(
@@ -787,6 +858,53 @@ void main() {
       expect(localStore.activities.single.name, 'Remote Hike');
       verify(() => mockDb.fetchActivity('sync_id')).called(1);
     });
+
+    test(
+      'fetchActivityDetails deletes local copies when remote activity is completed',
+      () async {
+        final mockDb = MockDatabaseService();
+        final remoteDoc = {
+          'name': 'Remote Hike',
+          'status': 'completed',
+          'date': Timestamp.now(),
+          'trailName': 'Trail Remote',
+          'trailId': '12345',
+        };
+
+        when(
+          () => mockDb.fetchActivity('sync_id'),
+        ).thenAnswer((_) async => remoteDoc);
+
+        final localStore = FakeActivityLocalStore();
+        final plannedTrailStore = MockPlannedTrailStore();
+        addTearDown(localStore.close);
+
+        when(() => plannedTrailStore.deleteTrail(any())).thenAnswer((_) async {});
+
+        await localStore.upsertActivity(
+          Activity(
+            id: 'sync_id',
+            name: 'Local Hike',
+            status: ActivityStatus.planned,
+            date: DateTime.now(),
+          ),
+        );
+
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          plannedTrailStore: plannedTrailStore,
+        );
+
+        final result = await repo.fetchActivityDetails('sync_id');
+
+        expect(result?.status, ActivityStatus.completed);
+        expect(localStore.activities, isEmpty);
+        verify(() => mockDb.fetchActivity('sync_id')).called(1);
+        verify(() => plannedTrailStore.deleteTrail('sync_id')).called(1);
+      },
+    );
 
     test(
       'fetchActivityDetails fallbacks to local store if remote fetch fails',

@@ -23,6 +23,7 @@ void main() {
   late MockCollectionReference mockUsersCollection;
   late MockCollectionReference mockSettingsCollection;
   late MockCollectionReference mockActivitiesCollection;
+  late MockCollectionReference mockFavoriteTrailsCollection;
   late MockDocumentReference mockUserDoc;
   late MockDocumentReference mockPreferencesDoc;
   late DatabaseService databaseService;
@@ -38,6 +39,7 @@ void main() {
     mockUsersCollection = MockCollectionReference();
     mockSettingsCollection = MockCollectionReference();
     mockActivitiesCollection = MockCollectionReference();
+    mockFavoriteTrailsCollection = MockCollectionReference();
     mockUserDoc = MockDocumentReference();
     mockPreferencesDoc = MockDocumentReference();
 
@@ -51,6 +53,7 @@ void main() {
     when(() => mockSettingsCollection.doc('preferences')).thenReturn(mockPreferencesDoc);
     
     when(() => mockUserDoc.collection('activities')).thenReturn(mockActivitiesCollection);
+    when(() => mockUserDoc.collection('favoriteTrails')).thenReturn(mockFavoriteTrailsCollection);
 
     databaseService = DatabaseService(db: mockFirestore, auth: mockAuth);
   });
@@ -171,5 +174,36 @@ void main() {
         {'id': 'act-id', 'name': 'Hike'}
       ]),
     );
+  });
+
+  test('saveFavoriteTrail, isFavoriteTrail, and streamFavoriteTrails use the favorite trails collection', () async {
+    final mockFavoriteDoc = MockDocumentReference();
+    final mockFavoriteSnapshot = MockDocumentSnapshot();
+    final mockFavoriteQuerySnapshot = MockQuerySnapshot();
+    final mockFavoriteQueryDoc = MockQueryDocumentSnapshot();
+
+    when(() => mockFavoriteTrailsCollection.doc('trail-1')).thenReturn(mockFavoriteDoc);
+    when(() => mockFavoriteDoc.set(any(), any())).thenAnswer((_) async {});
+    when(() => mockFavoriteDoc.get()).thenAnswer((_) async => mockFavoriteSnapshot);
+    when(() => mockFavoriteSnapshot.exists).thenReturn(true);
+
+    when(() => mockFavoriteTrailsCollection.snapshots()).thenAnswer((_) => Stream.value(mockFavoriteQuerySnapshot));
+    when(() => mockFavoriteQuerySnapshot.docs).thenReturn([mockFavoriteQueryDoc]);
+    when(() => mockFavoriteQueryDoc.id).thenReturn('trail-1');
+    when(() => mockFavoriteQueryDoc.data()).thenReturn({'name': 'Trail One'});
+
+    await databaseService.saveFavoriteTrail('trail-1', {'name': 'Trail One'});
+
+    expect(await databaseService.isFavoriteTrail('trail-1'), isTrue);
+    await expectLater(
+      databaseService.streamFavoriteTrails(),
+      emits([
+        {'id': 'trail-1', 'name': 'Trail One'},
+      ]),
+    );
+
+    verify(() => mockFavoriteDoc.set({'name': 'Trail One'}, any())).called(1);
+    verify(() => mockFavoriteDoc.get()).called(1);
+    verify(() => mockFavoriteTrailsCollection.snapshots()).called(1);
   });
 }
