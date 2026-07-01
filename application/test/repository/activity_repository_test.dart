@@ -5,6 +5,7 @@ import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/repository/activity_repository.dart';
 import 'package:application/services/local_activity_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:application/services/planned_trail_store.dart';
@@ -224,10 +225,12 @@ void main() {
     });
     test('streamActivities returns an empty stream', () async {
       final localStore = FakeActivityLocalStore();
+      final StreamController<User?> authController = StreamController<User?>.broadcast();
       addTearDown(localStore.close);
       final repo = ActivityRepository(
         hasCurrentUser: () => false,
         localStore: localStore,
+        authChanges: () => authController.stream,
       );
 
       final stream = repo.streamActivities();
@@ -404,6 +407,7 @@ void main() {
   group('ActivityRepository with remote database', () {
     test('streamActivities maps remote data to Activity objects', () async {
       final mockDb = MockDatabaseService();
+      final StreamController<User?> authController = StreamController<User?>.broadcast();
       final date = DateTime(2026, 1, 1);
       final remoteMap = {
         'id': 'a1',
@@ -434,10 +438,14 @@ void main() {
         hasCurrentUser: () => true,
         databaseServiceFactory: () => mockDb,
         localStore: localStore,
+        authChanges: () => authController.stream,
       );
 
       final results = <List<Activity>>[];
       final sub = repo.streamActivities().listen(results.add);
+
+      authController.add(FakeUser());
+      await Future<void>.delayed(Duration.zero);
 
       controller.add([remoteMap]);
       await Future<void>.delayed(Duration(milliseconds: 20));
@@ -531,6 +539,8 @@ void main() {
       () async {
         final mockDb = MockDatabaseService();
         final remoteController = StreamController<List<Map<String, dynamic>>>();
+        final StreamController<User?> authController = StreamController<User?>.broadcast();
+        addTearDown(authController.close);
         addTearDown(remoteController.close);
         when(
           () => mockDb.streamActivities(),
@@ -559,10 +569,15 @@ void main() {
           databaseServiceFactory: () => mockDb,
           localStore: localStore,
           plannedTrailStore: plannedTrailStore,
+          authChanges: () => authController.stream,
         );
+
         final emissions = <List<Activity>>[];
         final subscription = repo.streamActivities().listen(emissions.add);
         addTearDown(subscription.cancel);
+
+        authController.add(FakeUser());
+        await Future<void>.delayed(Duration.zero);
 
         remoteController.add([
           {
@@ -957,6 +972,8 @@ void main() {
       () async {
         final mockDb = MockDatabaseService();
         final controller = StreamController<List<Map<String, dynamic>>>();
+        final authController = StreamController<User?>.broadcast();
+        addTearDown(authController.close);
         addTearDown(controller.close);
 
         when(
@@ -973,10 +990,14 @@ void main() {
           hasCurrentUser: () => true,
           databaseServiceFactory: () => mockDb,
           localStore: localStore,
+          authChanges: () => authController.stream,
         );
 
         final results = <List<Activity>>[];
         final sub = repo.streamActivities().listen(results.add);
+
+        authController.add(FakeUser());
+        await Future<void>.delayed(Duration.zero);
 
         final pendingCompleted = Activity(
           id: 'sync_me',
@@ -988,7 +1009,9 @@ void main() {
 
         await Future<void>.delayed(Duration(milliseconds: 50));
 
-        verifyNever(() => mockDb.updateActivity(any(), any()));
+        expect(results.last.single.id, 'sync_me');
+        expect(results.last.single.status, ActivityStatus.completed);
+        verify(() => mockDb.updateActivity('sync_me', any())).called(1);
 
         await sub.cancel();
       },
@@ -999,6 +1022,8 @@ void main() {
       () async {
         final mockDb = MockDatabaseService();
         final remoteController = StreamController<List<Map<String, dynamic>>>();
+        final authController = StreamController<User?>.broadcast();
+        addTearDown(authController.close);
         addTearDown(remoteController.close);
 
         when(
@@ -1012,10 +1037,14 @@ void main() {
           hasCurrentUser: () => true,
           databaseServiceFactory: () => mockDb,
           localStore: localStore,
+          authChanges: () => authController.stream,
         );
 
         final results = <List<Activity>>[];
         final sub = repo.streamActivities().listen(results.add);
+
+        authController.add(FakeUser());
+        await Future<void>.delayed(Duration.zero);
 
         final olderDate = DateTime(2026, 1, 1);
         final newerDate = DateTime(2026, 1, 5);

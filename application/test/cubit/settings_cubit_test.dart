@@ -103,6 +103,23 @@ void main() {
     expect: () => <Matcher>[],
   );
 
+  blocTest<SettingsCubit, Settings>(
+    'emits empty settings on logout',
+    build: () => SettingsCubit(
+      createMockRepo(),
+      authChanges: () => authController.stream,
+    ),
+    act: (cubit) {
+      authController.add(null); //triggers logout
+    },
+    expect: () => [
+      isA<Settings>()
+          .having((s) => s.notifications, 'notifications', true)
+          .having((s) => s.ferrata, 'ferrata', false)
+          .having((s) => s.difficulty, 'difficulty', 0)
+    ],
+  );
+
   test('stream remote emits new value and ignores null', () async {
     final controller = StreamController<Settings?>();
     final cubit = SettingsCubit(
