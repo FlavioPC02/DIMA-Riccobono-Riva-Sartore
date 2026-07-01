@@ -260,6 +260,22 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
                 "geometry": [{"lat": 45.9, "lon": 9.5}, {"lat": 45.91, "lon": 9.51}]
               }
             ]
+          },
+          {
+            "type": "relation",
+            "id": 3,
+            "tags": {
+              "name": "Sentiero Ascesa",
+              "distance": "18.0 km",
+              "ascent": "1800",
+              "duration": "04:30"
+            },
+            "members": [
+              {
+                "type": "way",
+                "geometry": [{"lat": 46.0, "lon": 10.0}, {"lat": 46.01, "lon": 10.01}]
+              }
+            ]
           }
         ]
       }''');

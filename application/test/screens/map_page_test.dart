@@ -583,6 +583,26 @@ void main() {
       },
     );
 
+    testWidgets(
+      'Expert filter keeps trails classified only by ascent effort score',
+      (WidgetTester tester) async {
+        await pumpMapPage(tester);
+
+        await tester.tap(find.text('Beginner'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Expert').last);
+        await tester.pumpAndSettle();
+
+        final searchButton = find.text('Search for hiking trails in this area');
+        await tester.tap(searchButton);
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        expect(find.text('Sentiero Ascesa'), findsOneWidget);
+
+        await tearDownMap(tester);
+      },
+    );
+
     testWidgets('Shows snackbar when trails are found but filtered out', (
       WidgetTester tester,
     ) async {
