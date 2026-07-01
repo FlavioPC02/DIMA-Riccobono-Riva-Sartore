@@ -229,12 +229,13 @@ class ActivityRepository {
   }
 
   Future<void> deleteActivity(String id) async {
+    final remote = _remoteOrNull();
+    if (remote != null) {
+      await remote.deleteActivity(id);
+    }
+
     await _localStore.deleteActivity(id);
     await _plannedTrailStore.deleteTrail(id);
-
-    final remote = _remoteOrNull();
-    if (remote == null) return;
-    await remote.deleteActivity(id);
   }
 
   Future<void> clearLocalData() async {

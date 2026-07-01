@@ -484,6 +484,53 @@ void main() {
     });
 
     test(
+      'deleteActivity removes local data only after the remote deletion',
+      () async {
+        final mockDb = MockDatabaseService();
+        final remoteDeletion = Completer<void>();
+        when(
+          () => mockDb.deleteActivity('i1'),
+        ).thenAnswer((_) => remoteDeletion.future);
+
+        final localStore = FakeActivityLocalStore();
+        final plannedTrailStore = MockPlannedTrailStore();
+        when(
+          () => plannedTrailStore.deleteTrail(any()),
+        ).thenAnswer((_) async {});
+        addTearDown(localStore.close);
+        addTearDown(() {
+          if (!remoteDeletion.isCompleted) remoteDeletion.complete();
+        });
+
+        final repo = ActivityRepository(
+          hasCurrentUser: () => true,
+          databaseServiceFactory: () => mockDb,
+          localStore: localStore,
+          plannedTrailStore: plannedTrailStore,
+        );
+        final activity = Activity(
+          id: 'i1',
+          name: 'Planned hike',
+          status: ActivityStatus.planned,
+          date: DateTime.now(),
+        );
+        await localStore.upsertActivity(activity);
+
+        final deletion = repo.deleteActivity('i1');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(localStore.activities, contains(activity));
+        verifyNever(() => plannedTrailStore.deleteTrail('i1'));
+
+        remoteDeletion.complete();
+        await deletion;
+
+        expect(localStore.activities, isEmpty);
+        verify(() => plannedTrailStore.deleteTrail('i1')).called(1);
+      },
+    );
+
+    test(
       'updateActivity keeps completed activity locally for pending sync',
       () async {
         final mockDb = MockDatabaseService();
