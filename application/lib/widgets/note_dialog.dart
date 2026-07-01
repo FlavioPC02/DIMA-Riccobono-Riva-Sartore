@@ -5,7 +5,9 @@ import 'package:application/core/models/activity_note.dart';
 
 class NoteDialog extends StatefulWidget {
   final ActivityNote? existingNote;
-  const NoteDialog({super.key, this.existingNote});
+  final ImagePicker? imagePicker; //injectable for test
+
+  const NoteDialog({super.key, this.existingNote, this.imagePicker});
 
   @override
   State<NoteDialog> createState() => _NoteDialogState();
@@ -13,12 +15,13 @@ class NoteDialog extends StatefulWidget {
 
 class _NoteDialogState extends State<NoteDialog> {
   late final TextEditingController _controller;
+  late final ImagePicker _picker;
   List<String> _imageUrls = [];
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    _picker = widget.imagePicker ?? ImagePicker();
     _controller = TextEditingController(text: widget.existingNote?.text ?? '');
     _imageUrls = List.from(widget.existingNote?.imageUrls ?? []);
   }

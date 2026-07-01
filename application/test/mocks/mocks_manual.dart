@@ -26,6 +26,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:hive_ce_flutter/adapters.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mocktail/mocktail.dart';
 
 // Mock classes
@@ -46,6 +47,7 @@ class MockBackgroundTrackingService extends Mock implements BackgroundTrackingSe
 class MockPhoneWearSyncService extends Mock implements PhoneWearSyncService {}
 class MockFlutterLocalNotificationsPlugin extends Mock implements FlutterLocalNotificationsPlugin {}
 class MockAndroidFlutterLocalNotificationsPlugin extends Mock implements AndroidFlutterLocalNotificationsPlugin {}
+class MockImagePicker extends Mock implements ImagePicker {}
 
 class MockSettings extends Mock implements Settings {}
 
@@ -69,6 +71,7 @@ class FakeHikeLiveStats extends Fake implements HikeLiveStats {}
 class FakeFavoriteTrail extends Fake implements FavoriteTrail {}
 class FakeActivityNote extends Fake implements ActivityNote {}
 class FakeUser extends Fake implements User{}
+class FakeXFile extends Fake implements XFile {}
 
 // Hive mocks
 class MockBox extends Mock implements Box<LocationPoint> {}
@@ -88,6 +91,7 @@ void registerAllFallbacks() {
   registerFallbackValue(FakeFavoriteTrail());
   registerFallbackValue(FakeUser());
   registerFallbackValue(FakeActivityNote());
+  registerFallbackValue(FakeXFile());
 }
 
 // Helper to mock NotificationPermissionHelper static methods
