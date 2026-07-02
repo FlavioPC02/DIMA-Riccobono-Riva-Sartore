@@ -9,11 +9,15 @@ import 'package:application/core/models/planned_trail.dart';
 
 class ActivityCubit extends Cubit<List<Activity>> {
   final ActivityRepository _repository;
+  final Stream<User?> Function()? authChanges; //injectable for test
   StreamSubscription<List<Activity>>? _subscription;
   StreamSubscription<User?>? _authSubscription;
 
-  ActivityCubit(this._repository) : super([]) {
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+  ActivityCubit(this._repository, {this.authChanges}) : super([]) {
+    final stream = authChanges != null
+        ? authChanges!()
+        : FirebaseAuth.instance.authStateChanges();
+    _authSubscription = stream.listen((user) {
       if (user == null) {
         _onLoggedOut();
       } else {

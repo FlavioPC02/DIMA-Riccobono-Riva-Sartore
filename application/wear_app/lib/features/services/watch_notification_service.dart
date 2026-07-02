@@ -16,7 +16,7 @@ class WatchNotificationService {
 
   static Future<void> initialize() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('ic_stat_landscape');
+        AndroidInitializationSettings('@android:drawable/ic_dialog_map');
 
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,

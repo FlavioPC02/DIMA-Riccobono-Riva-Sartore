@@ -52,12 +52,14 @@ void main() {
     when(() => mockActivityCubit.state).thenReturn([]);
     when(() => mockActivityCubit.addActivity(any())).thenAnswer((_) async => '');
 
+    when(() => mockNavigationIndexCubit.state).thenReturn(0);
     when(() => mockNavigationIndexCubit.stream).thenAnswer((_) => Stream<int>.value(0));
   });
 
   Widget createWidgetUnderTest() {
     return pumpApp(
       activityCubit: mockActivityCubit,
+      navigationIndexCubit: mockNavigationIndexCubit,
       child: Builder(
         builder: (context) {
           return Scaffold(

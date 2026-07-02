@@ -27,7 +27,7 @@ class MockStorage implements Storage {
   Future<void> close() async {}
 }
 
-void setupTest() {
+void setupTest() async {
   TestWidgetsFlutterBinding.ensureInitialized();
   registerAllFallbacks();
 

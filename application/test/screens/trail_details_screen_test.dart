@@ -287,7 +287,7 @@ void main() {
       final planButton = find.text('Start');
       await tester.ensureVisible(planButton);
       final startButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Start'),
+        find.byKey(Key('start_tracking_trail')),
       );
       expect(startButton.onPressed, isNotNull);
       await tester.tap(planButton);

@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/cubit/location_cubit.dart';
+import 'package:application/core/cubit/map_cubit.dart';
 import 'package:application/core/cubit/navigation_index_cubit.dart';
 import 'package:application/core/cubit/profile_cubit.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/activity_note.dart';
 import 'package:application/core/models/favorite_trail.dart';
 import 'package:application/core/models/location_point.dart';
 import 'package:application/core/models/profile.dart';
@@ -24,6 +26,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:hive_ce_flutter/adapters.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mocktail/mocktail.dart';
 
 // Mock classes
@@ -32,6 +35,7 @@ class MockProfileCubit extends Mock implements ProfileCubit {}
 class MockActivityCubit extends Mock implements ActivityCubit {}
 class MockLocationCubit extends Mock implements LocationCubit {}
 class MockNavigationIndexCubit extends Mock implements NavigationIndexCubit {}
+class MockMapCubit extends Mock implements MapCubit {}
 class MockAuthService extends Mock implements AuthService {}
 class MockDatabaseService extends Mock implements DatabaseService {}
 class MockActivityRepository extends Mock implements ActivityRepository {}
@@ -43,6 +47,7 @@ class MockBackgroundTrackingService extends Mock implements BackgroundTrackingSe
 class MockPhoneWearSyncService extends Mock implements PhoneWearSyncService {}
 class MockFlutterLocalNotificationsPlugin extends Mock implements FlutterLocalNotificationsPlugin {}
 class MockAndroidFlutterLocalNotificationsPlugin extends Mock implements AndroidFlutterLocalNotificationsPlugin {}
+class MockImagePicker extends Mock implements ImagePicker {}
 
 class MockSettings extends Mock implements Settings {}
 
@@ -64,7 +69,9 @@ class FakeUri extends Fake implements Uri {}
 class FakeNotificationDetails extends Fake implements NotificationDetails {}
 class FakeHikeLiveStats extends Fake implements HikeLiveStats {}
 class FakeFavoriteTrail extends Fake implements FavoriteTrail {}
+class FakeActivityNote extends Fake implements ActivityNote {}
 class FakeUser extends Fake implements User{}
+class FakeXFile extends Fake implements XFile {}
 
 // Hive mocks
 class MockBox extends Mock implements Box<LocationPoint> {}
@@ -83,6 +90,8 @@ void registerAllFallbacks() {
   registerFallbackValue(HikeRecordingStatus.recording);
   registerFallbackValue(FakeFavoriteTrail());
   registerFallbackValue(FakeUser());
+  registerFallbackValue(FakeActivityNote());
+  registerFallbackValue(FakeXFile());
 }
 
 // Helper to mock NotificationPermissionHelper static methods

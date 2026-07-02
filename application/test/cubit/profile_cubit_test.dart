@@ -93,6 +93,24 @@ void main() {
     expect: () => <Matcher>[],
   );
 
+  blocTest<ProfileCubit, Profile>(
+    'emits empty profile on logout',
+    build: () => ProfileCubit(
+      createMockRepo(),
+      authChanges: () => authController.stream,
+    ),
+    act: (cubit) {
+      authController.add(null); //triggers logout
+    },
+    expect: () => [
+      isA<Profile>()
+        .having((p) => p.nickname, 'nickname', '')
+        .having((p) => p.mail, 'mail', '')
+        .having((p) => p.xp, 'xp', 0)
+        .having((p) => p.level, 'level', 0)
+    ],
+  );
+
   test('stream remote emits new value and ignores null', () async {
     final controller = StreamController<Profile?>();
     final cubit = ProfileCubit(

@@ -81,6 +81,37 @@ void main() {
     expect(iterator.current, isNot(contains('activity_123')));
   });
 
+  test('clear removes all trails and emits an empty id set', () async {
+    final store = PlannedTrailStore();
+    final iterator = StreamIterator(store.watchDownloadedTrailIds());
+
+    addTearDown(iterator.cancel);
+
+    await iterator.moveNext();
+    expect(iterator.current, isEmpty);
+
+    await store.saveTrail(
+      PlannedTrail(
+        activityId: 'activity_123',
+        trailId: 'trail_456',
+        segments: const [
+          [TrailPoint(lat: 45.1, lng: 9.1)],
+        ],
+      ),
+    );
+
+    await iterator.moveNext();
+    expect(iterator.current, contains('activity_123'));
+
+    final clearedEmission = iterator.moveNext();
+    await Future<void>.delayed(Duration.zero);
+    await store.clear();
+
+    expect(await clearedEmission, isTrue);
+    expect(iterator.current, isEmpty);
+    expect(await store.getTrail('activity_123'), isNull);
+  });
+
   test('allows the same stream to be listened to more than once', () async {
     final store = PlannedTrailStore();
     final stream = store.watchDownloadedTrailIds();

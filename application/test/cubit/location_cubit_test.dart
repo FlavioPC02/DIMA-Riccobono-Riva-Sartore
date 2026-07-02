@@ -169,6 +169,28 @@ void main() {
     );
 
     blocTest<LocationCubit, LocationState>(
+      'rehydrates distance, ascent, descent, and gap from saved points',
+      build: () {
+        when(
+          () => repository.getAll(),
+        ).thenReturn([
+          point(lat: 41.9000, lng: 12.5000, altitude: 100),
+          point(lat: 41.9010, lng: 12.5000, altitude: 130),
+          point(lat: 41.9020, lng: 12.5000, altitude: 90),
+        ]);
+        return buildCubit();
+      },
+      act: (cubit) => cubit.startTracking(),
+      verify: (cubit) {
+        expect(cubit.state.points, hasLength(3));
+        expect(cubit.state.distance, greaterThan(0));
+        expect(cubit.state.totalAscent, 30);
+        expect(cubit.state.totalDescent, 40);
+        expect(cubit.state.elevationGap, -10);
+      },
+    );
+
+    blocTest<LocationCubit, LocationState>(
       'starts the background tracking service',
       build: buildCubit,
       act: (cubit) => cubit.startTracking(),

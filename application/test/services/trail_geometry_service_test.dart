@@ -61,4 +61,121 @@ void main() {
       expect(requested, isFalse);
     },
   );
+
+  test('falls back to second endpoint when first endpoint fails', () async {
+    var calls = 0;
+
+    final client = MockClient((request) async {
+      calls++;
+
+      if (calls == 1) {
+        return http.Response('Server error', 500);
+      }
+
+      return http.Response(
+        jsonEncode({
+          'elements': [
+            {
+              'type': 'way',
+              'geometry': [
+                {'lat': 45.0, 'lon': 9.0},
+              ],
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final service = OverpassTrailGeometryService(
+      client: client,
+      endpoints: [
+        Uri.parse('https://first.test'),
+        Uri.parse('https://second.test'),
+      ],
+    );
+
+    final result = await service.fetchTrailPath('123');
+
+    expect(calls, 2);
+    expect(result, hasLength(1));
+  });
+
+  test('throws TrailGeometryException if all endpoints fail', () async {
+    final client = MockClient((_) async {
+      return http.Response('failure', 500);
+    });
+
+    final service = OverpassTrailGeometryService(
+      client: client,
+      endpoints: [
+        Uri.parse('https://first.test'),
+        Uri.parse('https://second.test'),
+      ],
+    );
+
+    expect(
+      () => service.fetchTrailPath('123'),
+      throwsA(isA<TrailGeometryException>()),
+    );
+  });
+
+  test('falls back after network exception', () async {
+    var calls = 0;
+
+    final client = MockClient((_) async {
+      calls++;
+
+      if (calls == 1) {
+        throw Exception('network error');
+      }
+
+      return http.Response(
+        jsonEncode({
+          'elements': [
+            {
+              'type': 'way',
+              'geometry': [
+                {'lat': 1.0, 'lon': 2.0},
+              ],
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final service = OverpassTrailGeometryService(
+      client: client,
+      endpoints: [
+        Uri.parse('https://first.test'),
+        Uri.parse('https://second.test'),
+      ],
+    );
+
+    final result = await service.fetchTrailPath('99');
+
+    expect(calls, 2);
+    expect(result.single.single.latitude, 1);
+  });
+  
+  test('TrailGeometryException contains message and cause', () async {
+    final client = MockClient((_) async {
+      throw Exception('boom');
+    });
+
+    final service = OverpassTrailGeometryService(
+      client: client,
+      endpoints: [Uri.parse('https://only.test')],
+    );
+
+    try {
+      await service.fetchTrailPath('1');
+      fail('Expected exception');
+    } on TrailGeometryException catch (e) {
+      expect(e.message, contains('Unable to retrieve trail'));
+      expect(e.cause, isNotNull);
+      expect(e.toString(), contains('Unable to retrieve trail'));
+    }
+  });
 }

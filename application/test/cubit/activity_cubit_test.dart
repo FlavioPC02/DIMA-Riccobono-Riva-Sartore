@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:application/core/cubit/activity_cubit.dart';
 import 'package:application/core/models/activity.dart';
+import 'package:application/core/models/trail_point.dart';
 import 'package:bloc_test/bloc_test.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:application/core/models/activity_note.dart';
@@ -27,6 +29,8 @@ MockActivityRepository createMockRepo({Stream<List<Activity>>? remoteStream}) {
   when(() => repo.fetchActivityDetails(any())).thenAnswer((_) async => null);
   when(() => repo.saveNote(any(), any())).thenAnswer((_) async {});
   when(() => repo.deleteNote(any(), any())).thenAnswer((_) async {});
+  when(() => repo.addPlannedActivity(any(), any())).thenAnswer((_) async {return '';});
+  when(() => repo.getPlannedTrail(any())).thenAnswer((_) async => null);
   when(
     () => repo.syncPlannedActivitiesForOffline(any()),
   ).thenAnswer((_) async {});
@@ -70,11 +74,18 @@ Activity buildActivity({
 }
 
 void main() {
+  late StreamController<User?> authController;
+
   setUpAll(() {
     registerFallbackValue(FakeActivity());
     registerFallbackValue(FakeActivityNote());
     registerFallbackValue(<Activity>[]);
+    registerFallbackValue(<List<TrailPoint>>[]);
     setupTest();
+  });
+
+  setUp(() {
+    authController = StreamController<User?>();
   });
 
   group('ActivityCubit Initialization & Stream', () {
@@ -85,7 +96,10 @@ void main() {
         () => repository.watchDownloadedTrailIds(),
       ).thenAnswer((_) => Stream.value({'planned_1'}));
 
-      final cubit = ActivityCubit(repository);
+      final cubit = ActivityCubit(
+        repository,
+        authChanges: () => authController.stream,
+      );
       addTearDown(cubit.close);
 
       expect(cubit.watchDownloadedTrailIds(), emits({'planned_1'}));
@@ -93,7 +107,12 @@ void main() {
     test('starts offline sync when repository emits activities', () async {
       final controller = StreamController<List<Activity>>();
       final repository = createMockRepo(remoteStream: controller.stream);
-      final cubit = ActivityCubit(repository);
+      final cubit = ActivityCubit(
+        repository,
+        authChanges: () => authController.stream,
+      );
+
+      authController.add(FakeUser());
 
       final activities = [
         buildActivity(id: 'planned_1', status: ActivityStatus.planned),
@@ -113,7 +132,43 @@ void main() {
       await controller.close();
     });
     test('starts with an empty activity list', () {
-      final cubit = ActivityCubit(createMockRepo());
+      final cubit = ActivityCubit(
+        createMockRepo(),
+        authChanges: () => authController.stream,
+      );
+      expect(cubit.state, isEmpty);
+    });
+
+    test('clears activities and cancels the stream subscription on logout', () async {
+      final controller = StreamController<List<Activity>>();
+      addTearDown(controller.close);
+
+      final repository = createMockRepo(remoteStream: controller.stream);
+      final cubit = ActivityCubit(
+        repository,
+        authChanges: () => authController.stream,
+      );
+      addTearDown(cubit.close);
+
+      authController.add(FakeUser());
+      await Future<void>.delayed(Duration.zero);
+
+      final activity = buildActivity(id: 'a1');
+      controller.add([activity]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state, hasLength(1));
+      expect(controller.hasListener, isTrue);
+
+      authController.add(null);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state, isEmpty);
+      expect(controller.hasListener, isFalse);
+
+      controller.add([buildActivity(id: 'a2')]);
+      await Future<void>.delayed(Duration.zero);
+
       expect(cubit.state, isEmpty);
     });
 
@@ -123,7 +178,12 @@ void main() {
         final controller = StreamController<List<Activity>>();
         addTearDown(controller.close);
         final repo = createMockRepo(remoteStream: controller.stream);
-        return ActivityCubit(repo);
+        final cubit = ActivityCubit(
+          repo,
+          authChanges: () => authController.stream,
+        );
+        authController.add(FakeUser());
+        return cubit;
       },
       act: (_) async {
         await Future<void>.delayed(Duration.zero);
@@ -135,7 +195,11 @@ void main() {
   group('ActivityCubit CRUD Operations', () {
     test('forwards addActivity to the repository', () async {
       final repo = createMockRepo();
-      final cubit = ActivityCubit(repo);
+      final cubit = ActivityCubit(
+        repo,
+        authChanges: () => authController.stream,
+      );
+      authController.add(FakeUser());
       final activity = buildActivity(id: 'a1');
 
       await cubit.addActivity(activity);
@@ -146,7 +210,11 @@ void main() {
 
     test('forwards updateActivity to the repository', () async {
       final repo = createMockRepo();
-      final cubit = ActivityCubit(repo);
+      final cubit = ActivityCubit(
+        repo,
+        authChanges: () => authController.stream,
+      );
+      authController.add(FakeUser());
       final activity = buildActivity(id: 'a1');
 
       await cubit.updateActivity(activity);
@@ -163,7 +231,11 @@ void main() {
       when(
         () => repo.updateActivity(any()),
       ).thenAnswer((_) => saveCompleter.future);
-      final cubit = ActivityCubit(repo);
+      final cubit = ActivityCubit(
+        repo,
+        authChanges: () => authController.stream,
+      );
+      authController.add(FakeUser());
       final planned = buildActivity(id: 'a1');
       final completed = buildActivity(
         id: 'a1',
@@ -185,11 +257,33 @@ void main() {
 
     test('forwards deleteActivity to the repository', () async {
       final repo = createMockRepo();
-      final cubit = ActivityCubit(repo);
+      final cubit = ActivityCubit(
+        repo,
+        authChanges: () => authController.stream,
+      );
+      authController.add(FakeUser());
 
       await cubit.deleteActivity('a1');
 
       verify(() => repo.deleteActivity('a1')).called(1);
+      await cubit.close();
+    });
+
+    test('forwards addPlannedActivity to the repository', () async {
+      final repo = createMockRepo();
+      final cubit = ActivityCubit(
+        repo,
+        authChanges: () => authController.stream,
+      );
+      authController.add(FakeUser());
+      final activity = buildActivity(id: 'planned_1');
+      final trailPoints = [
+        [TrailPoint(lat: 45.1, lng: 9.1), TrailPoint(lat: 45.2, lng: 9.2)],
+      ];
+
+      await cubit.addPlannedActivity(activity, trailPoints);
+
+      verify(() => repo.addPlannedActivity(activity, trailPoints)).called(1);
       await cubit.close();
     });
   });
@@ -207,7 +301,12 @@ void main() {
         when(
           () => repo.fetchActivityDetails('a1'),
         ).thenAnswer((_) async => detailedActivity);
-        return ActivityCubit(repo);
+        final cubit = ActivityCubit(
+          repo,
+          authChanges: () => authController.stream,
+        );
+        authController.add(FakeUser());
+        return cubit;
       },
       seed: () => [buildActivity(id: 'a1', name: 'Basic Hike')],
       act: (cubit) => cubit.loadActivityDetails('a1'),
@@ -225,7 +324,12 @@ void main() {
         when(
           () => repo.fetchActivityDetails('a1'),
         ).thenAnswer((_) async => null);
-        return ActivityCubit(repo);
+        final cubit = ActivityCubit(
+          repo,
+          authChanges: () => authController.stream,
+        );
+        authController.add(FakeUser());
+        return cubit;
       },
       seed: () => [buildActivity(id: 'a1', name: 'Basic Hike')],
       act: (cubit) => cubit.loadActivityDetails('a1'),
@@ -236,7 +340,12 @@ void main() {
       'addOrUpdateNote adds a new note generating an ID if empty',
       build: () {
         final repo = createMockRepo();
-        return ActivityCubit(repo);
+        final cubit = ActivityCubit(
+          repo,
+          authChanges: () => authController.stream,
+        );
+        authController.add(FakeUser());
+        return cubit;
       },
       seed: () => [buildActivity(id: 'a1')],
       act: (cubit) {
@@ -268,7 +377,12 @@ void main() {
       'addOrUpdateNote updates an existing note and saves it to repository',
       build: () {
         final repo = createMockRepo();
-        return ActivityCubit(repo);
+        final cubit = ActivityCubit(
+          repo,
+          authChanges: () => authController.stream,
+        );
+        authController.add(FakeUser());
+        return cubit;
       },
       seed: () {
         final initialNote = ActivityNote(
@@ -304,7 +418,12 @@ void main() {
       'deleteNote removes the indicated note from state and invokes repository',
       build: () {
         final repo = createMockRepo();
-        return ActivityCubit(repo);
+        final cubit = ActivityCubit(
+          repo,
+          authChanges: () => authController.stream,
+        );
+        authController.add(FakeUser());
+        return cubit;
       },
       seed: () {
         final note1 = ActivityNote(
@@ -340,7 +459,8 @@ void main() {
   test('close cancels the stream subscription', () async {
     final controller = StreamController<List<Activity>>();
     final repo = createMockRepo(remoteStream: controller.stream);
-    final cubit = ActivityCubit(repo);
+    final cubit = ActivityCubit(repo, authChanges: () => authController.stream);
+    authController.add(FakeUser());
 
     await Future<void>.delayed(Duration.zero);
     expect(controller.hasListener, true);
