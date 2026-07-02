@@ -19,15 +19,12 @@
 \begin{titlepage}
 \centering
 
-% Logo università
 \includegraphics[width=0.5\textwidth]{Documentation/images/polimi LOGO.png}\\[1cm]
 
-% Nome università
 {\Large \textbf{Politecnico di Milano}}\\[0.3cm]
 {\large Dipartimento di Informatica}\\[2cm]
 
-% Titolo documento
-{\Huge \textbf{Design and Requirements Document}}\\[0.5cm]
+{\Huge \textbf{Requirements and Design Document}}\\[2cm]
 
 \begin{flushleft}
 \large
@@ -51,66 +48,642 @@
 
 \end{titlepage}
 
+\numberwithin{figure}{section}
+
 \newpage
 \tableofcontents
 \newpage
 
 \section{Introduction}
 
-\subsection{Purpose}
+\subsection{Overview}
+
+Trailify is a comprehensive, cross platform mobile application designed for hiking enthusiasts. It allows users to discover trails, view detailed route and weather information, plan future hikes, and track their live journeys. By integrating offline background location tracking, real time off trail notifications, and a gamified progression system, the app serves as both a navigational tool and a motivational diary for outdoor adventures.
+\par
+The primary purpose of the application is to centralize the hiking experience into a single, intuitive platform. Hikers often have to switch between multiple apps to find trails, check the weather, track their metrics, and maintain a logbook. This application solves that problem by providing an integrated ecosystem, while simultaneously encouraging physical activity through a rewarding system based on real world effort.
 
 \subsection{Requirements}
 
 \begin{center}
-\begin{tabular}{ |c|p{0.8\linewidth}| } 
+\begin{tabular}{ |c|p{0.9\linewidth}| } 
  \hline
- R1 & The system shall allow the user to register/log-in to the platform.\\
+ R1 & The system shall allow the user to register/login to the platform.\\
  \hline
- R2 & The system shall allow the user to search for a list of hiking trails.\\
+ R2 & The system shall allow the user to search for hiking trails in the current position or in a specific location.\\
  \hline
- R3 & The system shall allow the user to filter hiking trails based on provided location, difficulty, altimetry, etc. \\
+ R3 & The system shall allow the user to filter hiking trails based on distance, duration and difficulty \\
  \hline
- R4 & The system shall allow the user to view a list of hiking trails with all relevant information (e.g. distance, time, elevation, weather condition, difficulty).\\
+ R4 & The system shall allow the user to view a list of hiking trails with all relevant information (e.g. distance, duration, difficulty, elevation, weather condition).\\
  \hline
- R5 & The system shall allow the user to save an hiking trail for later use. \\
+ R5 & The system shall allow the user to plan an hiking trail for later use. \\
  \hline
- R6 & The system shall allow the user to download hiking trail essential data. \\
+ R6 & The system shall allow the user to start an hiking trail with live tracking. \\
  \hline
- R7 & The system shall allow the user to start an hiking trail with live tracking. \\
+ R7 & The system shall allow the user to start planned trails while being offline. \\
  \hline
- R8 & The system shall allow the user to view real time information when in live tracking mode (e.g distance covered, time spent, current elevation). \\
+ R8 & The system shall allow the user to view real time information when in live tracking mode (e.g distance covered, ETA, current elevation). \\
  \hline
- R9 & The system shall allow the user to view real time information in the smartwatch companion app. \\
+ R9 & The system shall allow the user to pause or end the current hiking trail. \\
  \hline
- R10 & The system shall allow the user to pause the current hiking trail. \\
+ R10 & The system shall allow the user to add notes and attach photos on the finished hiking trail. \\
  \hline
- R11 & The system shall allow the user end the current hiking trail. \\
+ R11 & The system shall allow the user to mark as favorites specific trails. \\
  \hline
- R12 & The system shall allow the user to review, leave a comment and attach photos on the finished hiking trail. \\
+ R12 & The system shall allow the user to view real time information in the smartwatch if connected. \\
  \hline
- R13 & The system shall allow the user end the current hiking trail. \\
+ R13 & The system shall allow the user to pause or end the current hiking trail from the smartwatch if connected.\\
  \hline
 \end{tabular}
 \end{center}
 
-schermate:
+\newpage
+
+\section{Implementation}
+
+\subsection{Features}
+
+The application is developed in Flutter and presents the following main features:
+
 \begin{itemize}
-\item registrazione + livello utente/login
-\item mappa con posizione corrente e percorsi disponibili + barra di ricerca
-\item visualizza lista percorsi ordinati per rilevanza
-\item info extra per ogni percorso, pulsante download mappa, pulsante salva percorso
-\item live tracking
-\item review, commento, foto
-\item personal journal
-\item profile page + settings
+    \item\textbf{Login \& Registration:} Users can sign in (or sign up) using email address and password. Furthermore, once the user is logged, the system remembers them. 
+
+    \item \textbf{Trail Discovery \& Filtering:} Interactive map utilizing the OpenStreetMap and Overpass APIs to find hiking trails near the current position or in a specific location. Users can filter results dynamically by distance, estimated duration, difficulty and equipment requirements.
+    
+    \item \textbf{Comprehensive Trail Insights:} Detailed trail pages featuring topographic elevation profiles (Open Elevation API), 14 day weather forecasts (Open Meteo API), and additional information about the trail.
+    
+    \item \textbf{Live Background Tracking:} Robust GPS tracking that runs in the background. It records distance, time, elevation, and plots the user's live position on the map.
+    
+    \item \textbf{Navigation Alerts:} Real time computation to detect if a user strays too far from the official trail, triggering local notifications with directional advice to return to the path.
+    
+    \item \textbf{Activity Diary \& Planning:} A personalized diary where users can review add notes and photos to completed hikes or schedule upcoming ones.
+    
+    \item \textbf{Gamification \& Leveling:} An integrated progression system where completing hikes yields experience points based on the trail's difficulty, contributing to a global user level.
+    
+    \item \textbf{Cloud \& Local Synchronization:} Seamless integration with Firebase (Auth and Firestore) for remote backup, coupled with local caching (Hive and shared preferences) to ensure data persists across sessions and offline usage.
+    
+    \item \textbf{Smartwatch Integration:} Seamless connection with companion smartwatches (Wear OS) to display real time navigation cues, directly on the user's wrist. User can control their stats and stop the tracking directly from the smartwatch app. 
 \end{itemize}
 
+\subsection{Services}
+    Services used during the app development are listed here, divided in three main categories: external services, storage services and device services.
+
+    \subsubsection{External services}
+    \begin{itemize}
+        \item \textbf{Firebase Authentication:} Firebase Authentication provides backend services to authenticate users to \textit{Trailify}. It has been used to support authentication using mail and password which are stored when the user completes the registration phase, together with an unique id. Firebase Authentication also offers the ability to remember a logged in user, in this way they have not to sign in each time they open the app.
+
+        \item \textbf{MapBox:} Mapbox is a mapping platform that provides tools and services for building interactive maps in web and mobile applications. In \textit{Trailify} Mapbox is used as the source of map tiles, which are requested from Mapbox servers and rendered in the application to provide the map background, including roads, landmarks, terrain, and other geographic features.
+
+        \item \textbf{Overpass:} Overpass is a specialized query API for OpenStreetMap that allows applications to retrieve specific geographic data based on custom search criteria. \textit{Trailify} uses Overpass to search for hiking trails that match the filters entered by the user and display them on the map.
+
+        \item \textbf{Nominatim:} Nominatim is a geocoding API for OpenStreetMap that allows applications to convert place names and addresses into geographic coordinates. \textit{Trailify} uses Nominatim to access the exact coordinates of a specific location and to provide autocomplete suggestions during user searches.
+
+        \item \textbf{OpenElevation:} OpenElevation is an open-source elevation service that provides altitude data for routes. \textit{Trailify} uses this service to generate and display the elevation profile of a selected hiking trail, helping user better understanding the difficulty of the route.
+
+        \item \textbf{OpenMeteo:} OpenMeteo is a weather data service that provides current conditions, forecast, and meteorological information for a certain location through a web API. \textit{Trailify} uses OpenMeteo to display the weather forecast for a selected hiking trail, providing predictions up to 14 days in advanced, or, when the planned hiking date is closer, for the two weeks leading up to the scheduled hike. 
+    \end{itemize}
+
+    \subsubsection{Storage Services}
+    \begin{itemize}
+        \item \textbf{Firestore:} Firestore is a cloud-based NoSQL database provided by Google as part of the Firebase platform. It stores data in flexible documents organized into collections, allowing real-time synchronization. \textit{Trailify} uses Firestore as the main database to store and manage user and trail-related information.
+    \end{itemize}
+
+    \subsubsection{Device Services}
+    \begin{itemize}
+        \item \textbf{Shared Preferences:} Shared Preferences is a lightweight storage system used to save simple key–value pairs locally on a device. \textit{Trailify} uses shared preferences to store locally user settings, waiting for firestore synchronization, and to make them available to the entire application.
+        \item \textbf{Hive:} Hive is a NoSQL key–value database that stores data locally on the device. It works well for persisting structured data without requiring a backend connection. \textit{Trailify} uses Hive as a local database to store and manage trail data, to have trails always available even without connection. Furthermore Hive is used to synchronize the two main Dart isolates during tracking, in this way the app can work and update stats even in background.
+    \end{itemize}
+
+\subsection{Architecture}
+
+    \subsubsection{Overview}
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.6\linewidth]{Documentation/images/diagrams/architecture.png}
+                \caption{Architecture Diagram}
+                \label{fig:architecture}
+            \end{figure}
+        \end{center}
+        The system is composed of 3 main modules:
+        \begin{itemize}
+            \item \textbf{External Services:} Allow Trailify to retrieve trail data, and to persist users' information.
+            \item \textbf{Smartphone app}: The main app of the system, it is written in Flutter (dart), communicates via HTTPS protocol with the external systems and through bluetooth with the smartwatch app. It is the source of truth for data, both firestore and the smartwatch app synchronize with the phone app.
+            \item \textbf{Smartwatch app:} Companion app that allows the user to interact with the navigator without using the phone. It communicates with smartphone through bluetooth.
+        \end{itemize}
+
+    \subsubsection{Smartphone App}
+        Trailify's architecture is structured according to a \textbf{Model-View-ViewModel (MVVM)} pattern, organized into four main layers: \textbf{services}, \textbf{cubits}, \textbf{models}, and \textbf{views}. The user interface is designed to be fully reactive, continuously adapting to user input and state changes.
+
+        The \textbf{Cubit layer} plays a central role in state management and navigation. In particular, it enables reactive behavior required by the navigator, which must respond to new GPS points that are polled at regular intervals.
+
+        As illustrated in Figure~\ref{fig:architecture}, the application communicates with external systems through \textbf{HTTPS-based API calls}. These external services provide core functionality for the application, including trail data, elevation, weather information, and geospatial queries.
+
+        For local persistence, Trailify uses a \textbf{Hive database}, which stores both \textit{favorite trails} and temporary \textit{GPS tracking data}. This ensures that user data remains available offline and can be retrieved across sessions.
+
+        The application is designed to support background execution through the use of \textbf{two Dart isolates}. The \textit{main isolate} handles the user interface and primary computations, while a dedicated \textit{background isolate} becomes active during tracking sessions. This isolate continuously receives GPS updates and persists them into a Hive box. Once the application returns to the foreground, the main isolate retrieves the stored points and refreshes the UI accordingly, ensuring that no tracking data is lost during background execution.
+
+        Finally, Trailify incorporates a \textbf{notification service}, implemented using \\ \texttt{flutter\_local\_notifications}. This service provides real-time alerts to the user, such as off-trail warnings and directional guidance to help the user return to the intended route.
+    
+    \subsubsection{Smartwatch App}
+        The smartwatch application is designed as a \textbf{lightweight companion app} whose primary purpose is to display basic \textbf{tracking statistics} and provide limited \textbf{user control} over the navigation process. The application operates using two main states: \textbf{waiting} and \textbf{connected}.
+
+        When first launched, the smartwatch remains in the \textit{waiting state}, during which it passively awaits a connection from the smartphone application. In this phase, it does not actively participate in navigation but remains ready to synchronize once tracking is initiated on the phone.
+
+        When the user starts a tracking session on the smartphone, the smartwatch automatically transitions into the \textit{connected state}. In this state, it actively receives and displays live metrics, including \textbf{elapsed time}, \textbf{distance travelled}, and \textbf{elevation gain}. This enables real-time awareness of the ongoing activity directly from the wrist.
+
+        A key design aspect of the system is that the smartwatch application does \textbf{not need to be actively open} to establish or maintain the connection, as communication is handled at the system level once pairing is established between devices.
+
+        To further optimize energy efficiency, an \textbf{ambient mode} has been implemented. This mode reduces UI complexity and updates frequency, providing a \textit{minimal and low-power interface} that significantly improves battery life while maintaining essential tracking visibility.
+            
+    \subsubsection{Smartphone and Smartwatch communication}
+        Data exchange between the smartphone and the smartwatch is handled through a layered communication architecture designed to separate application logic from platform-specific implementation details. On the smartphone side, all relevant information is first computed within the application and then forwarded to the \textbf{Platform Channel Adapter}, implemented in Dart. This component is responsible for managing \textit{MethodCall-based communication}, both for sending and receiving data across the Flutter--native boundary.
+
+        The Platform Channel Adapter acts as a bridge that allows the Flutter application to invoke \textbf{native Kotlin code} through platform channels. On the Android side, the \textbf{Wear Data Layer Service} is implemented in Kotlin, enabling full access to the Android ecosystem and providing a dedicated layer for handling \textbf{data transmission and reception} with the smartwatch.
+
+        The data layer services on both the phone and the watch are directly connected. When the smartwatch receives incoming data through its Wear Data Layer Service, it forwards this information to its own Platform Channel Adapter. This adapter then processes the incoming \textit{MethodCall} and invokes the appropriate method within the Flutter application, ensuring that the UI and application state remain synchronized with the underlying communication layer.
+
+\subsection{Data Model}
+The application relies on a well structured set of domain models to represent users, tracking data, and hiking activities. The primary entities are:
+
+\begin{itemize}
+    \item \textbf{Profile \& Settings:} The \texttt{Profile} class holds user-specific data such as \textit{nickname}, \textit{email}, \textit{level}, and \textit{xp}. The \texttt{Settings} class stores user preferences for the app experience, such as \textit{notifications} toggles and preferred \textit{difficulty}.
+    
+    \item \textbf{Activity:} Represents a hiking session. It holds metadata like \textit{name}, \textit{status} (planned or completed), \textit{date}, and \textit{difficulty}. For completed hikes, it stores recorded metrics (\textit{trackedDistance}, \textit{trackedTime}, \textit{trackedElevationGap}). It also includes a list of \texttt{ActivityNote} objects, allowing users to add textual notes and photos.
+    
+    \item \textbf{FavoriteTrail \& PlannedTrail:} \texttt{FavoriteTrail} stores high-level summaries of trails the user has liked (e.g., \textit{distance}, \textit{ascent}). \texttt{PlannedTrail}, instead, is designed for offline navigation; it stores the actual geographical path as a list of segments containing \texttt{TrailPoint} coordinates, bound to a specific \textit{activityId}.
+    
+    \item \textbf{LocationPoint \& LocationState:} \texttt{LocationPoint} represents a single GPS reading, containing \textit{latitude}, \textit{longitude}, \textit{altitude}, and \textit{accuracy} metrics. \texttt{LocationState} acts as the source of truth for the active tracking session UI, aggregating metrics such as total distance, elevation gap, ETA, and off-trail alerts.
+\end{itemize}
+
+\subsection{Data Management}
+
+\subsubsection{Firestore}
+\textit{Trailify} uses Google Cloud Firestore as its remote database, organizing data into a hierarchical NoSQL structure scoped by the authenticated user's unique identifier. This ensures data privacy and efficient querying. The database structure is defined as follows:
+
+\begin{itemize}
+    \item \textbf{users/\{uid\}:} The root document for a user. It stores the \texttt{Profile} data (e.g., XP, level, account creation timestamp).
+    \begin{itemize}
+        \item \textbf{.../settings/preferences:} A sub-collection document storing the user's configuration \texttt{Settings}.
+        \item \textbf{.../activities/\{activityId\}:} A sub-collection containing all user activities. Each document stores the \texttt{Activity} properties. User notes and images are stored efficiently as an array of objects within the activity document itself.
+        \item \textbf{.../favoriteTrails/\{trailId\}:} A sub-collection maintaining the user's bookmarked \texttt{FavoriteTrail} metadata.
+    \end{itemize}
+\end{itemize}
+The \texttt{DatabaseService} acts as the data access layer, handling stream subscriptions, document fetching, and merging updates (via \texttt{SetOptions(merge: true)}) to prevent accidental overwrites.
+
+\subsubsection{Local Storage}
+To guarantee a seamless offline-first experience, Trailify utilizes \textbf{Hive}, a fast and lightweight NoSQL local database, alongside the device's persistent storage. Local storage is primarily responsible for:
+
+\begin{itemize}
+    \item \textbf{GPS Tracking Data:} During active navigation, \texttt{LocationPoint} objects are serialized using a custom Hive \texttt{TypeAdapter} and stored in the \texttt{location\_box}. This allows the background tracking isolate to persist coordinates safely, which the main isolate can later reconstruct without data loss.
+    \item \textbf{Offline Maps \& Planned Trails:} The \texttt{PlannedTrailStore} uses a dedicated Hive box (\texttt{planned\_trails}) to cache the physical geometry of upcoming hikes. This ensures the app can render the trail path even when the user starts a planned hike in an area with zero cellular coverage.
+    \item \textbf{Activity Synchronization:} The \texttt{ActivityRepository} uses a local store to cache activities. Newly created or completed activities are initially saved locally and marked with a \texttt{pendingSync} flag. When network connectivity is restored, the repository automatically detects pending entries, pushes them to Firestore, and subsequently clears them from the local queue to maintain storage efficiency.
+\end{itemize}
+
+\subsection{Sequence Diagrams}
+    In this section there are the sequence diagrams for the most important user interaction with our system.
+
+    \subsubsection{Sign Up}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/sign_up_sequence_diagram.png}
+                \caption{Sign up sequence diagram}
+                \label{fig:sign_up_sequence_diagram}
+            \end{figure}
+        \end{center}
+
+    \subsubsection{Sign In}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/login_sequence_diagram.png}
+                \caption{Login sequence diagram}
+                \label{fig:sign_in_sequence_diagram}
+            \end{figure}
+        \end{center}
+
+    \subsubsection{Select Trail and Plan Hike}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/select_trail_and_plan_navigation.png}
+                \caption{Select trail and plan hike sequence diagram}
+                \label{fig:select_trail_and_plan_hike_sequence_diagram}
+            \end{figure}
+        \end{center}
+
+    \subsubsection{Select Trail and Add to Favorites}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/select_trail_add_to_favorites.png}
+                \caption{Select trail and add to favorites sequence diagram}
+                \label{fig:select_trail_and_add_to_favorites_sequence_diagram}
+            \end{figure}
+        \end{center}
+
+    \subsubsection{Tracking}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/navigation.png}
+                \caption{Tracking sequence diagram}
+                \label{fig:tracking_sequence_diagram}
+            \end{figure}
+        \end{center}
+
+    \subsubsection{Open Tracking on Watch}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/open_navigation_watch.png}
+                \caption{Open tracking on watch}
+                \label{fig:open_tracking_on_watch_sequence_diagram}
+            \end{figure}
+        \end{center}
+
+    \subsubsection{Send stats from Phone to Watch}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/stats_from_phone_to_wear.png}
+                \caption{Send stats from phone to watch sequence diagram}
+                \label{fig:send_stats_from_phone_to_watch_sequence_diagram}
+            \end{figure}
+        \end{center}
+
+    \subsubsection{Send commands from Watch to Phone}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[width=0.8\linewidth]{Documentation/images/diagrams/stop_from_watch_to_phone.png}
+                \caption{Send commands from watch to phone sequence diagram}
+                \label{fig:send_commands_from_watch_to_phone_sequence_diagram}
+            \end{figure}
+        \end{center}
+    
+
+\newpage
+
+\section{User Interface \& Diagrams}
+This section is used to show the design of the main screens of the user application. Page layouts change according to the device used in order to exploit the dimensions of the screen. All screens are shown in dark theme but also light theme is implemented.\\
+\subsection{Smartphone UI}
+
+    \subsubsection{Sign up page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/sign_up_screen.png}
+            \caption{Sign up page}
+            \label{fig:sign_up_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Sign in page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/login_screen.png}
+            \caption{Sign in page}
+            \label{fig:sign_in_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Map page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/map_screen.png}
+            \caption{Map page}
+            \label{fig:map_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Trail details page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/trail_detail_screen.png}
+            \caption{Trail details page}
+            \label{fig:trail_detail_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Navigator page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/navigator_screen.png}
+            \caption{Navigator page}
+            \label{fig:navigator_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Hiking plan page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/plan_screen.png}
+            \caption{Hiking plan page}
+            \label{fig:hiking_plan_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Diary page - planned hikes}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/planned_diary_screen.png}
+            \caption{Planned hikes page}
+            \label{fig:planned_hikes_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Diary page - completed hikes}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/completed_diary_screen.png}
+            \caption{Completed hikes page}
+            \label{fig:completed_hikes_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Diary page - Activity detail}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/activity_details_screen.png}
+            \caption{Activity detail page}
+            \label{fig:activity_detail_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Diary page - Notes}
+
+    \begin{figure} [H]
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/phone screens/notes_screen.png}
+            \caption{Notes list}
+            \label{fig:notes_list}
+        \end{minipage}
+        \hfill
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/phone screens/add_note_screen.png}
+            \caption{Add new note}
+            \label{fig:add_new_note}
+        \end{minipage}
+    \end{figure}
+
+    \subsubsection{Favorites page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/favorites_screen.png}
+            \caption{Favorites page}
+            \label{fig:favorites_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Profile page}
+
+    \begin{figure} [H]
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/phone screens/profile_screen_1.png}
+            \label{fig:profile_page_1}
+        \end{minipage}
+        \hfill
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/phone screens/profile_screen_2.png}
+            \label{fig:profile_page_2}
+        \end{minipage}
+        \caption{Profile page}
+        \label{fig:profile_page}
+    \end{figure}
+
+\newpage
+
+\subsection{Smartwatch UI}
+    Smartwatch screens only have a dark theme to reduce battery consume. Their design is simple and intuitive due to the limitation of space and functionalities of the device.
+    
+    \subsubsection{Waiting for connection page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/watch screens/watch_loading_screen.png}
+            \caption{Waiting for connection page}
+            \label{fig:waiting_for_connection_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Time and ETA page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/watch screens/watch_eta_screen.png}
+            \caption{Time and ETA page}
+            \label{fig:time_and_ETA_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Distance page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/watch screens/watch_distance_screen.png}
+            \caption{Distance page}
+            \label{fig:distance_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Elevation gain page}
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/watch screens/watch_elevation_screen.png}
+            \caption{Elevation page}
+            \label{fig:elevation_page}
+        \end{figure}
+    \end{center}
+
+    \subsubsection{Pause page}
+
+    \begin{figure} [H]
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/watch screens/watch_pause_screen.png}
+            \label{fig:pause_page_1}
+        \end{minipage}
+        \hfill
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/watch screens/watch_stop_screen.png}
+            \label{fig:pause_page_2}
+        \end{minipage}
+        \caption{Pause page}
+        \label{fig:pause_page}
+    \end{figure}
+
+\newpage
+
+\section{Testing}
+
+\subsection{Testing Environment}
+The testing environment is built upon the standard \textit{flutter\_test} framework. \\
+Tests are executed locally and utilize simulated environments to ensure reproducible results without relying on physical hardware or live network conditions. \\
+The main tools and libraries used to set up this environment include:
+\begin{itemize}
+    \item \textbf{Mocktail:} to create mock instances of external dependencies (e.g. Firebase, Geolocator).
+    \item \textbf{Bloc test:} to verify the state emissions and transitions of the application's Cubits.
+    \item \textbf{FakeHttpOverrides:} to intercept and mock network requests to external APIs (e.g. Overpass, OpenMeteo).
+\end{itemize}
+
+\subsection{Unit Test}
+Unit testing isolates specific pieces of code to ensure the underlying business logic and data handling work as intended. \\
+These tests validate the core architecture without rendering any UI component. \\
+The main components verified through unit testing are:
+\begin{itemize}
+    \item \textbf{Models:} 
+        \begin{itemize}
+            \item Serialization and deserialization of domain objects (e.g. JSON mappings).
+            \item Hive TypeAdapters binary read/write operations.
+        \end{itemize}
+    \item \textbf{Repositories and Services:} 
+        \begin{itemize}
+            \item Data access layer and offline-first synchronization logic.
+            \item Error handling and fallback mechanisms for external services.
+        \end{itemize}
+    \item \textbf{State Management (Cubits):} 
+        \begin{itemize}
+            \item Live tracking computations (distance, elevation gap).
+            \item Mathematical off-trail detection and thresholds.
+        \end{itemize}
+\end{itemize}
+
+\subsection{Widget Test}
+Widget tests are implemented to verify the UI components and user interactions in an isolated environment. \\
+Screens are wrapped in a custom \textit{pumpApp} helper that injects mocked versions of the required Cubits, avoiding real backend connections. \\
+The main aspects covered by widget tests are: \\
+\begin{itemize}
+    \item \textbf{User Interactions:} 
+        \begin{itemize}
+            \item Verifying button taps, navigation routing, and gestures (e.g. dragging bottom sheets).
+        \end{itemize}
+    \item \textbf{Form Validation:} 
+        \begin{itemize}
+            \item Ensuring text fields correctly handle invalid inputs (e.g. malformed emails) and show the proper error banners.
+        \end{itemize}
+    \item \textbf{Dynamic UI States:} 
+        \begin{itemize}
+            \item Checking the correct rendering of loading indicators, empty states, and dynamic data populated from the Cubits.
+        \end{itemize}
+    \item \textbf{Permissions Handling:} 
+        \begin{itemize}
+            \item Simulating system dialogs for GPS and notifications to test the application's fallback UI when permissions are denied.
+        \end{itemize}
+\end{itemize}
+
+\subsection{Coverage}
+    %Generated by LCOV
+    \subsubsection{Smartphone test coverage}
+        \begin{figure} [H]
+                \centering
+                \includegraphics[scale=0.25]{Documentation/images/test coverage/smartphone_test_coverage.png}
+                \caption{Smartphone test coverage}
+                \label{fig:smartphone_test_coverage}
+        \end{figure}        
+    
+    \subsubsection{Smartwatch test coverage}
+
+        \begin{center}
+            \begin{figure} [H]
+                \centering
+                \includegraphics[scale=0.25]{Documentation/images/test coverage/wearOS_coverage.png}
+                \caption{Smartwatch test coverage}
+                \label{fig:smartwatch_test_coverage}
+            \end{figure}
+        \end{center}
+
+\subsection{Integration test}
+Integration testing focuses on how different widgets interact with each other, not on the single widget instance like unit testing. \\
+This kind of tests are performed in \textit{deploy environment} (exploiting an emulator), in this way the stability of the system and the coordination with external APIs is assessed.\\
+As our main focus is the whole system stability these tests start from the login page, and perform the most important actions of the application. \\
+The resulting tests (divided by pages) are: \\
+\begin{itemize}
+    \item \textbf{Login page:}
+        \begin{itemize}
+            \item Log in
+            \item Log out
+        \end{itemize}
+    \item \textbf{Homepage:}
+        \begin{itemize}
+            \item Bottom bar navigation
+            \item Search for locations and trails
+            \item Search for trails and open trail detail page
+        \end{itemize}
+    \item \textbf{Diary page:}
+        \begin{itemize}
+            \item Go to planned activities and start navigation
+            \item Open one completed activity
+        \end{itemize}
+    \item \textbf{Trail detail page:}
+        \begin{itemize}
+            \item Plan activity
+            \item Start tracking
+        \end{itemize}
+    \item \textbf{Activity detail page:}
+        \begin{itemize}
+            \item Open activity and add note
+        \end{itemize}
+    \item \textbf{Navigator page:}
+        \begin{itemize}
+            \item Stop tracking takes back to map page
+        \end{itemize}
+\end{itemize}
+
+\newpage
+
 \begin{comment}
-    user: email, name, password, diary [list of trails], level [expert, beginner, intermediate], XP
-    diario: lista di post
     post: id percorso, data, commento, lista foto
-    gamification -> ogni percorso da punteggio in base a lumnghezza, dislivello e difficoltà
-    capire come gestire la difficoltà dei percorsi che non sono segnati dal CAI
+    sezione con percorsi preferiti
+    pagina a parte per i preferiti
+    collegamento smartwatch
+
+    AGGIUNGERE PULSANTE START A PAGINA CON DETTAGLI PERCORSO PLANNATO
+
+    refresh pallino posizione una volta dati permessi
+
+    _centerMapOnTrail si può spostare in MapManagementService
+
+    edo: filtri + se c'è tempo test
+    ste: app smartwatch
+    flavio: preferiti + immagini
+
+    Integration test fatti:
+    login
+    logout
+    da mappa a diary, favorites, profile e indietro
+    
 \end{comment}
 
 \end{document}
