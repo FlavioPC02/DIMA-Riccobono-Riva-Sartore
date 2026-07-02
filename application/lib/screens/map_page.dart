@@ -1081,6 +1081,7 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                                 );
                               }
                               return IconButton(
+                                key: const ValueKey('search_button'),
                                 icon: const Icon(Icons.search),
                                 onPressed: () {
                                   FocusScope.of(context).requestFocus();

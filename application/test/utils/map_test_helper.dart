@@ -81,6 +81,7 @@ class FakeHttpOverrides extends HttpOverrides {
   static bool returnEmptyNominatim = false;
   static bool returnEmptyOverpass = false;
   static bool returnServerError = false;
+  static bool returnTrailMissingTags = false;
   
   @override
   HttpClient createHttpClient(SecurityContext? context) => FakeHttpClient();
@@ -223,6 +224,31 @@ class FakeHttpClientResponse extends Stream<List<int>> implements HttpClientResp
       if (FakeHttpOverrides.returnEmptyOverpass) {
         return utf8.encode('{"elements": []}');
       }
+ 
+      if (FakeHttpOverrides.returnTrailMissingTags) {
+        return utf8.encode('''{
+          "elements": [
+            {
+              "type": "relation",
+              "id": 4,
+              "tags": {
+                "sac_scale": "mountain_hiking"
+              },
+              "members": [
+                {
+                  "type": "way",
+                  "geometry": [
+                    {"lat": 44.0, "lon": 11.0},
+                    {"lat": 44.01, "lon": 11.01},
+                    {"lat": 44.02, "lon": 11.02}
+                  ]
+                }
+              ]
+            }
+          ]
+        }''');
+      }
+ 
       return utf8.encode('''{
         "elements": [
           {
