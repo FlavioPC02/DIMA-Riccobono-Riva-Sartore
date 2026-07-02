@@ -66,6 +66,23 @@ Future<void> goToTrailDetailPage(WidgetTester tester) async {
   );
 }
 
+Future<Finder> searchWidgetInNTries(WidgetTester tester, Key key, {int maxRetries = 5}) async {
+
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    final widget = find.byKey(key);
+
+    if (widget.evaluate().isNotEmpty) {
+      return widget;
+    }
+
+    await tester.pump(const Duration(seconds: 2));
+  }
+
+  throw Exception(
+    'Could not find widget with key "found_trail" after $maxRetries attempts.',
+  );
+}
+
 Future<void> goToPlannedDiaryPage(WidgetTester tester) async {
   goToDiaryPage(tester);
 
@@ -84,7 +101,7 @@ Future<void> goToPlanActivity(WidgetTester tester) async {
 Future<void> goToNavigatorScreen(WidgetTester tester) async {
   await goToTrailDetailPage(tester);
 
-  final navigateButton = find.byKey(Key('start_tracking_trail'));
+  final navigateButton = await searchWidgetInNTries(tester, Key('start_tracking_trail'), maxRetries: 10);
   await tester.tap(navigateButton);
   await tester.pump(const Duration(seconds: 10));
 }

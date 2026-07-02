@@ -51,7 +51,7 @@ void main() {
     await login(tester);
     await goToTrailDetailPage(tester);
 
-    final navigateButton = find.byKey(Key('start_tracking_trail'));
+    final navigateButton = await searchWidgetInNTries(tester, Key('start_tracking_trail'), maxRetries: 10);
     expect(navigateButton, findsOneWidget);
 
     await tester.tap(navigateButton);
