@@ -14,14 +14,12 @@ import 'package:application/screens/trail_details_screen.dart';
 import 'package:hike_core/hike_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:application/core/cubit/settings_cubit.dart';
+import 'package:marquee/marquee.dart';
 
 class MapPage extends StatefulWidget {
   final bool clearSearchAndTrails;
 
-  const MapPage({
-    super.key,
-    this.clearSearchAndTrails = false,
-  });
+  const MapPage({super.key, this.clearSearchAndTrails = false});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -449,7 +447,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 if (_filterDifficulty == 'Beginner' && trailDifficulty != 1) {
                   keep = false;
                 }
-                if (_filterDifficulty == 'Intermediate' && trailDifficulty == 3) {
+                if (_filterDifficulty == 'Intermediate' &&
+                    trailDifficulty == 3) {
                   keep = false;
                 }
                 if (_filterDifficulty == 'Expert') {
@@ -661,6 +660,38 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  Widget _buildAutoScrollingText(String text, TextStyle style) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textPainter = TextPainter(
+          text: TextSpan(text: text, style: style),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+        )..layout();
+
+        if (textPainter.width <= constraints.maxWidth) {
+          return Align(
+            alignment: Alignment.center,
+            child: Text(text, maxLines: 1, style: style),
+          );
+        }
+
+        return SizedBox(
+          width: constraints.maxWidth,
+          height: textPainter.height,
+          child: Marquee(
+            text: text,
+            style: style,
+            scrollAxis: Axis.horizontal,
+            blankSpace: 20,
+            velocity: 30,
+            pauseAfterRound: const Duration(seconds: 1),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFilterMenu(
     String title,
     List<String> options,
@@ -683,16 +714,20 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               onSelected(val);
             }
           },
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           itemBuilder: (context) => [
             const PopupMenuItem(
-              value: 'CLEAR', 
+              value: 'CLEAR',
               child: Text('No filter', overflow: TextOverflow.ellipsis),
             ),
-            ...options.map((opt) => PopupMenuItem(
-              value: opt, 
-              child: Text(opt, overflow: TextOverflow.ellipsis),
-            )),
+            ...options.map(
+              (opt) => PopupMenuItem(
+                value: opt,
+                child: Text(opt, overflow: TextOverflow.ellipsis),
+              ),
+            ),
           ],
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -705,11 +740,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
-                  child: Text(
+                  child: _buildAutoScrollingText(
                     currentValue ?? title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    TextStyle(
                       color: currentValue != null
                           ? Theme.of(context).colorScheme.primary
                           : null,
@@ -754,23 +787,34 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               setState(() => _filterDifficulty = val);
             }
           },
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           itemBuilder: (context) => [
             const PopupMenuItem(
-              value: 'CLEAR', 
+              value: 'CLEAR',
               child: Text('No filter', overflow: TextOverflow.ellipsis),
             ),
-            const PopupMenuItem(
-              value: 'Beginner', 
-              child: Text('Beginner', overflow: TextOverflow.ellipsis),
+            PopupMenuItem(
+              value: 'Beginner',
+              child: _buildAutoScrollingText(
+                'Beginner',
+                Theme.of(context).textTheme.labelLarge ?? const TextStyle(),
+              ),
             ),
-            const PopupMenuItem(
-              value: 'Intermediate', 
-              child: Text('Intermediate', overflow: TextOverflow.ellipsis),
+            PopupMenuItem(
+              value: 'Intermediate',
+              child: _buildAutoScrollingText(
+                'Intermediate',
+                Theme.of(context).textTheme.labelLarge ?? const TextStyle(),
+              ),
             ),
-            const PopupMenuItem(
-              value: 'Expert', 
-              child: Text('Expert', overflow: TextOverflow.ellipsis),
+            PopupMenuItem(
+              value: 'Expert',
+              child: _buildAutoScrollingText(
+                'Expert',
+                Theme.of(context).textTheme.labelLarge ?? const TextStyle(),
+              ),
             ),
             const PopupMenuDivider(),
             PopupMenuItem<String>(
@@ -811,11 +855,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
-                  child: Text(
+                  child: _buildAutoScrollingText(
                     _filterDifficulty ?? 'Difficulty',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    TextStyle(
                       color: _filterDifficulty != null
                           ? Theme.of(context).colorScheme.primary
                           : null,
@@ -850,8 +892,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
       listeners: [
         BlocListener<SettingsCubit, dynamic>(
           listenWhen: (previous, current) =>
-            previous.difficulty != current.difficulty ||
-            previous.ferrata != current.ferrata,
+              previous.difficulty != current.difficulty ||
+              previous.ferrata != current.ferrata,
           listener: (context, state) {
             setState(() {
               if (state.difficulty == 0.0) {
@@ -869,15 +911,16 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
         BlocListener<MapCubit, MapState>(
           listener: (context, state) {
             if (state == MapState.clearSearchAndTrails) {
-              if (_searchController.text.isNotEmpty || _foundTrails.isNotEmpty) {
+              if (_searchController.text.isNotEmpty ||
+                  _foundTrails.isNotEmpty) {
                 _searchController.clear();
                 FocusScope.of(context).unfocus();
-                
+
                 setState(() {
                   _foundTrails.clear();
                   _locationSuggestions.clear();
                 });
-              }  
+              }
             }
           },
         ),
@@ -969,7 +1012,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                           ),
                         ),
                       ],
-                      popupBackgroundColor: Theme.of(context).colorScheme.secondary,
+                      popupBackgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.secondary,
                     ),
                   ),
                 ),
@@ -1235,8 +1280,8 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
                 bottom: _isAttributionOpen
-                  ? MediaQuery.textScalerOf(context).scale(140.0)
-                  : 40.0,
+                    ? MediaQuery.textScalerOf(context).scale(140.0)
+                    : 40.0,
                 left: 0,
                 right: 0,
                 child: _foundTrails.isEmpty

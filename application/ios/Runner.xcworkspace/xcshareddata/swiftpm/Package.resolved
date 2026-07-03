@@ -1,5 +1,4 @@
 {
-  "originHash" : "75000f033870f65f8c5bc2228767274c8060bc71822a4593295124771d17a613",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -26,15 +25,6 @@
       "state" : {
         "revision" : "42e81d245e30e49ea6a5830cf2842d44a1591270",
         "version" : "12.15.0"
-      }
-    },
-    {
-      "identity" : "flutterfire",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/firebase/flutterfire",
-      "state" : {
-        "revision" : "51f0bc14786bd83120d942df340722b4cef93032",
-        "version" : "4.5.0-firebase-core-swift"
       }
     },
     {
@@ -128,5 +118,5 @@
       }
     }
   ],
-  "version" : 3
+  "version" : 2
 }
