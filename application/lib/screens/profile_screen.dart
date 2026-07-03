@@ -349,11 +349,10 @@ class _StatsdifficultySection extends StatelessWidget {
           const SizedBox(height: 10),
 
           //Card
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondary,
-              borderRadius: BorderRadius.circular(16),
-            ),
+          Material(
+            color: Theme.of(context).colorScheme.secondary,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
                 // Stats row
@@ -516,11 +515,10 @@ class _AccountSection extends StatelessWidget {
           const Text('Account', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
 
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondary,
-              borderRadius: BorderRadius.circular(16),
-            ),
+          Material(
+            color: Theme.of(context).colorScheme.secondary,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
                 // Change nickname button

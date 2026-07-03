@@ -1097,7 +1097,6 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                         margin: const EdgeInsets.only(top: 8.0),
                         constraints: const BoxConstraints(maxHeight: 250),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.secondary,
                           borderRadius: BorderRadius.circular(15),
                           boxShadow: [
                             BoxShadow(
@@ -1107,55 +1106,61 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                             ),
                           ],
                         ),
-                        child: ListView.separated(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: _locationSuggestions.length,
-                          separatorBuilder: (context, index) => Divider(
-                            height: 1,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          itemBuilder: (context, index) {
-                            final suggestion = _locationSuggestions[index];
-                            final name =
-                                suggestion['display_name'] ??
-                                'Unknown location';
-                            return ListTile(
-                              title: Text(
-                                name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              onTap: () {
-                                FocusScope.of(context).unfocus();
-                                _searchController.text = name;
-                                setState(() {
-                                  _locationSuggestions.clear();
-                                  _isSearchingLocation = true;
-                                });
+                        child: Material(
+                          color: Theme.of(context).colorScheme.secondary,
+                          borderRadius: BorderRadius.circular(15),
+                          clipBehavior: Clip.antiAlias,
+                          child: ListView.separated(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: _locationSuggestions.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            itemBuilder: (context, index) {
+                              final suggestion = _locationSuggestions[index];
+                              final name =
+                                  suggestion['display_name'] ??
+                                  'Unknown location';
+                              return ListTile(
+                                title: Text(
+                                  name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                                onTap: () {
+                                  FocusScope.of(context).unfocus();
+                                  _searchController.text = name;
+                                  setState(() {
+                                    _locationSuggestions.clear();
+                                    _isSearchingLocation = true;
+                                  });
 
-                                final lat = double.parse(suggestion['lat']);
-                                final lon = double.parse(suggestion['lon']);
-                                setState(() {
-                                  _currentCenter = DefaultMapManagementService()
-                                      .moveCamera(
-                                        lat,
-                                        lon,
-                                        13.0,
-                                        _mapController,
+                                  final lat = double.parse(suggestion['lat']);
+                                  final lon = double.parse(suggestion['lon']);
+                                  setState(() {
+                                    _currentCenter =
+                                        DefaultMapManagementService()
+                                            .moveCamera(
+                                              lat,
+                                              lon,
+                                              13.0,
+                                              _mapController,
+                                            );
+                                  });
+                                  _fetchTrailsByLocation(lat, lon).then((_) {
+                                    if (mounted) {
+                                      setState(
+                                        () => _isSearchingLocation = false,
                                       );
-                                });
-                                _fetchTrailsByLocation(lat, lon).then((_) {
-                                  if (mounted) {
-                                    setState(
-                                      () => _isSearchingLocation = false,
-                                    );
-                                  }
-                                });
-                              },
-                            );
-                          },
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          ),
                         ),
                       )
                     else
