@@ -5,19 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:application/main.dart' as app;
+import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  setUp(() async {
-    IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  patrolSetUp(() async {
+    await appSetup();
   });
 
-  tearDown(() async {
+  patrolTearDown(() async {
     await FirebaseAuth.instance.signOut();
     await sl.reset();
   });
@@ -28,42 +26,92 @@ void main() {
   });
 
   group('Search', () {
-    testWidgets('Search for locations and trails', (tester) async {
-      app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+    patrolTest('Search for locations and trails', ($) async {
+      await $.pumpWidgetAndSettle(const app.RootApp());
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      await login(tester);
+      await login($);
 
-      final searchBar = find.byKey(Key('search_field'));
+      final searchBar = $(#search_field);
       expect(searchBar, findsOneWidget);
 
-      await tester.enterText(searchBar, 'Trento');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      const location = 'Trento';
 
-      final trail = find.byKey(Key('found_trail'));
+      await $.enterText(searchBar, location);
+      await $.pump(const Duration(seconds: 2));
+
+      const maxRetries = 3;
+      var trail = $(#found_trail);
+
+      for (var attempt = 1; attempt <= maxRetries; attempt++) {
+        final searchButtonFinder = $(#search_trail_button);
+
+        if (searchButtonFinder.exists) {
+          final searchButton = $.tester.widget<ElevatedButton>(
+            searchButtonFinder,
+          );
+
+          if (searchButton.onPressed != null) {
+            await $(location).first.tap();
+            await $.tester.testTextInput.receiveAction(TextInputAction.search);
+            await $.pump(const Duration(seconds: 20));
+          } else {
+            // still mid-request; wait for it to finish before checking again
+            await $.pump(const Duration(seconds: 2));
+            continue;
+          }
+        }
+
+        trail = $(#found_trail);
+
+        if (trail.exists) break;
+
+        await $.pump(const Duration(seconds: 5));
+      }
+
       expect(trail, findsAtLeast(1));
     });
 
-    testWidgets('Search for trails and open trail detail page', (tester) async {
-      app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+    patrolTest('Search for trails and open trail detail page', ($) async {
+      await $.pumpWidgetAndSettle(const app.RootApp());
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      await login(tester);
+      await login($);
 
-      final searchButton = find.byKey(Key('search_trail_button'));
-      expect(searchButton, findsOneWidget);
+      const maxRetries = 3;
+      var trail = $(#found_trail);
 
-      await tester.tap(searchButton);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      for (var attempt = 1; attempt <= maxRetries; attempt++) {
+        final searchButtonFinder = $(#search_trail_button);
 
-      final trail = find.byKey(Key('found_trail'));
+        if (searchButtonFinder.exists) {
+          final searchButton = $.tester.widget<ElevatedButton>(
+            searchButtonFinder,
+          );
+
+          if (searchButton.onPressed != null) {
+            await $.tap(searchButtonFinder);
+            await $.pump(const Duration(seconds: 15));
+          } else {
+            // still mid-request; wait for it to finish before checking again
+            await $.pump(const Duration(seconds: 2));
+            continue;
+          }
+        }
+
+        trail = $(#found_trail);
+
+        if (trail.exists) break;
+
+        await $.pump(const Duration(seconds: 5));
+      }
+
       expect(trail, findsAtLeast(1));
 
-      await tester.tap(trail.first);
-      await tester.pump(const Duration(seconds: 10));
-      
-      expect(find.byType(TrailDetailsScreen), findsOneWidget);
+      await $.tap(trail.first);
+      await $.pump(const Duration(seconds: 2));
+
+      expect($(TrailDetailsScreen), findsOneWidget);
     });
   });
 }

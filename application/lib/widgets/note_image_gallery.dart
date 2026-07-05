@@ -66,7 +66,7 @@ class _NoteImageGalleryState extends State<NoteImageGallery> {
                   ? const PageScrollPhysics() 
                   : const NeverScrollableScrollPhysics(),
               itemCount: widget.imageUrls.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, imgIndex) {
                 final url = widget.imageUrls[imgIndex];
                 return ClipRRect(

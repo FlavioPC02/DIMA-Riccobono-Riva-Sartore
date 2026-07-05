@@ -1,23 +1,20 @@
 import 'package:application/screens/add_activity_page.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:application/main.dart' as app;
+import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  setUp(() async {
-    IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  patrolSetUp(() async {
+    await appSetup();
   });
 
-  tearDown(() async {
+  patrolTearDown(() async {
     await FirebaseAuth.instance.signOut();
     await sl.reset();
   });
@@ -27,34 +24,34 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  testWidgets('Plan activity', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
-    
-    await login(tester);
-    await goToPlanActivity(tester);
+  patrolTest('Plan activity', ($) async {
+    await $.pumpWidgetAndSettle(const app.RootApp());
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    final nameField = find.byKey(Key('name_field'));
+    await login($);
+    await goToPlanActivity($);
+
+    final nameField = $(#name_field);
     expect(nameField, findsOneWidget);
 
-    final dateField = find.byKey(Key('date_field'));
+    final dateField = $(#date_field);
     expect(dateField, findsOneWidget);
 
-    final state = tester.state<AddActivityPageState>(find.byType(AddActivityPage));
+    final state = $.tester.state<AddActivityPageState>($(AddActivityPage));
     state.setState(() {
       state.selectedDate = DateTime(2026, 10, 8);
     });
 
-    final saveButton = find.byKey(Key('save_button'));
+    final saveButton = $(#save_button);
     expect(saveButton, findsOneWidget);
 
-    await tester.enterText(nameField, 'Test activity');
-    
-    await tester.ensureVisible(saveButton);
-    await tester.tap(saveButton);
-    await tester.pump();
+    await $.enterText(nameField, 'Test activity');
 
-    expect(find.text('Test activity'), findsAtLeast(1));
-    expect(find.text('08/10/2026'), findsAtLeast(1));
+    await $.scrollUntilVisible(finder: saveButton);
+    await $.tap(saveButton);
+    await $.pump();
+
+    expect($('Test activity'), findsAtLeast(1));
+    expect($('08/10/2026'), findsAtLeast(1));
   });
 }

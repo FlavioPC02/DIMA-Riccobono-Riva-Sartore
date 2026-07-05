@@ -2,23 +2,20 @@ import 'package:application/screens/login_screen.dart';
 import 'package:application/screens/map_page.dart';
 import 'package:application/services/helpers/background_service_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:application/main.dart' as app;
+import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  setUp(() {
-    IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  patrolSetUp(() async {
+    await appSetup();
   });
 
-  tearDown(() async {
+  patrolTearDown(() async {
     if (FirebaseAuth.instance.currentUser != null) {
       await FirebaseAuth.instance.signOut();
     }
@@ -30,44 +27,43 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  testWidgets('log in and navigate to homepage', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+  patrolTest('log in and navigate to homepage', ($) async {
+    await $.pumpWidgetAndSettle(const app.RootApp());
 
-    expect(find.byType(LoginScreen), findsOneWidget);
+    await $(LoginScreen).waitUntilVisible();
 
-    final emailForm = find.byKey(Key('login_mail'));
+    final emailForm = $(#login_mail);
     expect(emailForm, findsOneWidget);
 
-    final passwordForm = find.byKey(Key('login_password'));
+    final passwordForm = $(#login_password);
     expect(passwordForm, findsOneWidget);
 
-    await tester.enterText(emailForm, 'integration@test.it');
-    await tester.enterText(passwordForm, 'password');
+    await $.enterText(emailForm, 'integration@test.it');
+    await $.enterText(passwordForm, 'password');
 
-    final signInButton = find.byKey(Key('login_button'));
+    final signInButton = $(#login_button);
     expect(signInButton, findsOneWidget);
 
-    await tester.tap(signInButton);
-    await tester.pumpAndSettle(const Duration(seconds: 5));
+    await $.tap(signInButton);
+    await $.pumpAndSettle(timeout: const Duration(seconds: 5));
 
-    expect(find.byType(MapPage), findsOneWidget);
+    expect($(MapPage), findsOneWidget);
   });
 
-  testWidgets('Logout', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+  patrolTest('Logout', ($) async {
+    await $.pumpWidgetAndSettle(const app.RootApp());
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    await login(tester);
-    await goToProfilePage(tester);
+    await login($);
+    await goToProfilePage($);
 
-    final logoutButton = find.byKey(Key('logout_button'));
+    final logoutButton = $(#logout_button);
     expect(logoutButton, findsOneWidget);
 
-    await tester.ensureVisible(logoutButton);
-    await tester.tap(logoutButton);
+    await $.scrollUntilVisible(finder: logoutButton);
+    await $.tap(logoutButton);
 
-    await tester.pumpAndSettle(const Duration(seconds: 20));
+    await $.pumpAndSettle(timeout: const Duration(seconds: 20));
 
     expect(find.byType(LoginScreen), findsOneWidget);
   });

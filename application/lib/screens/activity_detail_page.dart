@@ -119,6 +119,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                   builder: (context, _) {
                     if (tabController.index == 1) {
                       return FloatingActionButton(
+                        key: const ValueKey('add_note'),
                         onPressed: () async {
                           final result = await showDialog<Map<String, dynamic>>(
                             context: context,
@@ -150,6 +151,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                     }
                     if (currentActivity.status == ActivityStatus.planned) {
                       return FloatingActionButton.extended(
+                        key: const ValueKey('start_button'),
                         onPressed:
                             currentActivity.trailId.isEmpty || _isLoadingTrail
                             ? null
@@ -742,7 +744,7 @@ class _NotesTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
       itemCount: sortedNotes.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      separatorBuilder: (_, _) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         final note = sortedNotes[index];
         final dateStr = DateFormat('d MMM yyyy - HH:mm').format(note.createdAt);

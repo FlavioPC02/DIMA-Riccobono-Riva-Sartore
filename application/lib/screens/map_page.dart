@@ -66,8 +66,6 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
   bool _filterFerrata = false;
 
   //CONFIGURABLE VARIABLES
-
-  //TODO: define final app name
   //app name used in API requests (user agent)
   final String _appName = 'FlutterHikingApp/1.0';
 

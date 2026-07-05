@@ -2,23 +2,20 @@ import 'package:application/screens/activity_detail_page.dart';
 import 'package:application/screens/navigator.dart';
 import 'package:application/services/service_locator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:application/main.dart' as app;
+import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  setUp(() async {
-    IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  patrolSetUp(() async {
+    await appSetup();
   });
 
-  tearDown(() async {
+  patrolTearDown(() async {
     await FirebaseAuth.instance.signOut();
     await sl.reset();
   });
@@ -28,61 +25,61 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  testWidgets('Go to planned activities and start navigation', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+  patrolTest('Go to planned activities and start navigation', ($) async {
+    await $.pumpWidgetAndSettle(const app.RootApp());
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    await login(tester);
+    await login($);
 
     final seededId = await seedPlannedActivity();
 
-    await goToDiaryPage(tester);
+    await goToDiaryPage($);
 
-    final plannedTab = find.text('Planned');
+    final plannedTab = $('Planned');
     expect(plannedTab, findsOneWidget);
 
-    await tester.tap(plannedTab);
-    await tester.pumpAndSettle();
+    await $.tap(plannedTab);
+    await $.pumpAndSettle();
 
-    final plannedTrails = find.byKey(Key('activity_card'));
+    final plannedTrails = $(#activity_card);
     expect(plannedTrails, findsAtLeast(1));
 
-    await tester.tap(plannedTrails.first);
-    await tester.pump(const Duration(seconds: 2));
+    await $.tap(plannedTrails.first);
+    await $.pump(const Duration(seconds: 2));
 
-    expect(find.byType(ActivityDetailPage), findsOneWidget);
+    expect($(ActivityDetailPage), findsOneWidget);
 
-    final startButton = find.byKey(Key('start_button'));
+    final startButton = $(#start_button);
     expect(startButton, findsOneWidget);
 
-    await tester.ensureVisible(startButton);
-    await tester.tap(startButton);
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+    await $.scrollUntilVisible(finder: startButton);
+    await $.tap(startButton);
+    await $.pump(const Duration(seconds: 10));
 
-    expect(find.byType(NavigatorScreen), findsOneWidget);
+    expect($(NavigatorScreen), findsOneWidget);
 
     await deletePlannedActivity(seededId);
   });
 
-  testWidgets('Go to completed activities and open one', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+  patrolTest('Go to completed activities and open one', ($) async {
+    await $.pumpWidgetAndSettle(const app.RootApp());
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    await login(tester);
-    await goToDiaryPage(tester);
+    await login($);
+    await goToDiaryPage($);
 
-    final completedTab = find.text('Completed');
+    final completedTab = $('Completed');
     expect(completedTab, findsOneWidget);
 
-    await tester.tap(completedTab);
-    await tester.pumpAndSettle();
+    await $.tap(completedTab);
+    await $.pumpAndSettle();
 
-    final completedTrails = find.byKey(Key('activity_card'));
+    final completedTrails = $(#activity_card);
     expect(completedTrails, findsAtLeast(1));
 
-    await tester.tap(completedTrails.first);
-    await tester.pump(const Duration(seconds: 2));
+    await $.tap(completedTrails.first);
+    await $.pump(const Duration(seconds: 2));
 
-    expect(find.byType(ActivityDetailPage), findsOneWidget);
+    expect($(ActivityDetailPage), findsOneWidget);
   });
 }

@@ -1,22 +1,20 @@
 import 'package:application/services/service_locator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:application/main.dart' as app;
+import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() async {
-    IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  patrolSetUp(() async {
+    await appSetup();
   });
 
-  tearDown(() async {
+  patrolTearDown(() async {
     await FirebaseAuth.instance.signOut();
     await sl.reset();
   });
@@ -26,37 +24,39 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  testWidgets('Open activity and add note', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+  patrolTest('Open activity and add note', ($) async {
+    await $.pumpWidgetAndSettle(
+      const app.RootApp(),
+    );
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    await login(tester);
+    await login($);
     final seededId = await seedPlannedActivity();
-    await goToActivityDetailPage(tester);
+    await goToActivityDetailPage($);
 
-    final noteTab = find.text('Notes');
+    final noteTab = $('Notes');
     expect(noteTab, findsOneWidget);
-    await tester.tap(noteTab);
-    await tester.pump(const Duration(seconds: 2));
+    await $.tap(noteTab);
+    await $.pump(const Duration(seconds: 2));
 
-    final addNoteButton = find.byKey(Key('add_note'));
+    final addNoteButton = $(#add_note);
     expect(addNoteButton, findsOneWidget);
 
-    await tester.ensureVisible(addNoteButton);
-    await tester.tap(addNoteButton);
-    await tester.pump(const Duration(seconds: 2));
+    await $.scrollUntilVisible(finder: addNoteButton);
+    await $.tap(addNoteButton);
+    await $.pump(const Duration(seconds: 2));
 
-    final noteTextField = find.byKey(Key('note_text_field'));
+    final noteTextField = $(#note_text_field);
     expect(noteTextField, findsOneWidget);
 
-    final saveNoteButton = find.byKey(Key('save_note_button'));
+    final saveNoteButton = $(#save_note_button);
     expect(saveNoteButton, findsOneWidget);
 
-    await tester.enterText(noteTextField, 'Trial notes');
-    await tester.tap(saveNoteButton);
-    await tester.pump(const Duration(seconds: 2));
+    await $.enterText(noteTextField, 'Trial notes');
+    await $.tap(saveNoteButton);
+    await $.pump(const Duration(seconds: 2));
 
-    expect(find.text('Trial notes'), findsOneWidget);
+    expect($('Trial notes'), findsAtLeast(1));
 
     await deletePlannedActivity(seededId);
   });

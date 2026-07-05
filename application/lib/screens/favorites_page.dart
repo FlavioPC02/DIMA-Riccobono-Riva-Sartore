@@ -93,6 +93,7 @@ class _FavoriteTrailCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
+        key: const ValueKey('favorite_trail'),
         leading: const Icon(Icons.star),
         title: Text(favoriteTrail.name),
         trailing: const Icon(Icons.chevron_right),

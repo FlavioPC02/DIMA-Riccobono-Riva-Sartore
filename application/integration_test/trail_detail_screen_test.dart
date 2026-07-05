@@ -6,19 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:application/main.dart' as app;
+import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() async {
-    IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  patrolSetUp(() async {
+    await appSetup();
   });
 
-  tearDown(() async {
+  patrolTearDown(() async {
     await FirebaseAuth.instance.signOut();
     await sl.reset();
   });
@@ -28,35 +27,35 @@ void main() {
     await Hive.deleteFromDisk();
   });
 
-  testWidgets('Plan activity', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+  patrolTest('Plan activity', ($) async {
+    await $.pumpWidgetAndSettle(const app.RootApp());
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    await login(tester);
-    await goToTrailDetailPage(tester);
+    await login($);
+    await goToTrailDetailPage($);
 
-    final planButton = find.byKey(Key('plan_trail'));
+    final planButton = await searchWidgetInNTries($, Key('plan_trail'));
     expect(planButton, findsOneWidget);
 
-    await tester.tap(planButton);
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+    await $.tap(planButton);
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    expect(find.byType(AddActivityPage), findsOneWidget);
+    expect($(AddActivityPage), findsOneWidget);
   });
 
-  testWidgets('Start tracking', (tester) async {
-    app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 10));
+  patrolTest('Start tracking', ($) async {
+    await $.pumpWidgetAndSettle(const app.RootApp());
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-    await login(tester);
-    await goToTrailDetailPage(tester);
+    await login($);
+    await goToTrailDetailPage($);
 
-    final navigateButton = await searchWidgetInNTries(tester, Key('start_tracking_trail'), maxRetries: 10);
+    final navigateButton = await searchWidgetInNTries($, Key('start_tracking_trail'), maxRetries: 10);
     expect(navigateButton, findsOneWidget);
 
-    await tester.tap(navigateButton);
-    await tester.pump(const Duration(seconds: 10));
+    await $.tap(navigateButton);
+    await $.pump(const Duration(seconds: 10));
 
-    expect(find.byType(NavigatorScreen), findsOneWidget);
+    expect($(NavigatorScreen), findsOneWidget);
   });
 }

@@ -335,7 +335,7 @@ void main() {
       'reports isOffTrail = false when within threshold',
       build: () {
         final cubit = buildCubit();
-        cubit.setTrailData(segments: trail, onOffTrail: (_, __) {});
+        cubit.setTrailData(segments: trail, onOffTrail: (_, _) {});
         return cubit;
       },
       act: (cubit) async {
@@ -384,7 +384,7 @@ void main() {
       build: () => buildCubit(),
       act: (cubit) async {
         var callCount = 0;
-        cubit.setTrailData(segments: trail, onOffTrail: (_, __) => callCount++);
+        cubit.setTrailData(segments: trail, onOffTrail: (_, _) => callCount++);
 
         await cubit.startTracking();
 

@@ -7,19 +7,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:application/main.dart' as app;
+import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  setUp(() async {
-    IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  patrolSetUp(() async {
+    await appSetup();
   });
 
-  tearDown(() async {
+  patrolTearDown(() async {
     await FirebaseAuth.instance.signOut();
     await sl.reset();
   });
@@ -30,73 +28,73 @@ void main() {
   });
 
   group('Bottom bar navigation', () {
-    testWidgets('From map page to profile page and back', (tester) async {
-      app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+    patrolTest('From map page to profile page and back', ($) async {
+      await $.pumpWidgetAndSettle(const app.RootApp());
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      await login(tester);
+      await login($);
 
-      final profileShortcut = find.text('Profile');
+      final profileShortcut = $('Profile');
       expect(profileShortcut, findsOneWidget);
 
-      await tester.tap(profileShortcut);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      await $.tap(profileShortcut);
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      expect(find.byType(ProfilePage), findsOneWidget);
+      expect($(ProfilePage), findsOneWidget);
 
-      final mapShorcut = find.text('Map');
+      final mapShorcut = $('Map');
       expect(mapShorcut, findsOneWidget);
 
-      await tester.tap(mapShorcut);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      await $.tap(mapShorcut);
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      expect(find.byType(MapPage), findsOneWidget);
+      expect($(MapPage), findsOneWidget);
     });
 
-    testWidgets('From map page to diary page and back', (tester) async {
-      app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+    patrolTest('From map page to diary page and back', ($) async {
+      await $.pumpWidgetAndSettle(const app.RootApp());
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      await login(tester);
+      await login($);
 
-      final diaryShortcut = find.text('Diary');
+      final diaryShortcut = $('Diary');
       expect(diaryShortcut, findsOneWidget);
 
-      await tester.tap(diaryShortcut);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      await $.tap(diaryShortcut);
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      expect(find.byType(DiaryPage), findsOneWidget);
+      expect($(DiaryPage), findsOneWidget);
 
-      final mapShorcut = find.text('Map');
+      final mapShorcut = $('Map');
       expect(mapShorcut, findsOneWidget);
 
-      await tester.tap(mapShorcut);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      await $.tap(mapShorcut);
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      expect(find.byType(MapPage), findsOneWidget);
+      expect($(MapPage), findsOneWidget);
     });
 
-    testWidgets('From map page to favorites page', (tester) async {
-      app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+    patrolTest('From map page to favorites page', ($) async {
+      await $.pumpWidgetAndSettle(const app.RootApp());
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      await login(tester);
+      await login($);
 
-      final favoritesShortcut = find.text('Favorites');
+      final favoritesShortcut = $('Favorites');
       expect(favoritesShortcut, findsOneWidget);
 
-      await tester.tap(favoritesShortcut);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      await $.tap(favoritesShortcut);
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      expect(find.byType(FavoritesPage), findsOneWidget);
+      expect($(FavoritesPage), findsOneWidget);
 
       final mapShorcut = find.text('Map');
       expect(mapShorcut, findsOneWidget);
 
-      await tester.tap(mapShorcut);
-      await tester.pumpAndSettle(const Duration(seconds: 10));
+      await $.tap(mapShorcut);
+      await $.pumpAndSettle(timeout: const Duration(seconds: 10));
 
-      expect(find.byType(MapPage), findsOneWidget);
+      expect($(MapPage), findsOneWidget);
     });
   });
 }

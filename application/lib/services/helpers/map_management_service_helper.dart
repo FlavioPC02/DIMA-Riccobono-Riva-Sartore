@@ -104,7 +104,7 @@ void showLocationServiceDialog(BuildContext context) {
                   //open device settings to allow the user to enable location services
                   geo.Geolocator.openLocationSettings();
                 },
-                child: const Text('Enable location permission'),
+                child: const Text('Enable location service'),
               ),
               const SizedBox(height: 8),
               ElevatedButton(
@@ -172,14 +172,16 @@ Future<LatLng> centerMapOnUser(BuildContext context, LatLng currentCenter, MapCo
   bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
   geo.LocationPermission permission = await geo.Geolocator.checkPermission();
 
-  if (!serviceEnabled) {
+  if (!serviceEnabled && context.mounted) {
     showLocationServiceDialog(context);
     return center;
   }
 
   if (permission == geo.LocationPermission.denied ||
       permission == geo.LocationPermission.deniedForever) {
-    showLocationPermissionDialog(context);
+    if (context.mounted) {
+      showLocationPermissionDialog(context);
+    }
     return center;
   }
 
