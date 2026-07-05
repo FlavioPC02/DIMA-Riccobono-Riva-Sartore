@@ -14,6 +14,11 @@
 \usepackage{tabularray}
 \usepackage{marginnote}
 \usepackage{caption}
+\hypersetup{
+    colorlinks = false,
+    linkbordercolor = {white},
+    allbordercolors = {white}
+}
 
 \begin{document}
 \begin{titlepage}
@@ -360,6 +365,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Map page}
+    The \textbf{Map Page} [Figure \ref{fig:map_page}] is the main screen of the application. It displays the map and allows users to search for routes either around their current location or around a specified destination. The search functionality also includes customizable filters. In particular, the difficulty filter is linked to the user's profile settings, enabling the application to recommend routes that best match each user's skill level.\\
+
+    At the bottom of the screen, the \textbf{Navigation Bar} provides quick and intuitive access to the four main sections of the application.
 
     \begin{center}
         \begin{figure} [H]
@@ -371,6 +379,7 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Trail details page}
+    Once a route has been selected, the user is redirected to the \textbf{Trail Details Page} [Figure \ref{fig:trail_detail_page}], where the main characteristics of the selected trail are displayed, including its name, length, difficulty, and elevation gain. If some of this information is unavailable, the application computes the missing values. For example, when the difficulty rating is not provided by the \textit{CAI}, it is estimated based on the other available trail statistics. The page also displays the weather forecast for the following 14 days. Additional notes about the trail are provided at the bottom of the page. From this screen, the user can either plan the route or start navigation immediately.
 
     \begin{center}
         \begin{figure} [H]
@@ -381,18 +390,8 @@ This section is used to show the design of the main screens of the user applicat
         \end{figure}
     \end{center}
 
-    \subsubsection{Navigator page}
-
-    \begin{center}
-        \begin{figure} [H]
-            \centering
-            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/navigator_screen.png}
-            \caption{Navigator page}
-            \label{fig:navigator_page}
-        \end{figure}
-    \end{center}
-
     \subsubsection{Hiking plan page}
+    The \textbf{Hiking Plan Page} [Figure \ref{fig:hiking_plan_page}] allows users to schedule a hiking activity for a future date. The page displays the most relevant information about the selected trail and enables the user to assign a name and a date to the planned activity.
 
     \begin{center}
         \begin{figure} [H]
@@ -404,6 +403,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Diary page - planned hikes}
+    The \textbf{Diary Page} is divided into two sections. The \textbf{Planned Hikes} section [Figure \ref{fig:planned_hikes_page}] displays all scheduled hikes in descending order by date. By selecting a hike, the user can open its details page. The icons displayed next to each hike indicate whether the corresponding trail has already been downloaded for offline use or is currently available only online and is being downloaded to the device.\\
+
+    At the bottom of the screen, the \textbf{Navigation Bar} provides quick and intuitive access to the four main sections of the application.
 
     \begin{center}
         \begin{figure} [H]
@@ -415,7 +417,8 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Diary page - completed hikes}
-
+    The \textbf{Diary Page} is divided into two sections. The \textbf{Completed Hikes} section displays all completed hiking activities in descending order by date. By selecting a completed activity, the user can view the statistics recorded during the hike.
+     
     \begin{center}
         \begin{figure} [H]
             \centering
@@ -426,7 +429,8 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Diary page - Activity detail}
-
+    The \textbf{Activity Detail Page} [Figure \ref{fig:activity_detail_page}] provides an overview of the activity statistics and, when available, displays performance data collected during the completion of the activity. The page is structured into two main sections: \textbf{Overview} and \textbf{Notes}.
+    
     \begin{center}
         \begin{figure} [H]
             \centering
@@ -437,6 +441,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Diary page - Notes}
+    The \textbf{Notes} section [Figure \ref{fig:notes_list}] of the \textbf{Activity Detail Page} displays all notes created by the user since the activity was first generated. Notes can be either textual or images, and may optionally include captions.
+
+    Through the dedicated action button, users can add a new note [Figure \ref{fig:add_new_note}].
 
     \begin{figure} [H]
         \begin{minipage}[c]{0.4\linewidth}
@@ -453,6 +460,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{figure}
 
     \subsubsection{Favorites page}
+    The \textbf{Favorites Page} [Figure \ref{fig:favorites_page}] is the section where users can store and access their saved routes. By selecting a route, the user is redirected to the \textbf{Trail Details Page}, where they can plan or directly start navigation.
+
+    At the bottom of the page, the \textbf{Navigation Bar} provides quick access to the four main sections of the application, enabling efficient and consistent navigation throughout the interface.
 
     \begin{center}
         \begin{figure} [H]
@@ -464,6 +474,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Profile page}
+    The \textbf{Profile Page} [Figure \ref{fig:profile_page}] represents the user’s profile section, where personal statistics are displayed, including name, email, level, completed routes, and total distance covered. It also provides access to basic settings such as route difficulty preferences, whether the user has via ferrata equipment, notification settings, and a logout button.
+
+    At the bottom of the page, the \textbf{Navigation Bar} allows the user to easily navigate across the four main sections of the application, ensuring consistent and efficient access to all core functionalities.
 
     \begin{figure} [H]
         \begin{minipage}[c]{0.4\linewidth}
@@ -479,12 +492,28 @@ This section is used to show the design of the main screens of the user applicat
         \label{fig:profile_page}
     \end{figure}
 
+    \subsubsection{Navigator page}
+    La \textbf{Navigator page} [Figura \ref{fig:navigator_page}] è la pagina che si occupa della navigazione dell'utente. Vengono registrate le statistiche più importanti, come tempo trascorso, Estimated Time of Arrival (ETA), distanza percorsa e elevation gap. E' possibile mettere in pausa la registrazione, oppure fermarla per completare l'attività, che verrà salvata in locale e, se c'è copertura di rete, sincronizzata direttamente con Firestore. E' possibile abbassare la card per vedere meglio la mappa, e l'utente riceve delle notifiche in caso vada fuori percorso, con la distanza dalla strada e la direzione da prendere per tornare sul tracciato. La navigazione funziona anche in background.
+
+    \begin{center}
+        \begin{figure} [H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/navigator_screen.png}
+            \caption{Navigator page}
+            \label{fig:navigator_page}
+        \end{figure}
+    \end{center}
+
 \newpage
 
 \subsection{Smartwatch UI}
-    Smartwatch screens only have a dark theme to reduce battery consume. Their design is simple and intuitive due to the limitation of space and functionalities of the device.
+    Smartwatch screens only have a dark theme to reduce battery consume. Their design is simple and intuitive due to the limitation of space and functionalities of the device. \\
+    The \textbf{Smartwatch Component} receives activity statistics from the phone \textbf{Navigator}, which acts as the single source of truth for all navigation data. In addition, the smartwatch is able to send control requests to the Navigator, such as pausing or stopping the ongoing navigation session.
+
+    This ensures synchronization between devices while allowing the user to control the navigation experience directly from the smartwatch.
     
     \subsubsection{Waiting for connection page}
+    The \textbf{Waiting for Connection Page} [Figure \ref{fig:waiting_for_connection_page}] is displayed when the user opens the application before the phone has initiated the navigation session. It serves as a transitional state indicating that the system is waiting for the Navigator to become active and provide the required navigation data.
 
     \begin{center}
         \begin{figure} [H]
@@ -496,6 +525,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Time and ETA page}
+    The \textbf{Time and ETA Page} [Figure \ref{fig:time_and_ETA_page}] is the first screen displayed when the phone begins recording the activity. It presents real-time time-related statistics for the current route, including elapsed time and estimated time of arrival (ETA).
+
+    In the bottom-left corner, a dedicated button allows the user to access the \textbf{Pause Page}, where the navigation session can be temporarily paused.
 
     \begin{center}
         \begin{figure} [H]
@@ -507,6 +539,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Distance page}
+    The \textbf{Distance Page} [Figure \ref{fig:distance_page}] displays distance-related statistics for the selected route on the smartwatch. It includes a progress ring that indicates the percentage of the route already completed.
+
+    In the bottom-left corner, a dedicated button allows the user to access the \textbf{Pause Page}, where the navigation session can be temporarily paused.
 
     \begin{center}
         \begin{figure} [H]
@@ -518,6 +553,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Elevation gain page}
+    The \textbf{Elevation Gain Page} [Figure \ref{fig:elevation_page}] displays elevation-related statistics on the smartwatch, showing the user's vertical movement throughout the selected route.
+
+    In the bottom-left corner, a dedicated button allows the user to access the \textbf{Pause Page}, where the navigation session can be temporarily paused.
 
     \begin{center}
         \begin{figure} [H]
@@ -529,6 +567,9 @@ This section is used to show the design of the main screens of the user applicat
     \end{center}
 
     \subsubsection{Pause page}
+    The \textbf{Pause Page} [Figure \ref{fig:pause_page}] allows the user to pause or stop the navigation session without requiring the phone to be active or unlocked. 
+
+    For safety reasons, stopping the navigation requires a two-step confirmation process: the user must first press the \textbf{Stop} button and then confirm the action in a subsequent dialog. This design reduces the risk of accidental interruptions of the navigation session.
 
     \begin{figure} [H]
         \begin{minipage}[c]{0.4\linewidth}
@@ -604,25 +645,38 @@ The main aspects covered by widget tests are: \\
 \end{itemize}
 
 \subsection{Coverage}
-    %Generated by LCOV
+    The test coverage report has been generated using \textbf{LCOV}. The most recent measurement produced the following result. \\
+    The first image shows the overall test coverage, while the second provides a more detailed view of the coverage broken down by individual directories of the system.
+
     \subsubsection{Smartphone test coverage}
+    
         \begin{figure} [H]
-                \centering
-                \includegraphics[scale=0.25]{Documentation/images/test coverage/smartphone_test_coverage.png}
-                \caption{Smartphone test coverage}
-                \label{fig:smartphone_test_coverage}
-        \end{figure}        
+            \begin{minipage}[c]{\linewidth}
+                \includegraphics[width=\linewidth]{Documentation/images/test coverage/smartphone_total_coverage.png}
+                \label{fig:smartphone_total_coverage}
+            \end{minipage}
+            \begin{minipage}[c]{\linewidth}
+                \includegraphics[width=\linewidth]{Documentation/images/test coverage/smartphone_directory_coverage.png}
+                \label{fig:smartphone_directory_coverage}
+            \end{minipage}
+            \caption{Smartphone test coverage}
+            \label{fig:smartphone_test_coverage}
+        \end{figure}      
     
     \subsubsection{Smartwatch test coverage}
 
-        \begin{center}
-            \begin{figure} [H]
-                \centering
-                \includegraphics[scale=0.25]{Documentation/images/test coverage/wearOS_coverage.png}
-                \caption{Smartwatch test coverage}
-                \label{fig:smartwatch_test_coverage}
-            \end{figure}
-        \end{center}
+        \begin{figure} [H]
+            \begin{minipage}[c]{\linewidth}
+                \includegraphics[width=\linewidth]{Documentation/images/test coverage/smartwatch_total_coverage.png}
+                \label{fig:smartwatch_total_coverage}
+            \end{minipage}
+            \begin{minipage}[c]{\linewidth}
+                \includegraphics[width=\linewidth]{Documentation/images/test coverage/smartwatch_directory_coverage.png}
+                \label{fig:smartwatch_directory_coverage}
+            \end{minipage}
+            \caption{Smartwatch test coverage}
+            \label{fig:smartwatch_test_coverage}
+        \end{figure} 
 
 \subsection{Integration test}
 Integration testing focuses on how different widgets interact with each other, not on the single widget instance like unit testing. \\
