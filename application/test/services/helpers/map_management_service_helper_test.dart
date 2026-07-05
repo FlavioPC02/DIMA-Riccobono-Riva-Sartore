@@ -132,7 +132,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Enable location permission'));
+    await tester.tap(find.text('Enable location service'));
     await tester.pumpAndSettle();
 
     expect(mockGeolocator.openLocationSettingsCalled, isTrue);

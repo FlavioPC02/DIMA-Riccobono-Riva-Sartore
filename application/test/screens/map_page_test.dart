@@ -103,7 +103,7 @@ void main() {
       await pumpMapPage(tester);
 
       expect(find.text('Location service required'), findsOneWidget);
-      expect(find.text('Enable location permission'), findsOneWidget);
+      expect(find.text('Enable location service'), findsOneWidget);
 
       await tearDownMap(tester);
     });
