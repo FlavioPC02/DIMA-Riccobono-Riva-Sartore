@@ -30,7 +30,7 @@ class PhoneWearSyncService {
       case 'stopRecording':
         onStopFromWatch?.call();
         break;
-      
+
       default:
         throw UnimplementedError('Method ${call.method} not implemented');
     }
@@ -38,7 +38,12 @@ class PhoneWearSyncService {
 
   Future<void> sendStats(HikeLiveStats stats) async {
     try {
-      await _channel.invokeMethod('sendStatsToWatch', jsonEncode(stats.toMap()));
+      await _channel.invokeMethod(
+        'sendStatsToWatch',
+        jsonEncode(stats.toMap()),
+      );
+    } on MissingPluginException catch (e) {
+      debugPrint('[PhoneWearsync] sendStats unavailable: ${e.message}');
     } on PlatformException catch (e) {
       debugPrint('[PhoneWearsync] sendStats failed: ${e.message}');
     }
@@ -47,6 +52,8 @@ class PhoneWearSyncService {
   Future<void> sendStatus(HikeRecordingStatus status) async {
     try {
       await _channel.invokeMethod('sendStatusToWatch', status.name);
+    } on MissingPluginException catch (e) {
+      debugPrint('[PhoneWearsync] sendStatus unavailable: ${e.message}');
     } on PlatformException catch (e) {
       debugPrint('[PhoneWearsync] sendStatus failed: ${e.message}');
     }
@@ -55,8 +62,14 @@ class PhoneWearSyncService {
   Future<void> sendOffTrailNotification(String notification) async {
     try {
       await _channel.invokeMethod('sendOffTrailNotification', notification);
+    } on MissingPluginException catch (e) {
+      debugPrint(
+        '[PhoneWearsync] sendOffTrailNotification unavailable: ${e.message}',
+      );
     } on PlatformException catch (e) {
-      debugPrint('[PhoneWearsync] sendOffTrailNotification failed: ${e.message}');
+      debugPrint(
+        '[PhoneWearsync] sendOffTrailNotification failed: ${e.message}',
+      );
     }
   }
 
@@ -65,6 +78,10 @@ class PhoneWearSyncService {
     try {
       await _channel.invokeMethod('sendNavigationPrompt');
       debugPrint('[PhoneWearSync] SENT navigation prompt');
+    } on MissingPluginException catch (e) {
+      debugPrint(
+        '[PhoneWearsync] sendNavigationPrompt unavailable: ${e.message}',
+      );
     } on PlatformException catch (e) {
       debugPrint('[PhoneWearsync] sendNavigationPrompt failed: ${e.message}');
     }
