@@ -230,34 +230,6 @@ Future<Finder?> searchEnabledTrailDetailActionInNTries(
   );
 }
 
-Future<Finder> searchWidgetInNTries(
-  PatrolIntegrationTester $,
-  Key key, {
-  int maxRetries = 8,
-}) async {
-  for (var attempt = 1; attempt <= maxRetries; attempt++) {
-    final widget = $(key);
-    final errorText = $('Network error. Check your connection and try again.');
-
-    if (errorText.exists) {
-      await $(BackButton).tap();
-      await $.pumpAndSettle();
-      final favoritesTrail = $(#favorite_trail);
-      await $.tap(favoritesTrail.first);
-      await $.pump();
-    }
-    if (widget.exists) {
-      return widget;
-    }
-
-    await $.pump(const Duration(seconds: 20));
-  }
-
-  throw Exception(
-    'Could not find widget with key "$key" after $maxRetries attempts.',
-  );
-}
-
 Future<void> goToPlannedDiaryPage(PatrolIntegrationTester $) async {
   await goToDiaryPage($);
 
