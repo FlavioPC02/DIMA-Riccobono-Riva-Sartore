@@ -45,7 +45,7 @@ void main() {
     expect(signInButton, findsOneWidget);
 
     await $.tap(signInButton);
-    await $.pumpAndSettle(timeout: const Duration(seconds: 5));
+    await settleAfterLogin($);
 
     expect($(MapPage), findsOneWidget);
   });

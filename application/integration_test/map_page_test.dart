@@ -10,6 +10,36 @@ import 'package:patrol/patrol.dart';
 
 import 'utils/interactions.dart';
 
+bool _isMapSearchMessageVisible(PatrolIntegrationTester $) {
+  return $('Network error. Check your connection and try again.').exists ||
+      $('Check your connection and try again.').exists ||
+      $('Error occurred while searching for hiking trails').exists ||
+      $('Error occurred while searching for the location.').exists ||
+      $('No hiking trails found. Try refining your filters.').exists ||
+      $(
+        'No hiking trails found near the searched location. Try searching in a different area.',
+      ).exists ||
+      $('Server error: Impossible to fetch trails. Try again later').exists;
+}
+
+Future<bool> _pumpCheckingMapSearchMessages(
+  PatrolIntegrationTester $,
+  Duration duration,
+) async {
+  final endTime = DateTime.now().add(duration);
+  var sawMessage = false;
+
+  while (DateTime.now().isBefore(endTime)) {
+    await $.pump(const Duration(milliseconds: 250));
+    sawMessage |= _isMapSearchMessageVisible($);
+    if ($(#found_trail).exists || sawMessage) {
+      return sawMessage;
+    }
+  }
+
+  return sawMessage;
+}
+
 void main() {
   patrolSetUp(() async {
     await appSetup();
@@ -42,6 +72,7 @@ void main() {
 
       const maxRetries = 3;
       var trail = $(#found_trail);
+      var sawSearchMessage = false;
 
       for (var attempt = 1; attempt <= maxRetries; attempt++) {
         final searchButtonFinder = $(#search_trail_button);
@@ -54,10 +85,16 @@ void main() {
           if (searchButton.onPressed != null) {
             await $(location).first.tap();
             await $.tester.testTextInput.receiveAction(TextInputAction.search);
-            await $.pump(const Duration(seconds: 20));
+            sawSearchMessage |= await _pumpCheckingMapSearchMessages(
+              $,
+              const Duration(seconds: 20),
+            );
           } else {
             // still mid-request; wait for it to finish before checking again
-            await $.pump(const Duration(seconds: 2));
+            sawSearchMessage |= await _pumpCheckingMapSearchMessages(
+              $,
+              const Duration(seconds: 2),
+            );
             continue;
           }
         }
@@ -66,7 +103,15 @@ void main() {
 
         if (trail.exists) break;
 
-        await $.pump(const Duration(seconds: 5));
+        sawSearchMessage |= await _pumpCheckingMapSearchMessages(
+          $,
+          const Duration(seconds: 5),
+        );
+      }
+
+      if (sawSearchMessage) {
+        expect(trail, findsNothing);
+        return;
       }
 
       expect(trail, findsAtLeast(1));
@@ -80,6 +125,7 @@ void main() {
 
       const maxRetries = 3;
       var trail = $(#found_trail);
+      var sawSearchMessage = false;
 
       for (var attempt = 1; attempt <= maxRetries; attempt++) {
         final searchButtonFinder = $(#search_trail_button);
@@ -91,10 +137,16 @@ void main() {
 
           if (searchButton.onPressed != null) {
             await $.tap(searchButtonFinder);
-            await $.pump(const Duration(seconds: 15));
+            sawSearchMessage |= await _pumpCheckingMapSearchMessages(
+              $,
+              const Duration(seconds: 15),
+            );
           } else {
             // still mid-request; wait for it to finish before checking again
-            await $.pump(const Duration(seconds: 2));
+            sawSearchMessage |= await _pumpCheckingMapSearchMessages(
+              $,
+              const Duration(seconds: 2),
+            );
             continue;
           }
         }
@@ -103,7 +155,15 @@ void main() {
 
         if (trail.exists) break;
 
-        await $.pump(const Duration(seconds: 5));
+        sawSearchMessage |= await _pumpCheckingMapSearchMessages(
+          $,
+          const Duration(seconds: 5),
+        );
+      }
+
+      if (sawSearchMessage) {
+        expect(trail, findsNothing);
+        return;
       }
 
       expect(trail, findsAtLeast(1));

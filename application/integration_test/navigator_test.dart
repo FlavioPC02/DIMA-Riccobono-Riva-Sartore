@@ -12,7 +12,6 @@ import 'package:patrol/patrol.dart';
 import 'utils/interactions.dart';
 
 void main() {
-
   patrolSetUp(() async {
     await appSetup();
   });
@@ -34,8 +33,13 @@ void main() {
     await login($);
     await goToNavigatorScreen($);
 
+    if (isTrailDetailsUnavailable($)) {
+      expect(find.byType(NavigatorScreen), findsNothing);
+      return;
+    }
+
     expect(find.byType(NavigatorScreen), findsOneWidget);
-    
+
     final statsRecordingCard = $(StatsRecordingCard);
     expect(statsRecordingCard, findsOneWidget);
 

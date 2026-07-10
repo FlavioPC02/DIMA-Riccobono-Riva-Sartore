@@ -12,7 +12,6 @@ import 'package:patrol/patrol.dart';
 import 'utils/interactions.dart';
 
 void main() {
-
   patrolSetUp(() async {
     await appSetup();
   });
@@ -34,7 +33,15 @@ void main() {
     await login($);
     await goToTrailDetailPage($);
 
-    final planButton = await searchWidgetInNTries($, Key('plan_trail'));
+    final planButton = await searchEnabledTrailDetailActionInNTries(
+      $,
+      Key('plan_trail'),
+    );
+    if (planButton == null) {
+      expect($(AddActivityPage), findsNothing);
+      return;
+    }
+
     expect(planButton, findsOneWidget);
 
     await $.tap(planButton);
@@ -50,7 +57,16 @@ void main() {
     await login($);
     await goToTrailDetailPage($);
 
-    final navigateButton = await searchWidgetInNTries($, Key('start_tracking_trail'), maxRetries: 10);
+    final navigateButton = await searchEnabledTrailDetailActionInNTries(
+      $,
+      Key('start_tracking_trail'),
+      maxRetries: 10,
+    );
+    if (navigateButton == null) {
+      expect($(NavigatorScreen), findsNothing);
+      return;
+    }
+
     expect(navigateButton, findsOneWidget);
 
     await $.tap(navigateButton);

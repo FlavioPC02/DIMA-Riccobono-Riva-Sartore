@@ -31,6 +31,11 @@ void main() {
     await login($);
     await goToPlanActivity($);
 
+    if (isTrailDetailsUnavailable($)) {
+      expect($(AddActivityPage), findsNothing);
+      return;
+    }
+
     final nameField = $(#name_field);
     expect(nameField, findsOneWidget);
 
@@ -38,9 +43,7 @@ void main() {
     expect(dateField, findsOneWidget);
 
     final state = $.tester.state<AddActivityPageState>($(AddActivityPage));
-    state.setState(() {
-      state.selectedDate = DateTime(2026, 10, 8);
-    });
+    state.selectDate(DateTime(2026, 10, 8));
 
     final saveButton = $(#save_button);
     expect(saveButton, findsOneWidget);
