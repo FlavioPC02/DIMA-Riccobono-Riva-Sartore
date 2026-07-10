@@ -11,6 +11,7 @@ import 'package:application/core/cubit/settings_cubit.dart';
 import 'package:application/core/models/activity.dart';
 import 'package:application/services/map_management_service.dart';
 import 'package:application/services/notification_service.dart';
+import 'package:application/utils/location_heading_stream.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -158,9 +159,7 @@ class _NavigatorScreenState extends State<NavigatorScreen>
         if (!mounted) return;
         context.read<NavigationIndexCubit>().setIndex(0); //Go back to map page
         context.read<MapCubit>().clearMap();
-        Navigator.of(context).popUntil(
-          (route) => route.isFirst,
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       },
     );
   }
@@ -349,7 +348,9 @@ class _NavigatorScreenState extends State<NavigatorScreen>
                       userAgentPackageName: _appName,
                     ),
                     PolylineLayer(polylines: _buildPolylines()),
-                    CurrentLocationLayer(),
+                    CurrentLocationLayer(
+                      headingStream: safeRotationSensorHeadingStream(),
+                    ),
                     RichAttributionWidget(
                       attributions: [
                         TextSourceAttribution(

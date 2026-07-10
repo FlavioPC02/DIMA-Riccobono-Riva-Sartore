@@ -1,5 +1,6 @@
 import 'package:application/core/cubit/map_cubit.dart';
 import 'package:application/services/map_management_service.dart';
+import 'package:application/utils/location_heading_stream.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -989,7 +990,9 @@ class _MapPageState extends State<MapPage> with AutomaticKeepAliveClientMixin {
                   },
                 ),
                 PolylineLayer(polylines: _buildPolylines()),
-                CurrentLocationLayer(),
+                CurrentLocationLayer(
+                  headingStream: safeRotationSensorHeadingStream(),
+                ),
                 Align(
                   alignment: Alignment.bottomRight,
                   child: Listener(
