@@ -27,12 +27,17 @@ class AddActivityPageState extends State<AddActivityPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
-  
+
   final _nameFocus = FocusNode();
 
   @visibleForTesting
   DateTime selectedDate = DateTime.now();
   bool _saving = false;
+
+  @visibleForTesting
+  void selectDate(DateTime date) {
+    setState(() => selectedDate = date);
+  }
 
   @override
   void initState() {
@@ -62,7 +67,7 @@ class AddActivityPageState extends State<AddActivityPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => selectedDate = picked);
+    if (picked != null) selectDate(picked);
   }
 
   Future<void> _save() async {
@@ -88,10 +93,7 @@ class AddActivityPageState extends State<AddActivityPage> {
 
     final trailPoints = widget.trailSegments.map<List<TrailPoint>>((segment) {
       return segment.map<TrailPoint>((point) {
-        return TrailPoint(
-          lat: point.latitude,
-          lng: point.longitude,
-          );
+        return TrailPoint(lat: point.latitude, lng: point.longitude);
       }).toList();
     }).toList();
 
@@ -109,9 +111,7 @@ class AddActivityPageState extends State<AddActivityPage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         centerTitle: true,
-        title: const Text(
-          'New Planned Hike',
-        ),
+        title: const Text('New Planned Hike'),
       ),
       body: Form(
         key: _formKey,
@@ -163,7 +163,8 @@ class AddActivityPageState extends State<AddActivityPage> {
               children: [
                 Expanded(
                   child: TextFormField(
-                    initialValue: '${widget.activity.distanceKm.toStringAsFixed(1)} km',
+                    initialValue:
+                        '${widget.activity.distanceKm.toStringAsFixed(1)} km',
                     readOnly: true,
                     decoration: const InputDecoration(
                       labelText: 'Distance',
@@ -174,7 +175,8 @@ class AddActivityPageState extends State<AddActivityPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextFormField(
-                    initialValue: widget.activity.durationMinutes.toMinuteDurationLabel(),
+                    initialValue: widget.activity.durationMinutes
+                        .toMinuteDurationLabel(),
                     readOnly: true,
                     decoration: const InputDecoration(
                       labelText: 'Duration',
