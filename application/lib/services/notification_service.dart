@@ -11,7 +11,8 @@ class NotificationService {
   );
 
   @visibleForTesting
-  static FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
+  static FlutterLocalNotificationsPlugin plugin =
+      FlutterLocalNotificationsPlugin();
 
   @visibleForTesting
   static Future<bool> Function()? mockPermissionCheck;
@@ -26,14 +27,19 @@ class NotificationService {
 
     try {
       await plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.createNotificationChannel(channel);
 
       AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('ic_stat_landscape');
 
       const IOSInitializationSettings iosInitializationSettings =
           IOSInitializationSettings(
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
             defaultPresentAlert: true,
             defaultPresentBanner: true,
             defaultPresentList: true,
@@ -67,9 +73,9 @@ class NotificationService {
     String? payload,
     String? soundName,
   }) async {
-    final notificationPermissionsEnabled = mockPermissionCheck != null 
-        ? await mockPermissionCheck!() 
-        : await NotificationPermissionHelper.areNotificationEnabled(); 
+    final notificationPermissionsEnabled = mockPermissionCheck != null
+        ? await mockPermissionCheck!()
+        : await NotificationPermissionHelper.areNotificationEnabled();
 
     if (!notificationPermissionsEnabled) {
       debugPrint('Notification skipped: notifications are not enabled.');
