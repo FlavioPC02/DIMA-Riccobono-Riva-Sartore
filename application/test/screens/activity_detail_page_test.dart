@@ -50,34 +50,6 @@ class MockTrailGeometryDataSource extends Mock
 class MockGeolocatorPlatform extends Mock
   with MockPlatformInterfaceMixin
   implements GeolocatorPlatform {}
-  @override
-  Future<bool> isLocationServiceEnabled() async => true;
-
-  @override
-  Future<LocationPermission> checkPermission() async =>
-      LocationPermission.always;
-
-  @override
-  Future<LocationPermission> requestPermission() async =>
-      LocationPermission.always;
-
-  @override
-  Future<Position> getCurrentPosition({
-    LocationSettings? locationSettings,
-  }) async {
-    return Position(
-      longitude: 12.0,
-      latitude: 41.0,
-      timestamp: DateTime.now(),
-      accuracy: 10.0,
-      altitude: 0.0,
-      heading: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-      altitudeAccuracy: 0.0,
-      headingAccuracy: 0.0,
-    );
-  }
 
 class FakeWeatherHttpOverrides extends HttpOverrides {
   final bool shouldFail;

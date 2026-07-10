@@ -22,9 +22,9 @@ void main() {
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
-      sentCalls.add(call);
-      return null;
-    });
+          sentCalls.add(call);
+          return null;
+        });
   });
 
   tearDown(() {
@@ -35,10 +35,10 @@ void main() {
   Future<dynamic> simulateIncomingCall(String method, [dynamic arguments]) {
     return TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
-      channel.name,
-      channel.codec.encodeMethodCall(MethodCall(method, arguments)),
-      (ByteData? data) {},
-    );
+          channel.name,
+          channel.codec.encodeMethodCall(MethodCall(method, arguments)),
+          (ByteData? data) {},
+        );
   }
 
   group('initialize', () {
@@ -53,18 +53,20 @@ void main() {
       expect(paused, isTrue);
     });
 
-    test('calling initialize() twice replaces, not duplicates, the handler',
-        () async {
-      service.initialize();
-      service.initialize();
+    test(
+      'calling initialize() twice replaces, not duplicates, the handler',
+      () async {
+        service.initialize();
+        service.initialize();
 
-      var callCount = 0;
-      service.onPauseFromWatch = () => callCount++;
+        var callCount = 0;
+        service.onPauseFromWatch = () => callCount++;
 
-      await simulateIncomingCall('pauseRecording');
+        await simulateIncomingCall('pauseRecording');
 
-      expect(callCount, 1);
-    });
+        expect(callCount, 1);
+      },
+    );
   });
 
   group('incoming commands from watch', () {
@@ -97,13 +99,12 @@ void main() {
       expect(called, isTrue);
     });
 
-    test('does not crash when a callback is null (not yet registered)',
-        () async {
-      expect(
-        () => simulateIncomingCall('pauseRecording'),
-        returnsNormally,
-      );
-    });
+    test(
+      'does not crash when a callback is null (not yet registered)',
+      () async {
+        expect(() => simulateIncomingCall('pauseRecording'), returnsNormally);
+      },
+    );
 
     test('unknown method throws UnimplementedError', () async {
       service.initialize();
@@ -141,8 +142,8 @@ void main() {
     test('swallows PlatformException and does not rethrow', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw PlatformException(code: 'ERROR', message: 'native failure');
-      });
+            throw PlatformException(code: 'ERROR', message: 'native failure');
+          });
 
       final stats = HikeLiveStats.empty();
 
@@ -159,20 +160,22 @@ void main() {
       expect(sentCalls.single.arguments, 'paused');
     });
 
-    test('sends the correct string for each HikeRecordingStatus value',
-        () async {
-      for (final status in HikeRecordingStatus.values) {
-        sentCalls.clear();
-        await service.sendStatus(status);
-        expect(sentCalls.single.arguments, status.name);
-      }
-    });
+    test(
+      'sends the correct string for each HikeRecordingStatus value',
+      () async {
+        for (final status in HikeRecordingStatus.values) {
+          sentCalls.clear();
+          await service.sendStatus(status);
+          expect(sentCalls.single.arguments, status.name);
+        }
+      },
+    );
 
     test('swallows PlatformException and does not rethrow', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw PlatformException(code: 'ERROR');
-      });
+            throw PlatformException(code: 'ERROR');
+          });
 
       await expectLater(
         service.sendStatus(HikeRecordingStatus.recording),
@@ -182,28 +185,21 @@ void main() {
   });
 
   group('sendOffTrailNotification', () {
-    test('invokes sendOffTrailNotification with the message string',
-        () async {
+    test('invokes sendOffTrailNotification with the message string', () async {
       await service.sendOffTrailNotification('Move left to get back on trail');
 
       expect(sentCalls, hasLength(1));
       expect(sentCalls.single.method, 'sendOffTrailNotification');
-      expect(
-        sentCalls.single.arguments,
-        'Move left to get back on trail',
-      );
+      expect(sentCalls.single.arguments, 'Move left to get back on trail');
     });
 
     test('swallows PlatformException and does not rethrow', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw PlatformException(code: 'ERROR');
-      });
+            throw PlatformException(code: 'ERROR');
+          });
 
-      await expectLater(
-        service.sendOffTrailNotification('test'),
-        completes,
-      );
+      await expectLater(service.sendOffTrailNotification('test'), completes);
     });
   });
 
@@ -219,48 +215,49 @@ void main() {
     test('swallows PlatformException and does not rethrow', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw PlatformException(code: 'ERROR');
-      });
+            throw PlatformException(code: 'ERROR');
+          });
+
+      await expectLater(service.sendNavigationPrompt(), completes);
+    });
+
+    test('swallows MissingPluginException and does not rethrow', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
 
       await expectLater(service.sendNavigationPrompt(), completes);
     });
   });
 
   group('end-to-end roundtrip', () {
-    test(
-      'a full pause -> resume -> stop sequence from the watch correctly '
-      'drives all three callbacks in order',
-      () async {
-        service.initialize();
+    test('a full pause -> resume -> stop sequence from the watch correctly '
+        'drives all three callbacks in order', () async {
+      service.initialize();
 
-        final callOrder = <String>[];
-        service.onPauseFromWatch = () => callOrder.add('pause');
-        service.onResumeFromWatch = () => callOrder.add('resume');
-        service.onStopFromWatch = () => callOrder.add('stop');
+      final callOrder = <String>[];
+      service.onPauseFromWatch = () => callOrder.add('pause');
+      service.onResumeFromWatch = () => callOrder.add('resume');
+      service.onStopFromWatch = () => callOrder.add('stop');
 
-        await simulateIncomingCall('pauseRecording');
-        await simulateIncomingCall('resumeRecording');
-        await simulateIncomingCall('stopRecording');
+      await simulateIncomingCall('pauseRecording');
+      await simulateIncomingCall('resumeRecording');
+      await simulateIncomingCall('stopRecording');
 
-        expect(callOrder, ['pause', 'resume', 'stop']);
-      },
-    );
+      expect(callOrder, ['pause', 'resume', 'stop']);
+    });
 
-    test(
-      'outgoing sendStats/sendStatus calls do not interfere with incoming '
-      'command handling on the same channel',
-      () async {
-        service.initialize();
+    test('outgoing sendStats/sendStatus calls do not interfere with incoming '
+        'command handling on the same channel', () async {
+      service.initialize();
 
-        var stopped = false;
-        service.onStopFromWatch = () => stopped = true;
+      var stopped = false;
+      service.onStopFromWatch = () => stopped = true;
 
-        await service.sendStatus(HikeRecordingStatus.recording);
-        await simulateIncomingCall('stopRecording');
+      await service.sendStatus(HikeRecordingStatus.recording);
+      await simulateIncomingCall('stopRecording');
 
-        expect(stopped, isTrue);
-        expect(sentCalls.map((c) => c.method), contains('sendStatusToWatch'));
-      },
-    );
+      expect(stopped, isTrue);
+      expect(sentCalls.map((c) => c.method), contains('sendStatusToWatch'));
+    });
   });
 }
