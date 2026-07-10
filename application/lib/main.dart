@@ -55,11 +55,15 @@ class RootApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Block the rotation for the app
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
+    try {
+      // Block the rotation for the app
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+    } catch (e) {
+      debugPrint("Error setting preferred orientations: $e");
+    }
 
     return MultiBlocProvider(
       providers: [
@@ -79,7 +83,6 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final lightColorScheme = AppTheme.lightColorScheme;
     final darkColorScheme = AppTheme.darkColorScheme;
 
@@ -125,7 +128,7 @@ class _AuthGateState extends State<AuthGate> {
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       debugPrint("user = $user");
       final loggedIn = user != null;
-      if(loggedIn == _isLoggedIn) return;
+      if (loggedIn == _isLoggedIn) return;
 
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);

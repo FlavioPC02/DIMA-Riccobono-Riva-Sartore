@@ -41,8 +41,7 @@ class DefaultMapManagementService implements MapManagementService {
       showLocationServiceDialog(context);
 
   @override
-  Future<bool> checkPermissions() =>
-    checkLocationPermissions();
+  Future<bool> checkPermissions() => checkLocationPermissions();
 
   @override
   Future<LatLng> checkStartingLocation(
