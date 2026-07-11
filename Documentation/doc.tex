@@ -183,7 +183,7 @@ The application is developed in Flutter and presents the following main features
 
         As illustrated in Figure~\ref{fig:architecture}, the application communicates with external systems through \textbf{HTTPS-based API calls}. These external services provide core functionality for the application, including trail data, elevation, weather information, and geospatial queries.
 
-        For local persistence, Trailify uses a \textbf{Hive database}, which stores both \textit{favorite trails} and temporary \textit{GPS tracking data}. This ensures that user data remains available offline and can be retrieved across sessions.
+        For local persistence, Trailify uses a \textbf{Hive database}, which stores \textit{planned activities}, \textit{completed activities} not synced with Firestore and temporary \textit{GPS tracking data}. This ensures that user data remains available offline and can be retrieved across sessions.
 
         The application is designed to support background execution through the use of \textbf{two Dart isolates}. The \textit{main isolate} handles the user interface and primary computations, while a dedicated \textit{background isolate} becomes active during tracking sessions. This isolate continuously receives GPS updates and persists them into a Hive box. Once the application returns to the foreground, the main isolate retrieves the stored points and refreshes the UI accordingly, ensuring that no tracking data is lost during background execution.
 
@@ -240,7 +240,7 @@ To guarantee a seamless offline-first experience, Trailify utilizes \textbf{Hive
 
 \begin{itemize}
     \item \textbf{GPS Tracking Data:} During active navigation, \texttt{LocationPoint} objects are serialized using a custom Hive \texttt{TypeAdapter} and stored in the \texttt{location\_box}. This allows the background tracking isolate to persist coordinates safely, which the main isolate can later reconstruct without data loss.
-    \item \textbf{Offline Maps \& Planned Trails:} The \texttt{PlannedTrailStore} uses a dedicated Hive box (\texttt{planned\_trails}) to cache the physical geometry of upcoming hikes. This ensures the app can render the trail path even when the user starts a planned hike in an area with zero cellular coverage.
+    \item \textbf{Offline Planned Trails:} The \texttt{PlannedTrailStore} uses a dedicated Hive box (\texttt{planned\_trails}) to cache the physical geometry of upcoming hikes. This ensures the app can render the trail path even when the user starts a planned hike in an area with zero cellular coverage.
     \item \textbf{Activity Synchronization:} The \texttt{ActivityRepository} uses a local store to cache activities. Newly created or completed activities are initially saved locally and marked with a \texttt{pendingSync} flag. When network connectivity is restored, the repository automatically detects pending entries, pushes them to Firestore, and subsequently clears them from the local queue to maintain storage efficiency.
 \end{itemize}
 
@@ -364,19 +364,26 @@ This section is used to show the design of the main screens of the user applicat
         \end{figure}
     \end{center}
 
+    \newpage
+
     \subsubsection{Map page}
     The \textbf{Map Page} [Figure \ref{fig:map_page}] is the main screen of the application. It displays the map and allows users to search for routes either around their current location or around a specified destination. The search functionality also includes customizable filters. In particular, the difficulty filter is linked to the user's profile settings, enabling the application to recommend routes that best match each user's skill level.\\
 
     At the bottom of the screen, the \textbf{Navigation Bar} provides quick and intuitive access to the four main sections of the application.
 
-    \begin{center}
-        \begin{figure} [H]
-            \centering
-            \includegraphics[width=0.4\linewidth]{Documentation/images/phone screens/map_screen.png}
-            \caption{Map page}
-            \label{fig:map_page}
-        \end{figure}
-    \end{center}
+    \begin{figure} [H]
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/phone screens/map_screen.png}
+            \label{fig:map_screen}
+        \end{minipage}
+        \hfill
+        \begin{minipage}[c]{0.4\linewidth}
+            \includegraphics[width=\linewidth]{Documentation/images/phone screens/found_path_screen.png}
+            \label{fig:found_path_screen}
+        \end{minipage}
+        \caption{Map page}
+        \label{fig:map_page}
+    \end{figure}
 
     \subsubsection{Trail details page}
     Once a route has been selected, the user is redirected to the \textbf{Trail Details Page} [Figure \ref{fig:trail_detail_page}], where the main characteristics of the selected trail are displayed, including its name, length, difficulty, and elevation gain. If some of this information is unavailable, the application computes the missing values. For example, when the difficulty rating is not provided by the \textit{CAI}, it is estimated based on the other available trail statistics. The page also displays the weather forecast for the following 14 days. Additional notes about the trail are provided at the bottom of the page. From this screen, the user can either plan the route or start navigation immediately.
@@ -402,10 +409,10 @@ This section is used to show the design of the main screens of the user applicat
         \end{figure}
     \end{center}
 
+    \newpage
+
     \subsubsection{Diary page - planned hikes}
     The \textbf{Diary Page} is divided into two sections. The \textbf{Planned Hikes} section [Figure \ref{fig:planned_hikes_page}] displays all scheduled hikes in descending order by date. By selecting a hike, the user can open its details page. The icons displayed next to each hike indicate whether the corresponding trail has already been downloaded for offline use or is currently available only online and is being downloaded to the device.\\
-
-    At the bottom of the screen, the \textbf{Navigation Bar} provides quick and intuitive access to the four main sections of the application.
 
     \begin{center}
         \begin{figure} [H]
@@ -416,8 +423,10 @@ This section is used to show the design of the main screens of the user applicat
         \end{figure}
     \end{center}
 
+    \newpage
+
     \subsubsection{Diary page - completed hikes}
-    The \textbf{Diary Page} is divided into two sections. The \textbf{Completed Hikes} section displays all completed hiking activities in descending order by date. By selecting a completed activity, the user can view the statistics recorded during the hike.
+    The second section of the \textbf{Diary Page} is the \textbf{Completed Hikes} section that displays all completed hiking activities in descending order by date. By selecting a completed activity, the user can view the statistics recorded during the hike.
      
     \begin{center}
         \begin{figure} [H]
@@ -427,6 +436,8 @@ This section is used to show the design of the main screens of the user applicat
             \label{fig:completed_hikes_page}
         \end{figure}
     \end{center}
+
+    \newpage
 
     \subsubsection{Diary page - Activity detail}
     The \textbf{Activity Detail Page} [Figure \ref{fig:activity_detail_page}] provides an overview of the activity statistics and, when available, displays performance data collected during the completion of the activity. The page is structured into two main sections: \textbf{Overview} and \textbf{Notes}.
@@ -439,6 +450,8 @@ This section is used to show the design of the main screens of the user applicat
             \label{fig:activity_detail_page}
         \end{figure}
     \end{center}
+
+    \newpage
 
     \subsubsection{Diary page - Notes}
     The \textbf{Notes} section [Figure \ref{fig:notes_list}] of the \textbf{Activity Detail Page} displays all notes created by the user since the activity was first generated. Notes can be either textual or images, and may optionally include captions.
@@ -459,10 +472,10 @@ This section is used to show the design of the main screens of the user applicat
         \end{minipage}
     \end{figure}
 
+    \newpage
+
     \subsubsection{Favorites page}
     The \textbf{Favorites Page} [Figure \ref{fig:favorites_page}] is the section where users can store and access their saved routes. By selecting a route, the user is redirected to the \textbf{Trail Details Page}, where they can plan or directly start navigation.
-
-    At the bottom of the page, the \textbf{Navigation Bar} provides quick access to the four main sections of the application, enabling efficient and consistent navigation throughout the interface.
 
     \begin{center}
         \begin{figure} [H]
@@ -473,10 +486,10 @@ This section is used to show the design of the main screens of the user applicat
         \end{figure}
     \end{center}
 
+    \newpage
+
     \subsubsection{Profile page}
     The \textbf{Profile Page} [Figure \ref{fig:profile_page}] represents the user’s profile section, where personal statistics are displayed, including name, email, level, completed routes, and total distance covered. It also provides access to basic settings such as route difficulty preferences, whether the user has via ferrata equipment, notification settings, and a logout button.
-
-    At the bottom of the page, the \textbf{Navigation Bar} allows the user to easily navigate across the four main sections of the application, ensuring consistent and efficient access to all core functionalities.
 
     \begin{figure} [H]
         \begin{minipage}[c]{0.4\linewidth}
@@ -492,8 +505,10 @@ This section is used to show the design of the main screens of the user applicat
         \label{fig:profile_page}
     \end{figure}
 
+    \newpage
+
     \subsubsection{Navigator page}
-    La \textbf{Navigator page} [Figura \ref{fig:navigator_page}] è la pagina che si occupa della navigazione dell'utente. Vengono registrate le statistiche più importanti, come tempo trascorso, Estimated Time of Arrival (ETA), distanza percorsa e elevation gap. E' possibile mettere in pausa la registrazione, oppure fermarla per completare l'attività, che verrà salvata in locale e, se c'è copertura di rete, sincronizzata direttamente con Firestore. E' possibile abbassare la card per vedere meglio la mappa, e l'utente riceve delle notifiche in caso vada fuori percorso, con la distanza dalla strada e la direzione da prendere per tornare sul tracciato. La navigazione funziona anche in background.
+    The \textbf{Navigator Page} [Figure \ref{fig:navigator_page}] is the page responsible for handling user navigation. It records the most important statistics, such as elapsed time, Estimated Time of Arrival (ETA), distance covered, and elevation gap. Users can pause the recording or stop it to complete the activity, which will be saved locally and, if network coverage is available, synchronized directly with Firestore. The bottom card can be lowered to provide a better view of the map, and the user receives notifications if they go off-route, indicating the distance from the trail and the direction to take to get back on track. Furthermore, navigation continues to function even in the background.
 
     \begin{center}
         \begin{figure} [H]
@@ -524,6 +539,8 @@ This section is used to show the design of the main screens of the user applicat
         \end{figure}
     \end{center}
 
+    \newpage
+
     \subsubsection{Time and ETA page}
     The \textbf{Time and ETA Page} [Figure \ref{fig:time_and_ETA_page}] is the first screen displayed when the phone begins recording the activity. It presents real-time time-related statistics for the current route, including elapsed time and estimated time of arrival (ETA).
 
@@ -537,6 +554,8 @@ This section is used to show the design of the main screens of the user applicat
             \label{fig:time_and_ETA_page}
         \end{figure}
     \end{center}
+
+    \newpage
 
     \subsubsection{Distance page}
     The \textbf{Distance Page} [Figure \ref{fig:distance_page}] displays distance-related statistics for the selected route on the smartwatch. It includes a progress ring that indicates the percentage of the route already completed.
@@ -552,6 +571,8 @@ This section is used to show the design of the main screens of the user applicat
         \end{figure}
     \end{center}
 
+    \newpage
+
     \subsubsection{Elevation gain page}
     The \textbf{Elevation Gain Page} [Figure \ref{fig:elevation_page}] displays elevation-related statistics on the smartwatch, showing the user's vertical movement throughout the selected route.
 
@@ -565,6 +586,8 @@ This section is used to show the design of the main screens of the user applicat
             \label{fig:elevation_page}
         \end{figure}
     \end{center}
+
+    \newpage
 
     \subsubsection{Pause page}
     The \textbf{Pause Page} [Figure \ref{fig:pause_page}] allows the user to pause or stop the navigation session without requiring the phone to be active or unlocked. 
@@ -597,6 +620,7 @@ The main tools and libraries used to set up this environment include:
     \item \textbf{Mocktail:} to create mock instances of external dependencies (e.g. Firebase, Geolocator).
     \item \textbf{Bloc test:} to verify the state emissions and transitions of the application's Cubits.
     \item \textbf{FakeHttpOverrides:} to intercept and mock network requests to external APIs (e.g. Overpass, OpenMeteo).
+    \item \textbf{Patrol:} to automatically granting runtime permissions.
 \end{itemize}
 
 \subsection{Unit Test}
@@ -679,10 +703,11 @@ The main aspects covered by widget tests are: \\
         \end{figure} 
 
 \subsection{Integration test}
-Integration testing focuses on how different widgets interact with each other, not on the single widget instance like unit testing. \\
-This kind of tests are performed in \textit{deploy environment} (exploiting an emulator), in this way the stability of the system and the coordination with external APIs is assessed.\\
-As our main focus is the whole system stability these tests start from the login page, and perform the most important actions of the application. \\
-The resulting tests (divided by pages) are: \\
+Integration testing focuses on verifying how different widgets and application components interact with each other, rather than testing individual widget instances as in unit testing.\\
+These tests are executed in a \textit{deployed environment} using an emulator, allowing the application to interact with external services under conditions that closely resemble a real deployment. This approach makes it possible to assess both the overall stability of the system and its coordination with external APIs.\\
+The integration test suite is implemented using \textbf{Patrol}, which extends Flutter's testing capabilities with reliable support for native platform interactions. In particular, Patrol provides a robust mechanism for automatically granting runtime permissions, which is essential for \textit{Trailify} to correctly run.\\
+Since the primary objective of these tests is to validate the stability of the complete application, each test starts from the login page and exercises the most important user workflows across the system.\\
+The resulting test suite, organized by page, consists of the following:
 \begin{itemize}
     \item \textbf{Login page:}
         \begin{itemize}
@@ -714,30 +739,5 @@ The resulting tests (divided by pages) are: \\
             \item Stop tracking takes back to map page
         \end{itemize}
 \end{itemize}
-
-\newpage
-
-\begin{comment}
-    post: id percorso, data, commento, lista foto
-    sezione con percorsi preferiti
-    pagina a parte per i preferiti
-    collegamento smartwatch
-
-    AGGIUNGERE PULSANTE START A PAGINA CON DETTAGLI PERCORSO PLANNATO
-
-    refresh pallino posizione una volta dati permessi
-
-    _centerMapOnTrail si può spostare in MapManagementService
-
-    edo: filtri + se c'è tempo test
-    ste: app smartwatch
-    flavio: preferiti + immagini
-
-    Integration test fatti:
-    login
-    logout
-    da mappa a diary, favorites, profile e indietro
-    
-\end{comment}
 
 \end{document}
